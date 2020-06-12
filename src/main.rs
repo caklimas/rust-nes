@@ -1,7 +1,10 @@
 mod bus;
 mod cpu;
+mod opcodes;
+mod address_modes;
+mod opcode_table;
 
 fn main() {
-    let b = bus::Bus::new();
-    println!("{}", b.ram.len());
+    let c = cpu::olc6502::new();
+
 }
