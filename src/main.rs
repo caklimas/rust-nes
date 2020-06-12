@@ -1,3 +1,7 @@
+mod bus;
+mod cpu;
+
 fn main() {
-    println!("Hello, world!");
+    let b = bus::Bus::new();
+    println!("{}", b.ram.len());
 }
