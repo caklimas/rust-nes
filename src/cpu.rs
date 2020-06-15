@@ -35,18 +35,20 @@ impl olc6502 {
     }
 
     pub fn clock(&mut self) {
-        if (self.cycles != 0) {
-            return;
+        if self.cycles == 0 {
+            self.opcode = self.bus.read(self.program_counter, false);
+            self.program_counter += 1;
+
+            let record = opcode_table::OPCODE_TABLE[self.opcode as usize];
+            self.cycles = record.3;
+            
+            let additional_cycle_1 = record.2(self);
+            let additional_cycle_2 = record.1(self);
+
+            self.cycles += (additional_cycle_1 & additional_cycle_2);
         }
 
-        self.opcode = self.bus.read(self.program_counter, false);
-        self.program_counter += 1;
-
-        let record = opcode_table::OPCODE_TABLE[self.opcode as usize];
-        let cycles = record.3;
-        
-        let additional_cycle_1 = record.2(self);
-        let additional_cycle_2 = record.1(self);
+        self.cycles -= 1;
     }
 
     pub fn reset(&mut self) {
@@ -58,6 +60,10 @@ impl olc6502 {
 
     pub fn non_mask_interrupt_request(&mut self) {
 
+    }
+
+    pub fn read(&mut self, address: u16, readonly: bool) -> u8 {
+        self.bus.read(address, readonly)
     }
 
     fn fetch(&mut self) -> u8 {
