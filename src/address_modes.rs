@@ -136,7 +136,7 @@ pub fn izy(cpu: &mut cpu::olc6502) -> u8 {
 
     let low = cpu.read(pointer_address & 0x00FF, false) as u16;
     let high = (cpu.read((pointer_address + 1) & 0x00FF, false) as u16) << 8;
-    cpu.addr_abs = high | low;
+    cpu.addr_abs = (high | low).wrapping_add(cpu.y_register.into());
     if cpu.addr_abs & 0xFF00 != high {
         return 1;
     }
