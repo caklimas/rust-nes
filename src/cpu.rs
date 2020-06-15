@@ -1,5 +1,6 @@
 use crate::bus;
 use crate::opcode_table;
+use crate::address_modes;
 
 pub struct olc6502 {
     pub bus: bus::Bus,
@@ -39,13 +40,13 @@ impl olc6502 {
             self.opcode = self.bus.read(self.program_counter, false);
             self.program_counter += 1;
 
-            let record = opcode_table::OPCODE_TABLE[self.opcode as usize];
-            self.cycles = record.3;
+            let record = &opcode_table::OPCODE_TABLE[self.opcode as usize];
+            self.cycles = record.4;
             
             let additional_cycle_1 = record.2(self);
             let additional_cycle_2 = record.1(self);
 
-            self.cycles += (additional_cycle_1 & additional_cycle_2);
+            self.cycles += additional_cycle_1 & additional_cycle_2;
         }
 
         self.cycles -= 1;
@@ -67,7 +68,12 @@ impl olc6502 {
     }
 
     fn fetch(&mut self) -> u8 {
-        0
+        self.fetched_data = match opcode_table::OPCODE_TABLE[self.opcode as usize].3 {
+            address_modes::AddressMode::Imp => self.fetched_data,
+            _ => self.read(self.addr_abs, false)
+        };
+        
+        self.fetched_data
     }
 }
 

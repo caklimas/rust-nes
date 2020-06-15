@@ -1,5 +1,20 @@
 use crate::cpu;
 
+pub enum AddressMode {
+    Imp = 0,
+    Imm = 1,
+    Zp0 = 2,
+    Zpx = 3,
+    Zpy = 4,
+    Rel = 5,
+    Abs = 6,
+    Abx = 7,
+    Aby = 8,
+    Ind = 9,
+    Izx = 10,
+    Izy = 11
+}
+
 /// Address mode: Implicit
 /// No extra data is needed
 /// Need to target accumulator for instructions like PHA
@@ -45,6 +60,7 @@ pub fn zpy(cpu: &mut cpu::olc6502) -> u8 {
 }
 
 /// Address mode: Relative
+/// Branching instructions can't jump any further than 127 memorylocations
 pub fn rel(cpu: &mut cpu::olc6502) -> u8 {
     cpu.addr_rel = cpu.read(cpu.program_counter, false) as u16;
     cpu.program_counter += 1;
