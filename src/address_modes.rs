@@ -60,7 +60,7 @@ pub fn zpy(cpu: &mut cpu::olc6502) -> u8 {
 }
 
 /// Address mode: Relative
-/// Branching instructions can't jump any further than 127 memorylocations
+/// Branching instructions can't jump any further than 127 memory locations
 pub fn rel(cpu: &mut cpu::olc6502) -> u8 {
     cpu.addr_rel = cpu.read(cpu.program_counter, false) as u16;
     cpu.program_counter += 1;

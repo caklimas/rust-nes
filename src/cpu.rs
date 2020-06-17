@@ -67,7 +67,7 @@ impl olc6502 {
         self.bus.read(address, readonly)
     }
 
-    fn fetch(&mut self) -> u8 {
+    pub fn fetch(&mut self) -> u8 {
         self.fetched_data = match opcode_table::OPCODE_TABLE[self.opcode as usize].3 {
             address_modes::AddressMode::Imp => self.fetched_data,
             _ => self.read(self.addr_abs, false)
@@ -75,9 +75,26 @@ impl olc6502 {
         
         self.fetched_data
     }
+
+    /// Sets or clears a specific bit of the status register
+    pub fn set_flag(&mut self, flag: Flags6502, value: bool) {
+        if value {
+            self.status_register = self.status_register | (flag as u8);
+        } else {
+            self.status_register = self.status_register & !(flag as u8);
+        }
+    }
+
+    pub fn get_flag(&mut self, flag: Flags6502) -> u8 {
+        if self.status_register & (flag as u8) > 0 { 
+            1 
+        } else { 
+            0 
+        }
+    }
 }
 
-enum Flags6502 {
+pub enum Flags6502 {
     CarryBit = (1 << 0),
     Zero = (1 << 1),
     DisableInterrupts = (1 << 2),
