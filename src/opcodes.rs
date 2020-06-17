@@ -1,4 +1,6 @@
 use crate::cpu;
+use crate::opcode_table;
+use crate::address_modes;
 
 /// Opcode: Add with Carry
 /// Overflow occurs when you add two positive numbers together and get a negative or you add two negative and get a positive
@@ -9,14 +11,14 @@ pub fn adc(olc: &mut cpu::olc6502) -> u8 {
     olc.fetch();
 
     // Add in u16 space so we can get any carry bits
-    let sum = (olc.fetched_data as u16).wrapping_add(olc.accumulator as u16).wrapping_add(olc.get_flag(cpu::Flags6502::CarryBit) as u16);
+    let result = (olc.fetched_data as u16).wrapping_add(olc.accumulator as u16).wrapping_add(olc.get_flag(cpu::Flags6502::CarryBit) as u16);
 
-    olc.set_flag(cpu::Flags6502::CarryBit, sum > 0xFF);
-    olc.set_flag(cpu::Flags6502::Zero, (sum & 0x00FF) == 0x00);
+    olc.set_flag(cpu::Flags6502::CarryBit, result > 0xFF);
+    olc.set_flag(cpu::Flags6502::Zero, (result & 0x00FF) == 0x00);
     olc.set_flag(cpu::Flags6502::Negative, (olc.accumulator & 0x80) != 0);
-    olc.set_flag(cpu::Flags6502::Overflow, is_overflow(olc, sum));
+    olc.set_flag(cpu::Flags6502::Overflow, is_overflow(olc, result));
 
-    olc.accumulator = (sum & 0x00FF) as u8;
+    olc.accumulator = (result & 0x00FF) as u8;
 
     1
 }
@@ -32,49 +34,71 @@ pub fn and(olc: &mut cpu::olc6502) -> u8 {
     1
 }
 
+/// Opcode: Arithmetic Shift Left
 pub fn asl(olc: &mut cpu::olc6502) -> u8 {
-    0
+    olc.fetch();
+
+    let shifted = (olc.fetched_data as u16) << 1;
+
+    olc.set_flag(cpu::Flags6502::CarryBit, shifted > 0xFF);
+    olc.set_flag(cpu::Flags6502::Zero, (shifted & 0x00FF) == 0x00);
+    olc.set_flag(cpu::Flags6502::Negative, (shifted & 0x80) != 0);
+
+    let result = (shifted as u8) & 0xFF;
+    match opcode_table::OPCODE_TABLE[olc.opcode as usize].3 {
+        address_modes::AddressMode::Imp => olc.accumulator = result,
+        _ => olc.bus.write(olc.addr_abs, result)
+    };
+
+    1
 }
 
+/// Opcode: Branch if Carry Clear
 pub fn bcc(olc: &mut cpu::olc6502) -> u8 {
+    branch_if_clear(olc, cpu::Flags6502::CarryBit);
     0
 }
 
 /// Opcode: Branch if Carry Set
 pub fn bcs(olc: &mut cpu::olc6502) -> u8 {
-    if olc.get_flag(cpu::Flags6502::CarryBit) != 1 {
-        olc.addr_abs = olc.program_counter.wrapping_add(olc.addr_rel);
-        olc.cycles += 1;
-
-        if (olc.addr_abs & 0xFF00) != (olc.program_counter & 0xFF00) {
-            olc.cycles += 1;
-        }
-
-        olc.program_counter = olc.addr_abs;
-
-        return 0;
-    }
-
+    branch_if_set(olc, cpu::Flags6502::CarryBit);
     0
 }
 
+/// Opcode: Branch if Equal
 pub fn beq(olc: &mut cpu::olc6502) -> u8 {
+    branch_if_set(olc, cpu::Flags6502::Zero);
     0
 }
 
+/// Opcode: Bit Test
 pub fn bit(olc: &mut cpu::olc6502) -> u8 {
+    olc.fetch();
+
+    let bit6 = (olc.fetched_data & 0x20) >> 6;
+    let bit7 = (olc.fetched_data & 0x40) >> 7;
+    olc.set_flag(cpu::Flags6502::Zero, (olc.fetched_data & olc.accumulator) == 0x00);
+    olc.set_flag(cpu::Flags6502::Overflow, bit6 == 1);
+    olc.set_flag(cpu::Flags6502::Negative, bit7 == 1);
+
     0
 }
 
+/// Opcode: Branch if Minus
 pub fn bmi(olc: &mut cpu::olc6502) -> u8 {
+    branch_if_set(olc, cpu::Flags6502::Negative);
     0
 }
 
+/// Opcode: Branch if Not Equal
 pub fn bne(olc: &mut cpu::olc6502) -> u8 {
+    branch_if_clear(olc, cpu::Flags6502::Zero);
     0
 }
 
+/// Opcode: Branch if Positive
 pub fn bpl(olc: &mut cpu::olc6502) -> u8 {
+    branch_if_clear(olc, cpu::Flags6502::Negative);
     0
 }
 
@@ -286,6 +310,30 @@ fn is_overflow(olc: &cpu::olc6502, result: u16) -> bool {
     let data_result_diff_bits = ((olc.fetched_data & 0x80) as u16) ^ (result & 0x80) == 0x80;
 
     return data_accum_same_bits && data_result_diff_bits;
+}
+
+fn branch_if_set(olc: &mut cpu::olc6502, flag: cpu::Flags6502) {
+    branch_if_flag_equal(olc, flag, 1);
+}
+
+fn branch_if_clear(olc: &mut cpu::olc6502, flag: cpu::Flags6502) {
+    branch_if_flag_equal(olc, flag, 0);
+}
+
+fn branch_if_flag_equal(olc: &mut cpu::olc6502, flag: cpu::Flags6502, value: u8) {
+    if olc.get_flag(flag) != value {
+        return;
+    }
+
+    olc.addr_abs = olc.program_counter.wrapping_add(olc.addr_rel);
+    olc.cycles += 1;
+
+    // If the addition caused paging, add another cycle
+    if (olc.addr_abs & 0xFF00) != (olc.program_counter & 0xFF00) {
+        olc.cycles += 1;
+    }
+
+    olc.program_counter = olc.addr_abs;
 }
 
 #[cfg(test)]

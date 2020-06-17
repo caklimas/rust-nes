@@ -10,7 +10,7 @@ fn main() {
 
     let x: i8 = 127;
     let y: i8 = x.wrapping_add(4);
-    println!("{}",  0b11111111 ^ 0xFF);
+    println!("{:b}",  0b10100000 & (1 << 7));
 
     test_sub();
 }
