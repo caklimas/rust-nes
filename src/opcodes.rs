@@ -47,7 +47,7 @@ pub fn asl(olc: &mut cpu::olc6502) -> u8 {
     let result = (shifted as u8) & 0xFF;
     match opcode_table::OPCODE_TABLE[olc.opcode as usize].3 {
         address_modes::AddressMode::Imp => olc.accumulator = result,
-        _ => olc.bus.write(olc.addr_abs, result)
+        _ => olc.write(olc.addr_abs, result)
     };
 
     1
@@ -75,8 +75,8 @@ pub fn beq(olc: &mut cpu::olc6502) -> u8 {
 pub fn bit(olc: &mut cpu::olc6502) -> u8 {
     olc.fetch();
 
-    let bit6 = (olc.fetched_data & 0x20) >> 6;
-    let bit7 = (olc.fetched_data & 0x40) >> 7;
+    let bit6 = (olc.fetched_data & 0x40) >> 6;
+    let bit7 = (olc.fetched_data & 0x80) >> 7;
     olc.set_flag(cpu::Flags6502::Zero, (olc.fetched_data & olc.accumulator) == 0x00);
     olc.set_flag(cpu::Flags6502::Overflow, bit6 == 1);
     olc.set_flag(cpu::Flags6502::Negative, bit7 == 1);
@@ -102,15 +102,29 @@ pub fn bpl(olc: &mut cpu::olc6502) -> u8 {
     0
 }
 
+/// Opcode: Force Interrupt
+/// Push program counter and processor status into stack
 pub fn brk(olc: &mut cpu::olc6502) -> u8 {
+    olc.program_counter += 1;
+    olc.set_flag(cpu::Flags6502::Break, true);
+
+    olc.write_to_stack(((olc.program_counter >> 8) & 0x00FF) as u8);
+    olc.write_to_stack((olc.program_counter & 0x00FF) as u8);
+    olc.write_to_stack(olc.status_register);
+
+    olc.program_counter = (olc.read(0xFFFF, false) as u16) << 8 | olc.read(0xFFFE, false) as u16;
     0
 }
 
+/// Opcode: Branch if Overflow Clear
 pub fn bvc(olc: &mut cpu::olc6502) -> u8 {
+    branch_if_clear(olc, cpu::Flags6502::Overflow);
     0
 }
 
+/// Opcode: Branch if Overflow Set
 pub fn bvs(olc: &mut cpu::olc6502) -> u8 {
+    branch_if_set(olc, cpu::Flags6502::Overflow);
     0
 }
 
@@ -120,19 +134,33 @@ pub fn clc(olc: &mut cpu::olc6502) -> u8 {
     0
 }
 
+/// Opcode: Clear Decimal Mode
 pub fn cld(olc: &mut cpu::olc6502) -> u8 {
+    olc.set_flag(cpu::Flags6502::DecimalMode, false);
     0
 }
 
+/// Opcode: Clear Interrupt Disable
 pub fn cli(olc: &mut cpu::olc6502) -> u8 {
+    olc.set_flag(cpu::Flags6502::DisableInterrupts, false);
     0
 }
 
+/// Opcode: Clear Overflow Flag
 pub fn clv(olc: &mut cpu::olc6502) -> u8 {
+    olc.set_flag(cpu::Flags6502::Overflow, false);
     0
 }
 
 pub fn cmp(olc: &mut cpu::olc6502) -> u8 {
+    olc.fetch();
+
+    let result = (olc.accumulator as u16).wrapping_sub(olc.fetched_data as u16);
+
+    olc.set_flag(cpu::Flags6502::CarryBit, olc.accumulator >= olc.fetched_data);
+    olc.set_flag(cpu::Flags6502::Zero, olc.accumulator == olc.fetched_data);
+    olc.set_flag(cpu::Flags6502::Negative, (result & 0x80) != 0);
+
     0
 }
 

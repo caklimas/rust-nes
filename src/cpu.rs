@@ -2,6 +2,8 @@ use crate::bus;
 use crate::opcode_table;
 use crate::address_modes;
 
+const STACK_BASE_LOCATION: u16 = 0x0100;
+
 pub struct olc6502 {
     pub bus: bus::Bus,
     pub accumulator: u8,
@@ -65,6 +67,15 @@ impl olc6502 {
 
     pub fn read(&mut self, address: u16, readonly: bool) -> u8 {
         self.bus.read(address, readonly)
+    }
+
+    pub fn write(&mut self, address: u16, data: u8) {
+        self.bus.write(address, data);
+    }
+
+    pub fn write_to_stack(&mut self, data: u8) {
+        self.write(STACK_BASE_LOCATION + (self.stack_pointer as u16), data);
+        self.stack_pointer -= 1;
     }
 
     pub fn fetch(&mut self) -> u8 {
