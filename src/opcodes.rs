@@ -152,6 +152,7 @@ pub fn clv(olc: &mut cpu::olc6502) -> u8 {
     0
 }
 
+/// Opcode: Compare
 pub fn cmp(olc: &mut cpu::olc6502) -> u8 {
     olc.fetch();
 
@@ -164,95 +165,271 @@ pub fn cmp(olc: &mut cpu::olc6502) -> u8 {
     0
 }
 
+/// Opcode: Compare X Register
 pub fn cpx(olc: &mut cpu::olc6502) -> u8 {
+    olc.fetch();
+
+    let result = (olc.x_register as u16).wrapping_sub(olc.fetched_data as u16);
+
+    olc.set_flag(cpu::Flags6502::CarryBit, olc.x_register >= olc.fetched_data);
+    olc.set_flag(cpu::Flags6502::Zero, olc.x_register == olc.fetched_data);
+    olc.set_flag(cpu::Flags6502::Negative, (result & 0x80) != 0);
+
     0
 }
 
+/// Opcode: Compare Y Register
 pub fn cpy(olc: &mut cpu::olc6502) -> u8 {
+    olc.fetch();
+
+    let result = (olc.y_register as u16).wrapping_sub(olc.fetched_data as u16);
+
+    olc.set_flag(cpu::Flags6502::CarryBit, olc.y_register >= olc.fetched_data);
+    olc.set_flag(cpu::Flags6502::Zero, olc.y_register == olc.fetched_data);
+    olc.set_flag(cpu::Flags6502::Negative, (result & 0x80) != 0);
+
     0
 }
 
+/// Opcode: Decrement Memory
 pub fn dec(olc: &mut cpu::olc6502) -> u8 {
+    olc.fetch();
+
+    let result = olc.fetched_data.wrapping_sub(1);
+    olc.write(olc.addr_abs, result & 0x00FF);
+
+    olc.set_flag(cpu::Flags6502::Zero, result == 0x00);
+    olc.set_flag(cpu::Flags6502::Negative, (result & 0x80) != 0);
+
     0
 }
 
+/// Opcode: Decrement X Register
 pub fn dex(olc: &mut cpu::olc6502) -> u8 {
+    olc.x_register = olc.x_register.wrapping_sub(1);
+
+    olc.set_flag(cpu::Flags6502::Zero, olc.x_register == 0x00);
+    olc.set_flag(cpu::Flags6502::Negative, (olc.x_register & 0x80) != 0);
+
     0
 }
 
+/// Opcode: Decrement Y Register
 pub fn dey(olc: &mut cpu::olc6502) -> u8 {
+    olc.y_register = olc.y_register.wrapping_sub(1);
+
+    olc.set_flag(cpu::Flags6502::Zero, olc.y_register == 0x00);
+    olc.set_flag(cpu::Flags6502::Negative, (olc.y_register & 0x80) != 0);
+
     0
 }
 
+/// Opcode: Exclusive OR
 pub fn eor(olc: &mut cpu::olc6502) -> u8 {
-    0
+    olc.fetch();
+
+    olc.accumulator = olc.accumulator ^ olc.fetched_data;
+
+    olc.set_flag(cpu::Flags6502::Zero, olc.accumulator == 0x00);
+    olc.set_flag(cpu::Flags6502::Negative, (olc.accumulator & 0x80) != 0);
+
+    1
 }
 
+/// Opcode: Increment Memory
 pub fn inc(olc: &mut cpu::olc6502) -> u8 {
+    olc.fetch();
+
+    let result = olc.fetched_data.wrapping_add(1);
+    olc.write(olc.addr_abs, result & 0x00FF);
+
+    olc.set_flag(cpu::Flags6502::Zero, result == 0x00);
+    olc.set_flag(cpu::Flags6502::Negative, (result & 0x80) != 0);
+
     0
 }
 
+/// Opcode: Increment X Register
 pub fn inx(olc: &mut cpu::olc6502) -> u8 {
+    olc.x_register = olc.x_register.wrapping_add(1);
+
+    olc.set_flag(cpu::Flags6502::Zero, olc.x_register == 0x00);
+    olc.set_flag(cpu::Flags6502::Negative, (olc.x_register & 0x80) != 0);
+
     0
 }
 
+/// Opcode: Increment Y Register
 pub fn iny(olc: &mut cpu::olc6502) -> u8 {
+    olc.y_register = olc.y_register.wrapping_add(1);
+
+    olc.set_flag(cpu::Flags6502::Zero, olc.y_register == 0x00);
+    olc.set_flag(cpu::Flags6502::Negative, (olc.y_register & 0x80) != 0);
+
     0
 }
 
+/// Opcode: Jump
 pub fn jmp(olc: &mut cpu::olc6502) -> u8 {
+    olc.program_counter = olc.addr_abs;
     0
 }
 
+/// Opcode: Jump to Subroutine
 pub fn jsr(olc: &mut cpu::olc6502) -> u8 {
+    olc.program_counter -= 1;
+
+    olc.write_to_stack(((olc.program_counter >> 8) & 0x00FF) as u8);
+    olc.write_to_stack((olc.program_counter & 0x00FF) as u8);
+
+    olc.program_counter = olc.addr_abs;
+
     0
 }
 
+/// Opcode: Load Accumulator
 pub fn lda(olc: &mut cpu::olc6502) -> u8 {
+    olc.fetch();
+
+    olc.accumulator = olc.fetched_data;
+    olc.set_flag(cpu::Flags6502::Zero, olc.accumulator == 0x00);
+    olc.set_flag(cpu::Flags6502::Negative, (olc.accumulator & 0x80) != 0);
+
     0
 }
 
+/// Opcode: Load X Register
 pub fn ldx(olc: &mut cpu::olc6502) -> u8 {
+    olc.fetch();
+
+    olc.x_register = olc.fetched_data;
+    olc.set_flag(cpu::Flags6502::Zero, olc.x_register == 0x00);
+    olc.set_flag(cpu::Flags6502::Negative, (olc.x_register & 0x80) != 0);
+
     0
 }
 
+/// Opcode: Load Y Register
 pub fn ldy(olc: &mut cpu::olc6502) -> u8 {
+    olc.fetch();
+
+    olc.y_register = olc.fetched_data;
+    olc.set_flag(cpu::Flags6502::Zero, olc.y_register == 0x00);
+    olc.set_flag(cpu::Flags6502::Negative, (olc.y_register & 0x80) != 0);
+
     0
 }
 
+/// Opcode: Logical Shift Right
 pub fn lsr(olc: &mut cpu::olc6502) -> u8 {
+    olc.fetch();
+
+    let shifted = olc.fetched_data >> 1;
+    olc.set_flag(cpu::Flags6502::Zero, shifted == 0x00);
+    olc.set_flag(cpu::Flags6502::Negative, (shifted & 0x80) != 0);
+    olc.set_flag(cpu::Flags6502::CarryBit, (shifted & 0x0001) != 0);
+
+    let result = (shifted as u8) & 0xFF;
+    match opcode_table::OPCODE_TABLE[olc.opcode as usize].3 {
+        address_modes::AddressMode::Imp => olc.accumulator = result,
+        _ => olc.write(olc.addr_abs, result)
+    };
+
     0
 }
 
+/// Opcode: No Operation
 pub fn nop(olc: &mut cpu::olc6502) -> u8 {
-    0
+    match olc.opcode {
+        0x1C => 1,
+        0x3C => 1,
+        0x5C => 1,
+        0x7C => 1,
+        0xDC => 1,
+        0xFC => 1,
+        _ => 0
+    }
 }
 
+/// Opcode: Logical Inclusive OR
 pub fn ora(olc: &mut cpu::olc6502) -> u8 {
-    0
+    olc.fetch();
+
+    olc.accumulator = olc.accumulator | olc.fetched_data;
+    olc.set_flag(cpu::Flags6502::Zero, olc.accumulator == 0x00);
+    olc.set_flag(cpu::Flags6502::Negative, (olc.accumulator & 0x80) != 0);
+
+    1
 }
 
+/// Opcode: Push Accumulator
 pub fn pha(olc: &mut cpu::olc6502) -> u8 {
+    olc.write_to_stack(olc.accumulator);
     0
 }
 
+/// Opcode: Push Processor Status
 pub fn php(olc: &mut cpu::olc6502) -> u8 {
+    olc.write_to_stack(olc.status_register);
+    olc.set_flag(cpu::Flags6502::Zero, olc.accumulator == 0x00);
+    olc.set_flag(cpu::Flags6502::Negative, (olc.accumulator & 0x80) != 0);
+
     0
 }
 
+/// Opcode: Pull Accumulator
 pub fn pla(olc: &mut cpu::olc6502) -> u8 {
+    olc.accumulator = olc.read_from_stack();
     0
 }
 
+/// Opcode: Pull Processor Status
 pub fn plp(olc: &mut cpu::olc6502) -> u8 {
+    olc.status_register = olc.read_from_stack();
+
+    olc.set_flag(cpu::Flags6502::CarryBit, olc.status_register          & 0b00000001 > 0);
+    olc.set_flag(cpu::Flags6502::Zero, olc.status_register              & 0b00000010 > 0);
+    olc.set_flag(cpu::Flags6502::DisableInterrupts, olc.status_register & 0b00000100 > 0);
+    olc.set_flag(cpu::Flags6502::DecimalMode, olc.status_register       & 0b00001000 > 0);
+    olc.set_flag(cpu::Flags6502::Overflow, olc.status_register          & 0b01000000 > 0);
+    olc.set_flag(cpu::Flags6502::Negative, olc.status_register          & 0b10000000 > 0);
+
     0
 }
 
+/// Opcode: Rotate Left
 pub fn rol(olc: &mut cpu::olc6502) -> u8 {
+    olc.fetch();
+
+    let result = (olc.fetched_data << 1) | olc.get_flag(cpu::Flags6502::CarryBit);
+
+    olc.set_flag(cpu::Flags6502::CarryBit, (result & 0b10000000) != 0);
+    olc.set_flag(cpu::Flags6502::Zero, result == 0x00);
+    olc.set_flag(cpu::Flags6502::Negative, (result & 0x80) != 0);
+
+    match opcode_table::OPCODE_TABLE[olc.opcode as usize].3 {
+        address_modes::AddressMode::Imp => olc.accumulator = result,
+        _ => olc.write(olc.addr_abs, result)
+    };
+
     0
 }
 
+/// Opcode: Rotate Right
 pub fn ror(olc: &mut cpu::olc6502) -> u8 {
+    olc.fetch();
+
+    let result = (olc.get_flag(cpu::Flags6502::CarryBit) << 7) | (olc.fetched_data >> 1);
+
+    olc.set_flag(cpu::Flags6502::CarryBit, (result & 0b00000001) != 0);
+    olc.set_flag(cpu::Flags6502::Zero, result == 0x00);
+    olc.set_flag(cpu::Flags6502::Negative, (result & 0x80) != 0);
+
+    match opcode_table::OPCODE_TABLE[olc.opcode as usize].3 {
+        address_modes::AddressMode::Imp => olc.accumulator = result,
+        _ => olc.write(olc.addr_abs, result)
+    };
+
     0
 }
 

@@ -73,6 +73,12 @@ impl olc6502 {
         self.bus.write(address, data);
     }
 
+    pub fn read_from_stack(&mut self) -> u8 {
+        self.stack_pointer += 1;
+        
+        self.read(STACK_BASE_LOCATION + (self.stack_pointer as u16), false)
+    }
+
     pub fn write_to_stack(&mut self, data: u8) {
         self.write(STACK_BASE_LOCATION + (self.stack_pointer as u16), data);
         self.stack_pointer -= 1;
