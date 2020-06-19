@@ -386,13 +386,7 @@ pub fn pla(olc: &mut cpu::olc6502) -> u8 {
 /// Opcode: Pull Processor Status
 pub fn plp(olc: &mut cpu::olc6502) -> u8 {
     olc.status_register = olc.read_from_stack();
-
-    olc.set_flag(cpu::Flags6502::CarryBit, olc.status_register          & 0b00000001 > 0);
-    olc.set_flag(cpu::Flags6502::Zero, olc.status_register              & 0b00000010 > 0);
-    olc.set_flag(cpu::Flags6502::DisableInterrupts, olc.status_register & 0b00000100 > 0);
-    olc.set_flag(cpu::Flags6502::DecimalMode, olc.status_register       & 0b00001000 > 0);
-    olc.set_flag(cpu::Flags6502::Overflow, olc.status_register          & 0b01000000 > 0);
-    olc.set_flag(cpu::Flags6502::Negative, olc.status_register          & 0b10000000 > 0);
+    set_flags_from_data(olc, olc.status_register);
 
     0
 }
@@ -433,11 +427,26 @@ pub fn ror(olc: &mut cpu::olc6502) -> u8 {
     0
 }
 
+/// Opcode: Return from Interrupt
 pub fn rti(olc: &mut cpu::olc6502) -> u8 {
+    olc.status_register = olc.read_from_stack();
+    
+    let low = olc.read_from_stack() as u16;
+    let high = olc.read_from_stack() as u16;
+    olc.program_counter = (high << 8) | low;
+
+    set_flags_from_data(olc, olc.status_register);
     0
 }
 
+/// Opcode: Return from Subroutine
 pub fn rts(olc: &mut cpu::olc6502) -> u8 {
+    let low = olc.read_from_stack() as u16;
+    let high = olc.read_from_stack() as u16;
+    olc.program_counter = (high << 8) | low;
+
+    olc.program_counter += 1;
+
     0
 }
 
@@ -458,51 +467,90 @@ pub fn sbc(olc: &mut cpu::olc6502) -> u8 {
     1
 }
 
+/// Opcode: Set Carry Flag
 pub fn sec(olc: &mut cpu::olc6502) -> u8 {
+    olc.set_flag(cpu::Flags6502::CarryBit, true);
     0
 }
 
+/// Opcode: Set Decimal Flag
 pub fn sed(olc: &mut cpu::olc6502) -> u8 {
+    olc.set_flag(cpu::Flags6502::DecimalMode, true);
     0
 }
 
+/// Opcode: Set Interrupt Disable
 pub fn sei(olc: &mut cpu::olc6502) -> u8 {
+    olc.set_flag(cpu::Flags6502::DisableInterrupts, true);
     0
 }
 
+/// Opcode: Store Accumulator
 pub fn sta(olc: &mut cpu::olc6502) -> u8 {
+    olc.write(olc.addr_abs, olc.accumulator);
     0
 }
 
+/// Opcode: Store X Register
 pub fn stx(olc: &mut cpu::olc6502) -> u8 {
+    olc.write(olc.addr_abs, olc.x_register);
     0
 }
 
+/// Opcode: Store Y Register
 pub fn sty(olc: &mut cpu::olc6502) -> u8 {
+    olc.write(olc.addr_abs, olc.y_register);
     0
 }
 
+/// Opcode: Transfer Accumulator to X
 pub fn tax(olc: &mut cpu::olc6502) -> u8 {
+    olc.x_register = olc.accumulator;
+    olc.set_flag(cpu::Flags6502::Zero, olc.x_register == 0x00);
+    olc.set_flag(cpu::Flags6502::Negative, (olc.x_register & 0x80) != 0);
+
     0
 }
 
+/// Opcode: Transfer Accumulator to Y
 pub fn tay(olc: &mut cpu::olc6502) -> u8 {
+    olc.y_register = olc.accumulator;
+    olc.set_flag(cpu::Flags6502::Zero, olc.y_register == 0x00);
+    olc.set_flag(cpu::Flags6502::Negative, (olc.y_register & 0x80) != 0);
+
     0
 }
 
+/// Opcode: Transfer Stack Pointer to X
 pub fn tsx(olc: &mut cpu::olc6502) -> u8 {
+    olc.x_register = olc.stack_pointer;
+    olc.set_flag(cpu::Flags6502::Zero, olc.x_register == 0x00);
+    olc.set_flag(cpu::Flags6502::Negative, (olc.x_register & 0x80) != 0);
+
     0
 }
 
+/// Opcode: Transfer X to Accumulator
 pub fn txa(olc: &mut cpu::olc6502) -> u8 {
+    olc.accumulator = olc.x_register;
+    olc.set_flag(cpu::Flags6502::Zero, olc.accumulator == 0x00);
+    olc.set_flag(cpu::Flags6502::Negative, (olc.accumulator & 0x80) != 0);
+
     0
 }
 
+/// Opcode: Transfer X to Stack Pointer
 pub fn txs(olc: &mut cpu::olc6502) -> u8 {
+    olc.stack_pointer = olc.x_register;
     0
 }
 
+/// Opcode: Transfer Y to Accumulator
 pub fn tya(olc: &mut cpu::olc6502) -> u8 {
+    olc.accumulator = olc.y_register;
+    olc.set_flag(cpu::Flags6502::Zero, olc.accumulator == 0x00);
+    olc.set_flag(cpu::Flags6502::Negative, (olc.accumulator & 0x80) != 0);
+
     0
 }
 
@@ -539,6 +587,15 @@ fn branch_if_flag_equal(olc: &mut cpu::olc6502, flag: cpu::Flags6502, value: u8)
     }
 
     olc.program_counter = olc.addr_abs;
+}
+
+fn set_flags_from_data(olc: &mut cpu::olc6502, data: u8) {
+    olc.set_flag(cpu::Flags6502::CarryBit, data          & 0b00000001 > 0);
+    olc.set_flag(cpu::Flags6502::Zero, data              & 0b00000010 > 0);
+    olc.set_flag(cpu::Flags6502::DisableInterrupts, data & 0b00000100 > 0);
+    olc.set_flag(cpu::Flags6502::DecimalMode, data       & 0b00001000 > 0);
+    olc.set_flag(cpu::Flags6502::Overflow, data          & 0b01000000 > 0);
+    olc.set_flag(cpu::Flags6502::Negative, data          & 0b10000000 > 0);
 }
 
 #[cfg(test)]
