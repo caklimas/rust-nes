@@ -2,6 +2,7 @@ use crate::cpu;
 use crate::opcode_table;
 use crate::address_modes;
 
+
 /// Opcode: Add with Carry
 /// Overflow occurs when you add two positive numbers together and get a negative or you add two negative and get a positive
 /// To check this you check the most significant bits of accumulator, memory and result
@@ -108,11 +109,10 @@ pub fn brk(olc: &mut cpu::olc6502) -> u8 {
     olc.program_counter += 1;
     olc.set_flag(cpu::Flags6502::Break, true);
 
-    olc.write_to_stack(((olc.program_counter >> 8) & 0x00FF) as u8);
-    olc.write_to_stack((olc.program_counter & 0x00FF) as u8);
+    olc.write_counter_to_stack();
     olc.write_to_stack(olc.status_register);
 
-    olc.program_counter = (olc.read(0xFFFF, false) as u16) << 8 | olc.read(0xFFFE, false) as u16;
+    olc.program_counter = olc.read_program_counter(cpu::INTERRUPT_PROGRAM_COUNTER_ADDRESS);
     0
 }
 
@@ -278,10 +278,7 @@ pub fn jmp(olc: &mut cpu::olc6502) -> u8 {
 /// Opcode: Jump to Subroutine
 pub fn jsr(olc: &mut cpu::olc6502) -> u8 {
     olc.program_counter -= 1;
-
-    olc.write_to_stack(((olc.program_counter >> 8) & 0x00FF) as u8);
-    olc.write_to_stack((olc.program_counter & 0x00FF) as u8);
-
+    olc.write_counter_to_stack();
     olc.program_counter = olc.addr_abs;
 
     0
@@ -430,21 +427,15 @@ pub fn ror(olc: &mut cpu::olc6502) -> u8 {
 /// Opcode: Return from Interrupt
 pub fn rti(olc: &mut cpu::olc6502) -> u8 {
     olc.status_register = olc.read_from_stack();
-    
-    let low = olc.read_from_stack() as u16;
-    let high = olc.read_from_stack() as u16;
-    olc.program_counter = (high << 8) | low;
-
+    olc.program_counter = olc.read_counter_from_stack();
     set_flags_from_data(olc, olc.status_register);
+
     0
 }
 
 /// Opcode: Return from Subroutine
 pub fn rts(olc: &mut cpu::olc6502) -> u8 {
-    let low = olc.read_from_stack() as u16;
-    let high = olc.read_from_stack() as u16;
-    olc.program_counter = (high << 8) | low;
-
+    olc.program_counter = olc.read_counter_from_stack();
     olc.program_counter += 1;
 
     0

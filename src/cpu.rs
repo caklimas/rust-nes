@@ -3,6 +3,11 @@ use crate::opcode_table;
 use crate::address_modes;
 
 const STACK_BASE_LOCATION: u16 = 0x0100;
+const STACK_END_LOCATION: u8 = 0xFD;
+const RESET_PROGRAM_COUNTER_ADDRESS: u16 = 0xFFFC;
+const NON_MASK_INTERRUPT_PROGRAM_COUNTER_ADDRESS: u16 = 0xFFFA;
+
+pub const INTERRUPT_PROGRAM_COUNTER_ADDRESS: u16 = 0xFFFE;
 
 pub struct olc6502 {
     pub bus: bus::Bus,
@@ -28,7 +33,7 @@ impl olc6502 {
             y_register: 0,
             stack_pointer: 0,
             program_counter: 0,
-            status_register: 0,
+            status_register: 0x00,
             fetched_data: 0,
             addr_abs: 0x0000,
             addr_rel: 0x0000,
@@ -55,18 +60,51 @@ impl olc6502 {
     }
 
     pub fn reset(&mut self) {
+        self.accumulator = 0;
+        self.x_register = 0;
+        self.y_register = 0;
+        self.stack_pointer = STACK_END_LOCATION;
+
+        self.program_counter = self.read_program_counter(RESET_PROGRAM_COUNTER_ADDRESS);
+        self.addr_rel = 0x0000;
+        self.addr_abs = 0x0000;
+        self.fetched_data = 0x00;
+        self.cycles = 0;
     }
 
     pub fn interrupt_request(&mut self) {
-
+        match self.get_flag(Flags6502::DisableInterrupts) {
+            1 => return,
+            _ => {
+                self.write_counter_to_stack();
+                self.set_flag(Flags6502::Break, false);
+                self.set_flag(Flags6502::Unused, true);
+                self.set_flag(Flags6502::DisableInterrupts, true);
+                self.write_to_stack(self.status_register);
+                self.program_counter = self.read_program_counter(INTERRUPT_PROGRAM_COUNTER_ADDRESS);
+                self.cycles = 7;
+            }
+        }
     }
 
     pub fn non_mask_interrupt_request(&mut self) {
-
+        self.write_counter_to_stack();
+        self.set_flag(Flags6502::Break, false);
+        self.set_flag(Flags6502::Unused, true);
+        self.set_flag(Flags6502::DisableInterrupts, true);
+        self.write_to_stack(self.status_register);
+        self.program_counter = self.read_program_counter(NON_MASK_INTERRUPT_PROGRAM_COUNTER_ADDRESS);
+        self.cycles = 8;
     }
 
     pub fn read(&mut self, address: u16, readonly: bool) -> u8 {
         self.bus.read(address, readonly)
+    }
+
+    pub fn read_program_counter(&mut self, address: u16) -> u16 {
+        let low = self.read(address, false) as u16;
+        let high = self.read(address + 1, false) as u16;
+        high << 8 | low
     }
 
     pub fn write(&mut self, address: u16, data: u8) {
@@ -79,9 +117,20 @@ impl olc6502 {
         self.read(STACK_BASE_LOCATION + (self.stack_pointer as u16), false)
     }
 
+    pub fn read_counter_from_stack(&mut self) -> u16 {
+        let low = self.read_from_stack() as u16;
+        let high = self.read_from_stack() as u16;
+        (high << 8) | low
+    }
+
     pub fn write_to_stack(&mut self, data: u8) {
         self.write(STACK_BASE_LOCATION + (self.stack_pointer as u16), data);
         self.stack_pointer -= 1;
+    }
+
+    pub fn write_counter_to_stack(&mut self) {
+        self.write_to_stack(((self.program_counter >> 8) & 0x00FF) as u8);
+        self.write_to_stack((self.program_counter & 0x00FF) as u8);
     }
 
     pub fn fetch(&mut self) -> u8 {
