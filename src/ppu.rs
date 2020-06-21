@@ -12,12 +12,26 @@ pub const PPU_ADDRESS_END: u16 = 0x3FFF;
 pub const PPU_ADDRESS_RANGE: u16 = 0x0007;
 
 pub struct Olc2C02 {
-    
+    name_table: [[u8; 1024]; 2], // A full name table is 1KB and the NES can hold 2 name tables
+    pallete_table: [u8; 32],
+    prg_memory: Vec<u8>,
+    chr_memory: Vec<u8>,
+    mapper_id: u8,
+    prg_banks: u8,
+    chr_banks: u8
 }
 
 impl Olc2C02 {
     pub fn new() -> Self {
-        Olc2C02 {}
+        Olc2C02 {
+            name_table: [[0; 1024]; 2],
+            pallete_table: [0; 32],
+            prg_memory: Vec::new(),
+            chr_memory: Vec::new(),
+            mapper_id: 0,
+            prg_banks: 0,
+            chr_banks: 0
+        }
     }
 
     /// Read from the Main Bus

@@ -8,3 +8,9 @@ pub fn read(address: u16, read_only: bool) -> u8 {
 pub fn write(address: u16, data: u8) {
     ram[(address) as usize] = data;
 }
+
+pub fn reset() {
+    for i in 0..ram.len() {
+        ram[i] = 0
+    }
+}

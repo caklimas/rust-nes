@@ -1,9 +1,13 @@
+use std::fs;
+
 pub struct Cartridge {
 
 }
 
 impl Cartridge {
-    pub fn new() -> Self {
+    pub fn new(file_name: &str) -> Self {
+        let bytes = fs::read(file_name).expect("Cannot find file");
+
         Cartridge {}
     }
 
