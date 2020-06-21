@@ -1,14 +1,13 @@
 use crate::cpu;
 use crate::ppu;
 use crate::cartridge;
-use crate::opcode_table;
-use crate::address_modes;
 
 const CPU_MAX_ADDRESS: u16 = 0x1FFF;
 
 pub struct Bus {
     pub cpu: cpu::Olc6502,
     pub ppu: ppu::Olc2C02,
+    pub cartridge: Option<cartridge::Cartridge>,
     pub system_clock_counter: u32
 }
 
@@ -17,12 +16,13 @@ impl Bus {
         Bus {
             cpu: cpu::Olc6502::new(),
             ppu: ppu::Olc2C02::new(),
+            cartridge: None,
             system_clock_counter: 0
         }
     }
 
-    pub fn load_cartridge(&mut self, cart: cartridge::Cartridge) {
-
+    pub fn load_cartridge(&mut self, cartridge: cartridge::Cartridge) {
+        self.cartridge = Some(cartridge);
     }
 
     pub fn reset(&mut self) {
