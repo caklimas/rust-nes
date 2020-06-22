@@ -1,3 +1,7 @@
+use std::rc::Rc;
+use std::cell::RefCell;
+use crate::cartridge;
+
 const CONTROL: u16 = 0x0000;
 const MASK: u16 = 0x0001;
 const STATUS: u16 = 0x0002;
@@ -12,13 +16,9 @@ pub const PPU_ADDRESS_END: u16 = 0x3FFF;
 pub const PPU_ADDRESS_RANGE: u16 = 0x0007;
 
 pub struct Olc2C02 {
-    name_table: [[u8; 1024]; 2], // A full name table is 1KB and the NES can hold 2 name tables
-    pallete_table: [u8; 32],
-    prg_memory: Vec<u8>,
-    chr_memory: Vec<u8>,
-    mapper_id: u8,
-    prg_banks: u8,
-    chr_banks: u8
+    pub name_table: [[u8; 1024]; 2], // A full name table is 1KB and the NES can hold 2 name tables
+    pub pallete_table: [u8; 32],
+    pub cartridge: Option<Rc<RefCell<cartridge::Cartridge>>>,
 }
 
 impl Olc2C02 {
@@ -26,11 +26,7 @@ impl Olc2C02 {
         Olc2C02 {
             name_table: [[0; 1024]; 2],
             pallete_table: [0; 32],
-            prg_memory: Vec::new(),
-            chr_memory: Vec::new(),
-            mapper_id: 0,
-            prg_banks: 0,
-            chr_banks: 0
+            cartridge: None
         }
     }
 
@@ -68,8 +64,12 @@ impl Olc2C02 {
 
     /// Read from the PPU Bus
     pub fn ppu_read(&mut self, address: u16, read_only: bool) -> u8 {
-        let data: u8 = 0;
+        let mut data: u8 = 0;
         let ppu_address = address & PPU_ADDRESS_END;
+
+        if self.cartridge().borrow_mut().ppu_read(ppu_address, &mut data) {
+
+        }
 
         data
     }
@@ -77,6 +77,14 @@ impl Olc2C02 {
     /// WRite to the PPU Bus
     pub fn ppu_write(&mut self, address: u16, data: u8) {
         let ppu_address = address & PPU_ADDRESS_END;
+
+        if self.cartridge().borrow_mut().ppu_write(address, data) {
+            return;
+        }
+    }
+
+    fn cartridge(&mut self) -> Rc<RefCell<cartridge::Cartridge>> {
+        self.cartridge.take().unwrap()
     }
 }
 

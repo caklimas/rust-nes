@@ -1,16 +1,16 @@
 const RAM_SIZE: usize = 2048;
-const ram: [u8; RAM_SIZE] = [0; RAM_SIZE];
+const RAM: [u8; RAM_SIZE] = [0; RAM_SIZE];
 
 pub fn read(address: u16, read_only: bool) -> u8 {
-    ram[(address) as usize]
+    RAM[(address) as usize]
 }
 
 pub fn write(address: u16, data: u8) {
-    ram[(address) as usize] = data;
+    RAM[(address) as usize] = data;
 }
 
 pub fn reset() {
-    for i in 0..ram.len() {
-        ram[i] = 0
+    for i in 0..RAM.len() {
+        RAM[i] = 0
     }
 }

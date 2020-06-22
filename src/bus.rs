@@ -1,3 +1,6 @@
+use std::rc::Rc;
+use std::cell::RefCell;
+use std::cell::RefMut;
 use crate::cpu;
 use crate::ppu;
 use crate::cartridge;
@@ -7,7 +10,7 @@ const CPU_MAX_ADDRESS: u16 = 0x1FFF;
 pub struct Bus {
     pub cpu: cpu::Olc6502,
     pub ppu: ppu::Olc2C02,
-    pub cartridge: Option<cartridge::Cartridge>,
+    pub cartridge: Option<Rc<RefCell<cartridge::Cartridge>>>,
     pub system_clock_counter: u32
 }
 
@@ -22,7 +25,9 @@ impl Bus {
     }
 
     pub fn load_cartridge(&mut self, cartridge: cartridge::Cartridge) {
-        self.cartridge = Some(cartridge);
+        let c = Rc::new(RefCell::new(cartridge));
+        self.cartridge = Some(Rc::clone(&c));
+        self.ppu.cartridge = Some(Rc::clone(&c));
     }
 
     pub fn reset(&mut self) {
@@ -30,6 +35,10 @@ impl Bus {
     }
 
     pub fn cpu_write(&mut self, address: u16, data: u8) {
+        if self.cartridge().borrow_mut().cpu_write(address, data) {
+            return;
+        }
+
         if address <= CPU_MAX_ADDRESS {
             self.cpu.write(address, data);
         } else if address >= ppu::PPU_ADDRESS_START && address <= ppu::PPU_ADDRESS_END {
@@ -39,6 +48,9 @@ impl Bus {
 
     pub fn cpu_read(&mut self, address: u16, read_only: bool) -> u8 {
         let mut data: u8 = 0x00;
+        if self.cartridge().borrow_mut().cpu_read(address, &mut data) {
+            return data;
+        }
 
         // Check the 8KB range of the CPU
         if address <= CPU_MAX_ADDRESS {
@@ -49,5 +61,9 @@ impl Bus {
         }
 
         data
+    }
+
+    fn cartridge(&mut self) -> Rc<RefCell<cartridge::Cartridge>> {
+        self.cartridge.take().unwrap()
     }
 }

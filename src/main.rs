@@ -10,7 +10,13 @@ mod cartridge;
 fn main() {
     let mut bus = bus::Bus::new();
 
-    let x: i8 = 127;
-    let y: i8 = x.wrapping_add(4);
-    println!("{:b}",  0b10100000 & (1 << 7));
+    let x = [1,2,3,4,5];
+    let mut z = 5;
+    something(&mut z);
+
+    println!("{}", z);
+}
+
+fn something(n: &mut u8) {
+    *n += 1;
 }
