@@ -6,17 +6,10 @@ mod address_modes;
 mod opcode_table;
 mod ppu;
 mod cartridge;
+mod mappers;
 
 fn main() {
     let mut bus = bus::Bus::new();
-
-    let x = [1,2,3,4,5];
-    let mut z = 5;
-    something(&mut z);
-
-    println!("{}", z);
-}
-
-fn something(n: &mut u8) {
-    *n += 1;
+    let cartridge = cartridge::Cartridge::new(r".\src\test_roms\nestest.nes");
+    bus.load_cartridge(cartridge);
 }
