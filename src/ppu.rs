@@ -10,6 +10,8 @@ const OAM_DATA: u16 = 0x0004;
 const SCROLL: u16 = 0x0005;
 const PPU_ADDRESS: u16 = 0x0006;
 const PPU_DATA: u16 = 0x0007;
+const MAX_CLOCK_CYCLE: u8 = 341;
+const MAX_SCANLINE: i8 = 261;
 
 pub const PPU_ADDRESS_START: u16 = 0x2000;
 pub const PPU_ADDRESS_END: u16 = 0x3FFF;
@@ -19,6 +21,9 @@ pub struct Olc2C02 {
     pub name_table: [[u8; 1024]; 2], // A full name table is 1KB and the NES can hold 2 name tables
     pub pallete_table: [u8; 32],
     pub cartridge: Option<Rc<RefCell<cartridge::Cartridge>>>,
+    scanline: i8,
+    cycle: u8,
+    frame_complete: bool
 }
 
 impl Olc2C02 {
@@ -26,7 +31,23 @@ impl Olc2C02 {
         Olc2C02 {
             name_table: [[0; 1024]; 2],
             pallete_table: [0; 32],
-            cartridge: None
+            cartridge: None,
+            scanline: 0,
+            cycle: 0,
+            frame_complete: false
+        }
+    }
+
+    pub fn clock(&mut self) {
+        self.cycle += 1;
+
+        if self.cycle >= MAX_CLOCK_CYCLE {
+            self.cycle = 0;
+            self.scanline += 1;
+            if self.scanline >= MAX_SCANLINE {
+                self.scanline = -1;
+                self.frame_complete = true;
+            }
         }
     }
 

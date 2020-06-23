@@ -30,8 +30,29 @@ impl Bus {
         self.ppu.cartridge = Some(Rc::clone(&c));
     }
 
+    pub fn clock(&mut self) {
+        // Clocking. The heart and soul of an emulator. The running
+        // frequency is controlled by whatever calls this function.
+        // So here we "divide" the clock as necessary and call
+        // the peripheral devices clock() function at the correct
+        // times
+
+        // The fastest clock frequency the digital system cares
+        // about is equivalent to the PPU clock. So the PPU is clocked
+        // each time this function is called
+        self.ppu.clock();
+
+        // The CPU runs 3 times slower than the PPU
+        if self.system_clock_counter % 3 == 0 {
+            self.cpu.clock();
+        }
+
+        self.system_clock_counter += 1;
+    }
+
     pub fn reset(&mut self) {
         self.cpu.reset();
+        self.system_clock_counter = 0;
     }
 
     pub fn cpu_write(&mut self, address: u16, data: u8) {
