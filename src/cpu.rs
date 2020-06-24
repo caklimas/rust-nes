@@ -1,10 +1,12 @@
+use std::rc::Rc;
+use std::cell::RefCell;
+
 use crate::bus;
 use crate::memory;
 use crate::opcode_table;
 use crate::address_modes;
 
 const NON_MASK_INTERRUPT_PROGRAM_COUNTER_ADDRESS: u16 = 0xFFFA;
-const MIRROR: u16 = 0x07FF;
 const RESET_PROGRAM_COUNTER_ADDRESS: u16 = 0xFFFC;
 const STACK_BASE_LOCATION: u16 = 0x0100;
 const STACK_END_LOCATION: u8 = 0xFD;
@@ -22,23 +24,25 @@ pub struct Olc6502 {
     pub addr_abs: u16,
     pub addr_rel: u16,
     pub opcode: u8,
-    pub cycles: u8
+    pub cycles: u8,
+    pub memory: Rc<RefCell<memory::Memory>>
 }
 
 impl Olc6502 {
-    pub fn new() -> Self {
+    pub fn new(memory: Rc<RefCell<memory::Memory>>) -> Self {
         Olc6502 {
             accumulator: 0,
             x_register: 0,
             y_register: 0,
-            stack_pointer: 0,
+            stack_pointer: STACK_END_LOCATION,
             program_counter: 0,
             status_register: 0x00,
             fetched_data: 0,
             addr_abs: 0x0000,
             addr_rel: 0x0000,
             opcode: 0x00,
-            cycles: 0
+            cycles: 0,
+            memory
         }
     }
 
@@ -48,6 +52,7 @@ impl Olc6502 {
             self.program_counter += 1;
 
             let record = &opcode_table::OPCODE_TABLE[self.opcode as usize];
+            println!("Executing {}", record.0);
             self.cycles = record.4;
             
             let additional_cycle_1 = record.2(self);
@@ -75,6 +80,7 @@ impl Olc6502 {
         self.stack_pointer = STACK_END_LOCATION;
 
         self.program_counter = self.read_program_counter(RESET_PROGRAM_COUNTER_ADDRESS);
+        println!("Program will start reading at {}", self.program_counter);
         self.addr_rel = 0x0000;
         self.addr_abs = 0x0000;
         self.fetched_data = 0x00;
@@ -82,7 +88,7 @@ impl Olc6502 {
     }
 
     pub fn read(&mut self, address: u16, read_only: bool) -> u8 {
-        memory::read(address & MIRROR, read_only)
+        self.memory.borrow_mut().read(address, read_only)
     }
 
     pub fn read_from_stack(&mut self) -> u8 {
@@ -103,7 +109,7 @@ impl Olc6502 {
     }
 
     pub fn write(&mut self, address: u16, data: u8) {
-        memory::write(address & MIRROR, data);
+        self.memory.borrow_mut().write(address, data);
     }
     
     pub fn write_to_stack(&mut self, data: u8) {
