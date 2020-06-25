@@ -12,10 +12,11 @@ pub fn adc(olc: &mut cpu::Olc6502) -> u8 {
     olc.fetch();
 
     // Add in u16 space so we can get any carry bits
-    let result = (olc.fetched_data as u16).wrapping_add(olc.accumulator as u16).wrapping_add(olc.get_flag(cpu::Flags6502::CarryBit) as u16);
-    let overflow = olc.is_overflow(result);
+    let (result1, overflow1) = olc.fetched_data.overflowing_add(olc.accumulator);
+    let (result, overflow2) = result1.overflowing_add(olc.get_flag(cpu::Flags6502::CarryBit));
+    let overflow = (olc.accumulator ^ olc.fetched_data) & 0x80 == 0 && (olc.accumulator ^ result) & 0x80 != 0;
 
-    olc.set_flag(cpu::Flags6502::CarryBit, result > 0xFF);
+    olc.set_flag(cpu::Flags6502::CarryBit, overflow1 | overflow2);
     olc.set_flag(cpu::Flags6502::Zero, (result & 0x00FF) == 0x00);
     olc.set_flag(cpu::Flags6502::Negative, (result & 0x80) != 0);
     olc.set_flag(cpu::Flags6502::Overflow, overflow);
@@ -24,6 +25,9 @@ pub fn adc(olc: &mut cpu::Olc6502) -> u8 {
 
     1
 }
+
+// 00100111
+// 00100110
 
 /// Opcode: Logical AND
 pub fn and(olc: &mut cpu::Olc6502) -> u8 {
@@ -448,12 +452,13 @@ pub fn sbc(olc: &mut cpu::Olc6502) -> u8 {
     olc.fetch();
 
     // Add in u16 space so we can get any carry bits
-    let result = (olc.fetched_data as u16).wrapping_sub(olc.accumulator as u16).wrapping_sub((1 - olc.get_flag(cpu::Flags6502::CarryBit)) as u16);
-    let overflow = olc.is_overflow(result);
-    
-    olc.set_flag(cpu::Flags6502::CarryBit, result > 0xFF);
+    let (result1, overflow1) = olc.accumulator.overflowing_sub(olc.fetched_data);
+    let (result, overflow2) = result1.overflowing_sub(1 - olc.get_flag(cpu::Flags6502::CarryBit));
+    let overflow = (olc.accumulator ^ olc.fetched_data) & 0x80 != 0 && (olc.accumulator ^ result) & 0x80 != 0;
+
+    olc.set_flag(cpu::Flags6502::CarryBit, !(overflow1 | overflow2));
     olc.set_flag(cpu::Flags6502::Zero, (result & 0x00FF) == 0x00);
-    olc.set_flag(cpu::Flags6502::Negative, (result & 0x80) != 0);
+    olc.set_flag(cpu::Flags6502::Negative, result > 0x7F);
     olc.set_flag(cpu::Flags6502::Overflow, overflow);
 
     olc.accumulator = (result & 0x00FF) as u8;

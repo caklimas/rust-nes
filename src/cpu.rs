@@ -55,19 +55,37 @@ impl Olc6502 {
         if self.cycles == 0 {
             self.opcode = self.read(self.program_counter, false);
             let record = &opcode_table::OPCODE_TABLE[self.opcode as usize];
-            let file = OpenOptions::new().write(true).truncate(false).append(true).open(r"H:\Repos\rust-nes\src\result.txt").expect("Not found");
-            let mut writer = BufWriter::new(&file);
-            match writeln!(&mut writer, "{:#06x} {} A: {:#04x} X: {:#04x} Y: {:#04x} P: {:#04x} SP: {:#04x} PPU: {} CYC: {}", self.program_counter, record.0, self.accumulator, self.x_register, self.y_register, self.status_register, self.stack_pointer, counter % 341, counter + 7) {
-                Err(e) => println!("{:?}", e),
-                _ => ()
-            }
-            // println!("{:#06x} {} A: {:#04x} X: {:#04x} Y: {:#04x} P: {:#04x} SP: {:#04x} PPU: {} CYC: {}", self.program_counter, record.0, self.accumulator, self.x_register, self.y_register, self.status_register, self.stack_pointer, counter, counter + 7);
+            let (program_counter, opcode, accumulator, x_register, y_register, status_register, stack_pointer) = (
+                self.program_counter, 
+                self.opcode, 
+                self.accumulator, 
+                self.x_register, 
+                self.y_register, 
+                self.status_register, 
+                self.stack_pointer
+            );
+
             self.program_counter += 1;
 
             self.cycles = record.4;
             
             let additional_cycle_1 = record.2(self);
             let additional_cycle_2 = record.1(self);
+
+            self.write_to_file(
+                program_counter, 
+                opcode,
+                &record.3,
+                self.addr_abs,
+                self.addr_rel, 
+                record.0, 
+                accumulator, 
+                x_register, 
+                y_register, 
+                status_register, 
+                stack_pointer, 
+                counter
+            );
 
             self.cycles += additional_cycle_1 & additional_cycle_2;
         }
@@ -174,11 +192,44 @@ impl Olc6502 {
         }
     }
 
-    pub fn is_overflow(&mut self, result: u16) -> bool {
-        let data_accum_same_bits =  ((self.fetched_data & 0x80) as u16) ^ ((self.accumulator & 0x80) as u16) != 0x80;
-        let data_result_diff_bits = ((self.fetched_data & 0x80) as u16) ^ (result & 0x80) == 0x80;
-    
-        return data_accum_same_bits && data_result_diff_bits;
+    fn write_to_file(&mut self,
+        program_counter: u16, 
+        opcode: u8, 
+        address_mode: &address_modes::AddressMode,
+        addr_abs: u16,
+        addr_rel: u16,
+        op_name: &str, 
+        accumulator: u8,
+        x_register: u8,
+        y_register: u8,
+        status_register: u8,
+        stack_pointer: u8,
+        counter: u32) {
+        let file = OpenOptions::new().write(true).truncate(false).append(true).open(r"H:\Repos\rust-nes\src\result.txt").expect("Not found");
+            let mut writer = BufWriter::new(&file);
+            let address = match address_mode {
+                address_modes::AddressMode::Rel => addr_rel,
+                _ => addr_abs
+            };
+
+            match writeln!(
+                &mut writer,
+                "{:#06x} {:?} {:#04x} {:#06x} {} A: {:#04x} X: {:#04x} Y: {:#04x} P: {:#04x} SP: {:#04x} PPU: {} CYC: {}", 
+                program_counter,
+                &address_mode,
+                opcode, 
+                address, 
+                op_name, 
+                accumulator, 
+                x_register, 
+                y_register, 
+                status_register, 
+                stack_pointer, counter % 341, counter + 7
+            ) {
+                Err(e) => println!("{:?}", e),
+                _ => ()
+            }
+            // println!("{:#06x} {} A: {:#04x} X: {:#04x} Y: {:#04x} P: {:#04x} SP: {:#04x} PPU: {} CYC: {}", self.program_counter, record.0, self.accumulator, self.x_register, self.y_register, self.status_register, self.stack_pointer, counter, counter + 7);
     }
 }
 

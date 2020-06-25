@@ -1,5 +1,6 @@
 use crate::cpu;
 
+#[derive(Debug)]
 pub enum AddressMode {
     Imp = 0,
     Imm = 1,
