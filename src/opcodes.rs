@@ -17,7 +17,7 @@ pub fn adc(olc: &mut cpu::Olc6502) -> u8 {
 
     olc.set_flag(cpu::Flags6502::CarryBit, result > 0xFF);
     olc.set_flag(cpu::Flags6502::Zero, (result & 0x00FF) == 0x00);
-    olc.set_flag(cpu::Flags6502::Negative, (olc.accumulator & 0x80) != 0);
+    olc.set_flag(cpu::Flags6502::Negative, (result & 0x80) != 0);
     olc.set_flag(cpu::Flags6502::Overflow, overflow);
 
     olc.accumulator = (result & 0x00FF) as u8;
@@ -109,11 +109,12 @@ pub fn bpl(olc: &mut cpu::Olc6502) -> u8 {
 pub fn brk(olc: &mut cpu::Olc6502) -> u8 {
     olc.program_counter += 1;
     olc.set_flag(cpu::Flags6502::Break, true);
+    olc.set_flag(cpu::Flags6502::DisableInterrupts, true);
 
     olc.write_counter_to_stack();
     olc.write_to_stack(olc.status_register);
-
     olc.program_counter = olc.read_program_counter(cpu::INTERRUPT_PROGRAM_COUNTER_ADDRESS);
+
     0
 }
 
@@ -378,13 +379,14 @@ pub fn php(olc: &mut cpu::Olc6502) -> u8 {
 /// Opcode: Pull Accumulator
 pub fn pla(olc: &mut cpu::Olc6502) -> u8 {
     olc.accumulator = olc.read_from_stack();
+    olc.set_flag(cpu::Flags6502::Zero, olc.accumulator == 0x00);
+    olc.set_flag(cpu::Flags6502::Negative, (olc.accumulator & 0x80) != 0);
     0
 }
 
 /// Opcode: Pull Processor Status
 pub fn plp(olc: &mut cpu::Olc6502) -> u8 {
-    olc.status_register = olc.read_from_stack();
-    set_flags_from_data(olc, olc.status_register);
+    olc.status_register = (olc.read_from_stack() | 0x30) - 0x10;
 
     0
 }
@@ -451,7 +453,7 @@ pub fn sbc(olc: &mut cpu::Olc6502) -> u8 {
     
     olc.set_flag(cpu::Flags6502::CarryBit, result > 0xFF);
     olc.set_flag(cpu::Flags6502::Zero, (result & 0x00FF) == 0x00);
-    olc.set_flag(cpu::Flags6502::Negative, (olc.accumulator & 0x80) != 0);
+    olc.set_flag(cpu::Flags6502::Negative, (result & 0x80) != 0);
     olc.set_flag(cpu::Flags6502::Overflow, overflow);
 
     olc.accumulator = (result & 0x00FF) as u8;

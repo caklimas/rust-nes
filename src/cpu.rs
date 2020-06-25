@@ -41,7 +41,7 @@ impl Olc6502 {
             y_register: 0,
             stack_pointer: STACK_END_LOCATION,
             program_counter: 0xc000,
-            status_register: 0x00,
+            status_register: 0x24,
             fetched_data: 0,
             addr_abs: 0x0000,
             addr_rel: 0x0000,
