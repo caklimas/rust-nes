@@ -1,5 +1,10 @@
 use std::rc::Rc;
 use std::cell::RefCell;
+use std::{
+    fs::File,
+    io::{BufWriter, Write},
+};
+use std::fs::OpenOptions;
 
 use crate::bus;
 use crate::memory;
@@ -35,7 +40,7 @@ impl Olc6502 {
             x_register: 0,
             y_register: 0,
             stack_pointer: STACK_END_LOCATION,
-            program_counter: 0,
+            program_counter: 0xc000,
             status_register: 0x00,
             fetched_data: 0,
             addr_abs: 0x0000,
@@ -46,13 +51,19 @@ impl Olc6502 {
         }
     }
 
-    pub fn clock(&mut self) {
+    pub fn clock(&mut self, counter: u32) {
         if self.cycles == 0 {
             self.opcode = self.read(self.program_counter, false);
+            let record = &opcode_table::OPCODE_TABLE[self.opcode as usize];
+            let file = OpenOptions::new().write(true).truncate(false).append(true).open(r"H:\Repos\rust-nes\src\result.txt").expect("Not found");
+            let mut writer = BufWriter::new(&file);
+            match writeln!(&mut writer, "{:#06x} {} A: {:#04x} X: {:#04x} Y: {:#04x} P: {:#04x} SP: {:#04x} PPU: {} CYC: {}", self.program_counter, record.0, self.accumulator, self.x_register, self.y_register, self.status_register, self.stack_pointer, counter % 341, counter + 7) {
+                Err(e) => println!("{:?}", e),
+                _ => ()
+            }
+            // println!("{:#06x} {} A: {:#04x} X: {:#04x} Y: {:#04x} P: {:#04x} SP: {:#04x} PPU: {} CYC: {}", self.program_counter, record.0, self.accumulator, self.x_register, self.y_register, self.status_register, self.stack_pointer, counter, counter + 7);
             self.program_counter += 1;
 
-            let record = &opcode_table::OPCODE_TABLE[self.opcode as usize];
-            println!("Executing {}", record.0);
             self.cycles = record.4;
             
             let additional_cycle_1 = record.2(self);
@@ -79,8 +90,7 @@ impl Olc6502 {
         self.y_register = 0;
         self.stack_pointer = STACK_END_LOCATION;
 
-        self.program_counter = self.read_program_counter(RESET_PROGRAM_COUNTER_ADDRESS);
-        println!("Program will start reading at {}", self.program_counter);
+        self.read_program_counter(RESET_PROGRAM_COUNTER_ADDRESS);
         self.addr_rel = 0x0000;
         self.addr_abs = 0x0000;
         self.fetched_data = 0x00;
@@ -92,7 +102,7 @@ impl Olc6502 {
     }
 
     pub fn read_from_stack(&mut self) -> u8 {
-        self.stack_pointer += 1;
+        self.stack_pointer = self.stack_pointer.wrapping_add(1);
         self.read(STACK_BASE_LOCATION + (self.stack_pointer as u16), false)
     }
 
@@ -114,7 +124,7 @@ impl Olc6502 {
     
     pub fn write_to_stack(&mut self, data: u8) {
         self.write(STACK_BASE_LOCATION + (self.stack_pointer as u16), data);
-        self.stack_pointer -= 1;
+        self.stack_pointer = self.stack_pointer.wrapping_sub(1);
     }
     
     pub fn write_counter_to_stack(&mut self) {

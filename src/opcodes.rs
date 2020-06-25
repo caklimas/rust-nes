@@ -368,7 +368,7 @@ pub fn pha(olc: &mut cpu::Olc6502) -> u8 {
 
 /// Opcode: Push Processor Status
 pub fn php(olc: &mut cpu::Olc6502) -> u8 {
-    olc.write_to_stack(olc.status_register);
+    olc.write_to_stack(olc.status_register | (cpu::Flags6502::Break as u8) | (cpu::Flags6502::Unused as u8));
     olc.set_flag(cpu::Flags6502::Zero, olc.accumulator == 0x00);
     olc.set_flag(cpu::Flags6502::Negative, (olc.accumulator & 0x80) != 0);
 
@@ -437,7 +437,7 @@ pub fn rti(olc: &mut cpu::Olc6502) -> u8 {
 /// Opcode: Return from Subroutine
 pub fn rts(olc: &mut cpu::Olc6502) -> u8 {
     olc.program_counter = olc.read_counter_from_stack();
-    olc.program_counter += 1;
+    olc.program_counter = olc.program_counter.wrapping_add(1);
 
     0
 }

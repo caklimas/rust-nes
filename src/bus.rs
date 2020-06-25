@@ -35,7 +35,6 @@ impl Bus {
         self.cartridge = Some(Rc::clone(&c));
         self.ppu.borrow_mut().cartridge = Some(Rc::clone(&c));
         self.memory.borrow_mut().load_cartridge(c);
-        self.cpu.reset();
     }
 
     pub fn clock(&mut self) {
@@ -52,7 +51,7 @@ impl Bus {
 
         // The CPU runs 3 times slower than the PPU
         if self.system_clock_counter % 3 == 0 {
-            self.cpu.clock();
+            self.cpu.clock(self.system_clock_counter);
         }
 
         self.system_clock_counter += 1;

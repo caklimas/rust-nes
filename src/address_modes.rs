@@ -28,7 +28,7 @@ pub fn imp(olc: &mut cpu::Olc6502) -> u8 {
 /// Increment the program counter to access that
 pub fn imm(olc: &mut cpu::Olc6502) -> u8 {
     olc.addr_abs = olc.program_counter;
-    olc.program_counter += 1;
+    olc.program_counter = olc.program_counter.wrapping_add(1);
     0
 }
 
@@ -36,7 +36,7 @@ pub fn imm(olc: &mut cpu::Olc6502) -> u8 {
 /// Allows you to absolutely access the first 256 bytes of a location
 pub fn zp0(olc: &mut cpu::Olc6502) -> u8 {
     let address = olc.read(olc.program_counter, false);
-    olc.program_counter += 1;
+    olc.program_counter = olc.program_counter.wrapping_add(1);
     olc.addr_abs = (address & 0x00FF) as u16;
     0
 }
@@ -45,7 +45,7 @@ pub fn zp0(olc: &mut cpu::Olc6502) -> u8 {
 /// Same as zero page but with the X address added
 pub fn zpx(olc: &mut cpu::Olc6502) -> u8 {
     let address = olc.read(olc.program_counter, false).wrapping_add(olc.x_register);
-    olc.program_counter += 1;
+    olc.program_counter = olc.program_counter.wrapping_add(1);
     olc.addr_abs = (address & 0x00FF) as u16;
     0
 }
@@ -54,7 +54,7 @@ pub fn zpx(olc: &mut cpu::Olc6502) -> u8 {
 /// Same as zero page but with Y addressadded
 pub fn zpy(olc: &mut cpu::Olc6502) -> u8 {
     let address = olc.read(olc.program_counter, false).wrapping_add(olc.y_register);
-    olc.program_counter += 1;
+    olc.program_counter = olc.program_counter.wrapping_add(1);
     olc.addr_abs = (address & 0x00FF) as u16;
     0
 }
@@ -63,7 +63,7 @@ pub fn zpy(olc: &mut cpu::Olc6502) -> u8 {
 /// Branching instructions can't jump any further than 127 memory locations
 pub fn rel(olc: &mut cpu::Olc6502) -> u8 {
     olc.addr_rel = olc.read(olc.program_counter, false) as u16;
-    olc.program_counter += 1;
+    olc.program_counter = olc.program_counter.wrapping_add(1);
     if olc.addr_rel & 0x80 != 0 {
         olc.addr_rel = olc.addr_rel | 0xFF00;
     }
@@ -130,7 +130,7 @@ pub fn ind(olc: &mut cpu::Olc6502) -> u8 {
 /// The actual address is then read from this location
 pub fn izx(olc: &mut cpu::Olc6502) -> u8 {
     let address = olc.read(olc.program_counter, false);
-    olc.program_counter += 1;
+    olc.program_counter = olc.program_counter.wrapping_add(1);
 
     let low_address = (address.wrapping_add(olc.x_register)) & 0x00FF;
     let high_address = (address.wrapping_add(olc.x_register + 1)) & 0x00FF;
@@ -148,7 +148,7 @@ pub fn izx(olc: &mut cpu::Olc6502) -> u8 {
 /// If a page boundary occurs, an additional clock cycle is required
 pub fn izy(olc: &mut cpu::Olc6502) -> u8 {
     let pointer_address = olc.read(olc.program_counter, false) as u16;
-    olc.program_counter += 1;
+    olc.program_counter = olc.program_counter.wrapping_add(1);
 
     let low = olc.read(pointer_address & 0x00FF, false) as u16;
     let high = (olc.read((pointer_address + 1) & 0x00FF, false) as u16) << 8;
@@ -162,9 +162,9 @@ pub fn izy(olc: &mut cpu::Olc6502) -> u8 {
 
 fn get_absolute_address(olc: &mut cpu::Olc6502) -> u16 {
     let low = olc.read(olc.program_counter, false) as u16;
-    olc.program_counter += 1;
+    olc.program_counter = olc.program_counter.wrapping_add(1);
     let high = olc.read(olc.program_counter, false) as u16;
-    olc.program_counter += 1;
+    olc.program_counter = olc.program_counter.wrapping_add(1);
 
     let address = (high << 8) | low;
     return address;

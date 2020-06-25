@@ -15,8 +15,11 @@ fn main() {
     bus.load_cartridge(cartridge);
 
     let mut x = 0;
-    while x < 10 {
+    while x < 26555 {
         bus.clock();
-        x += 1000;
+        x += 1;
     }
+
+    let m = bus.memory.borrow_mut().read(0x02, false);
+    println!("{}", m);
 }

@@ -25,8 +25,6 @@ impl Memory {
 
     pub fn load_cartridge(&mut self, cartridge: Rc<RefCell<cartridge::Cartridge>>) {
         self.cartridge = Some(Rc::clone(&cartridge));
-        let b = self.cartridge.is_none();
-        println!("{}", b);
     }
 
     pub fn read(&mut self, address: u16, read_only: bool) -> u8 {
