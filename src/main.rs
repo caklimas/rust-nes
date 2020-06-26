@@ -15,7 +15,7 @@ fn main() {
     bus.load_cartridge(cartridge);
 
     let mut x = 0;
-    while x < 26555 {
+    while x < 100000 {
         bus.clock();
         x += 1;
     }

@@ -26,9 +26,6 @@ pub fn adc(olc: &mut cpu::Olc6502) -> u8 {
     1
 }
 
-// 00100111
-// 00100110
-
 /// Opcode: Logical AND
 pub fn and(olc: &mut cpu::Olc6502) -> u8 {
     olc.fetch();
@@ -330,8 +327,8 @@ pub fn lsr(olc: &mut cpu::Olc6502) -> u8 {
     let shifted = olc.fetched_data >> 1;
     olc.set_flag(cpu::Flags6502::Zero, shifted == 0x00);
     olc.set_flag(cpu::Flags6502::Negative, (shifted & 0x80) != 0);
-    olc.set_flag(cpu::Flags6502::CarryBit, (shifted & 0x0001) != 0);
-
+    olc.set_flag(cpu::Flags6502::CarryBit, (olc.fetched_data & 0x0001) != 0);
+    
     let result = (shifted as u8) & 0xFF;
     match opcode_table::OPCODE_TABLE[olc.opcode as usize].3 {
         address_modes::AddressMode::Imp => olc.accumulator = result,
@@ -401,7 +398,7 @@ pub fn rol(olc: &mut cpu::Olc6502) -> u8 {
 
     let result = (olc.fetched_data << 1) | olc.get_flag(cpu::Flags6502::CarryBit);
 
-    olc.set_flag(cpu::Flags6502::CarryBit, (result & 0b10000000) != 0);
+    olc.set_flag(cpu::Flags6502::CarryBit, (olc.fetched_data & 0b10000000) != 0);
     olc.set_flag(cpu::Flags6502::Zero, result == 0x00);
     olc.set_flag(cpu::Flags6502::Negative, (result & 0x80) != 0);
 
@@ -419,7 +416,7 @@ pub fn ror(olc: &mut cpu::Olc6502) -> u8 {
 
     let result = (olc.get_flag(cpu::Flags6502::CarryBit) << 7) | (olc.fetched_data >> 1);
 
-    olc.set_flag(cpu::Flags6502::CarryBit, (result & 0b00000001) != 0);
+    olc.set_flag(cpu::Flags6502::CarryBit, (olc.fetched_data & 0b00000001) != 0);
     olc.set_flag(cpu::Flags6502::Zero, result == 0x00);
     olc.set_flag(cpu::Flags6502::Negative, (result & 0x80) != 0);
 
@@ -433,9 +430,8 @@ pub fn ror(olc: &mut cpu::Olc6502) -> u8 {
 
 /// Opcode: Return from Interrupt
 pub fn rti(olc: &mut cpu::Olc6502) -> u8 {
-    olc.status_register = olc.read_from_stack();
+    olc.status_register = (olc.read_from_stack() | 0x30) - 0x10;
     olc.program_counter = olc.read_counter_from_stack();
-    set_flags_from_data(olc, olc.status_register);
 
     0
 }
@@ -580,13 +576,4 @@ fn branch_if_flag_equal(olc: &mut cpu::Olc6502, flag: cpu::Flags6502, value: u8)
     }
 
     olc.program_counter = olc.addr_abs;
-}
-
-fn set_flags_from_data(olc: &mut cpu::Olc6502, data: u8) {
-    olc.set_flag(cpu::Flags6502::CarryBit, data          & 0b00000001 > 0);
-    olc.set_flag(cpu::Flags6502::Zero, data              & 0b00000010 > 0);
-    olc.set_flag(cpu::Flags6502::DisableInterrupts, data & 0b00000100 > 0);
-    olc.set_flag(cpu::Flags6502::DecimalMode, data       & 0b00001000 > 0);
-    olc.set_flag(cpu::Flags6502::Overflow, data          & 0b01000000 > 0);
-    olc.set_flag(cpu::Flags6502::Negative, data          & 0b10000000 > 0);
 }

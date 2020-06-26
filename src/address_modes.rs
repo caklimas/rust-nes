@@ -113,9 +113,9 @@ pub fn aby(olc: &mut cpu::Olc6502) -> u8 {
 pub fn ind(olc: &mut cpu::Olc6502) -> u8 {
     let pointer_address = get_absolute_address(olc);
 
-    if (pointer_address | 0x00FF) == 0x00FF {
+    if (pointer_address & 0x00FF) == 0x00FF {
         olc.addr_abs = 
-            (olc.read(pointer_address, false) as u16 & 0xFF00) << 8 |
+            (olc.read(pointer_address & 0xFF00, false) as u16) << 8 |
             olc.read(pointer_address, false) as u16;
     } else {
         olc.addr_abs =
