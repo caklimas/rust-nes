@@ -1,5 +1,6 @@
+#[derive(Default)]
 pub struct PatternTable {
-
+    pub tiles: [[Tile; 16]; 16]
 }
 
 #[derive(Default)]

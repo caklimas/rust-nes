@@ -1,9 +1,7 @@
-use std::marker::Sized;
+use crate::memory_sizes;
 
 const CPU_MIN_ADDRESS: u16 = 0x8000;
 const PPU_MAX_ADDRESS: u16 = 0x1FFF;
-const KILOBYTES_32: u16 = 0x7FFF;
-const KILOBYTES_16: u16 = 0x3FFF;
 
 pub trait Mapper {
     fn get_prg_banks(&mut self) -> u8;
@@ -34,7 +32,7 @@ impl Mapper for Mapper000 {
         }
         
         let prg_banks = self.get_prg_banks();
-        let masked_address = if prg_banks > 1 { KILOBYTES_32 } else { KILOBYTES_16 };
+        let masked_address = if prg_banks > 1 { memory_sizes::KILOBYTES_32 } else { memory_sizes::KILOBYTES_16 };
         *mapped_address = (address & masked_address) as u32;
 
         true
@@ -46,7 +44,7 @@ impl Mapper for Mapper000 {
         }
 
         let prg_banks = self.get_prg_banks();
-        let masked_address = if prg_banks > 1 { KILOBYTES_32 } else { KILOBYTES_16 };
+        let masked_address = if prg_banks > 1 { memory_sizes::KILOBYTES_32 } else { memory_sizes::KILOBYTES_16 };
         *mapped_address = (address & masked_address) as u32;
 
         true
