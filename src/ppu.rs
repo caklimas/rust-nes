@@ -41,7 +41,11 @@ pub struct Olc2C02 {
     cycle: u16,
     frame_complete: bool,
     colors: [Color; 0x40],
-    status: Status2C02
+    status: u8,
+    control: u8,
+    address_latch: u8,
+    ppu_data_buffer: u8,
+    ppu_address: u16
 }
 
 impl Olc2C02 {
@@ -123,7 +127,11 @@ impl Olc2C02 {
                 Color::from_rgb(0, 0, 0),
                 Color::from_rgb(0, 0, 0)
             ],
-            status: Status2C02::Unused(0)
+            status: 0,
+            control: 0,
+            address_latch: 0,
+            ppu_data_buffer: 0,
+            ppu_address: 0
         }
     }
 
@@ -142,19 +150,34 @@ impl Olc2C02 {
 
     /// Read from the Main Bus
     pub fn cpu_read(&mut self, address: u16, read_only: bool) -> u8 {
+        let mut data: u8 = 0;
+
         match address {
             CONTROL => (),
             MASK => (),
-            STATUS => (),
+            STATUS => {
+                data = self.status | 0xE0;
+                self.set_status(Status2C02::VerticalBlank, false);
+                self.address_latch = 0;
+            },
             OAM_ADDRESS => (),
             OAM_DATA => (),
             SCROLL => (),
             PPU_ADDRESS => (),
-            PPU_DATA => (),
+            PPU_DATA => {
+                data = self.ppu_data_buffer;
+                self.ppu_data_buffer = self.ppu_read(self.ppu_address, false);
+
+                if self.ppu_address >= PALETTE_ADDRESS_LOWER {
+                    data = self.ppu_data_buffer;
+                }
+
+                self.ppu_address += 1;
+            },
             _ => ()
         }
 
-        0
+        data
     }
 
     /// Write to the Main Bus
@@ -166,8 +189,19 @@ impl Olc2C02 {
             OAM_ADDRESS => (),
             OAM_DATA => (),
             SCROLL => (),
-            PPU_ADDRESS => (),
-            PPU_DATA => (),
+            PPU_ADDRESS => {
+                if self.address_latch == 0 {
+                    self.ppu_address = (self.ppu_address & 0x00FF) | ((data as u16) << 8) | 0xFF00;
+                    self.address_latch = 1;
+                } else {
+                    self.ppu_address = (self.ppu_address & 0xFF00) | (data as u16);
+                    self.address_latch = 0;
+                }
+            },
+            PPU_DATA => {
+                self.ppu_write(self.ppu_address, data);
+                self.ppu_address += 1;
+            },
             _ => ()
         }
     }
@@ -268,14 +302,55 @@ impl Olc2C02 {
         self.colors[color_index as usize]
     }
 
+    fn get_control(&mut self, control: Control2C02) -> u8 {
+        match control {
+            Control2C02::NameTableAddress => {
+                return self.control & 0x03;
+            },
+            _ => {
+                if self.control & (control as u8) > 1 {
+                    1
+                } else {
+                    0
+                }
+            }
+        }
+    }
+
+    fn set_status(&mut self, status: Status2C02, value: bool) {
+        if value {
+            self.status = self.status | (status as u8);
+        } else {
+            self.status = self.status & !(status as u8);
+        }
+    }
+
+    fn get_status(&mut self, status: Status2C02) -> u8 {
+        if self.status & (status as u8) > 1 {
+            1
+        } else {
+            0
+        }
+    }
+
     fn cartridge(&mut self) -> Rc<RefCell<cartridge::Cartridge>> {
         self.cartridge.take().unwrap()
     }
 }
 
+pub enum Control2C02 {
+    NameTableAddress =   0x00000011, // Base nametable address (0 = $2000; 1 = $2400; 2 = $2800; 3 = $2C00)
+    VramAddress =        0x00000100, // VRAM address increment per CPU read/write of PPUDATA (0: add 1, going across; 1: add 32, going down)
+    SpriteTableAddress = 0x00001000, // Sprite pattern table address for 8x8 sprites (0: $0000; 1: $1000; ignored in 8x16 mode)
+    BackgroundTableAddress = 0x00010000, // Background pattern table address (0: $0000; 1: $1000)
+    SpriteSize = 0x00100000, // (0: 8x8 pixels; 1: 8x16 pixels)
+    PpuMasterSlaveSelect = 0x01000000, // PPU master/slave select (0: read backdrop from EXT pins; 1: output color on EXT pins)
+    GenerateNmi = 0x10000000 // Generate an NMI at the start of the vertical blanking interval (0: off; 1: on)
+}
+
 pub enum Status2C02 {
-    Unused(u8),
-    SpriteOverflow(u8),
-    SpriteZeroHit(u8),
-    VerticalBlank(u8)
+    Unused = 0b00011111,
+    SpriteOverflow = (1 << 5),
+    SpriteZeroHit = (1 << 6),
+    VerticalBlank = (1 << 7),
 }

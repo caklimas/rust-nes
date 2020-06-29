@@ -11,6 +11,7 @@ mod memory_sizes;
 
 fn main() {
     let mut bus = bus::Bus::new();
+    bus.reset();
     let cartridge = cartridge::Cartridge::new(r".\src\test_roms\nestest.nes");
     bus.load_cartridge(cartridge);
 }

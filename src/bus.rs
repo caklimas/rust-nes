@@ -47,7 +47,7 @@ impl Bus {
         // The fastest clock frequency the digital system cares
         // about is equivalent to the PPU clock. So the PPU is clocked
         // each time this function is called
-        // self.ppu.clock();
+        self.ppu.borrow_mut().clock();
 
         // The CPU runs 3 times slower than the PPU
         if self.system_clock_counter % 3 == 0 {
