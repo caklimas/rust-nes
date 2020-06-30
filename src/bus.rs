@@ -11,7 +11,8 @@ pub struct Bus {
     pub ppu: Rc<RefCell<ppu::Olc2C02>>,
     pub cartridge: Option<Rc<RefCell<cartridge::Cartridge>>>,
     pub memory: Rc<RefCell<memory::Memory>>,
-    pub system_clock_counter: u32
+    pub system_clock_counter: u32,
+    pub can_draw: bool
 }
 
 impl Bus {
@@ -24,7 +25,8 @@ impl Bus {
             ppu: Rc::clone(&ppu),
             cartridge: None,
             memory: Rc::clone(&memory),
-            system_clock_counter: 0
+            system_clock_counter: 0,
+            can_draw: false
         }
     }
 

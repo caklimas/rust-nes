@@ -41,7 +41,7 @@ pub struct Olc2C02 {
     scanline: i16,
     cycle: u16,
     frame_complete: bool,
-    colors: [Color; 0x40],
+    pub colors: [Color; 0x40],
     status: u8,
     control: u8,
     address_latch: u8,
