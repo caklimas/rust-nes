@@ -11,6 +11,7 @@ mod cartridge;
 mod mappers;
 mod memory_sizes;
 mod display;
+mod addresses;
 
 fn main() {
     let mut bus = bus::Bus::new();

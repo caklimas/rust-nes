@@ -7,7 +7,8 @@ pub struct Cartridge {
     mapper_id: u8,
     prg_banks: u8,
     chr_banks: u8,
-    mapper: Box<dyn mappers::Mapper>
+    mapper: Box<dyn mappers::Mapper>,
+    pub mirror: Mirror
 }
 
 impl Cartridge {
@@ -36,7 +37,8 @@ impl Cartridge {
             mapper_id: mapper_id,
             prg_banks: header.prg_rom_chunks,
             chr_banks: header.chr_rom_chunks,
-            mapper: Cartridge::get_mapper(mapper_id)
+            mapper: Cartridge::get_mapper(mapper_id),
+            mirror: Mirror::Horizontal
         }
     }
 
@@ -127,4 +129,11 @@ impl CartridgeHeader {
             unused
         }
     }
+}
+
+pub enum Mirror {
+    Horizontal,
+    Vertical,
+    OneScreenLow,
+    OneScreenHigh
 }

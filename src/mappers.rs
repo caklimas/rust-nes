@@ -59,7 +59,7 @@ impl Mapper for Mapper000 {
         true
     }
 
-    fn ppu_map_write(&mut self, address: u16, mapped_address: &mut u32) -> bool {
+    fn ppu_map_write(&mut self, _address: u16, _mapped_address: &mut u32) -> bool {
         false
     }
 }

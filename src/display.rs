@@ -53,7 +53,7 @@ impl ggez::event::EventHandler for bus::Bus {
         Ok(())
     }
 
-    fn key_down_event(&mut self, ctx: &mut Context, keycode: KeyCode, _keymods: KeyMods, _repeat: bool) {
+    fn key_down_event(&mut self, _ctx: &mut Context, keycode: KeyCode, _keymods: KeyMods, _repeat: bool) {
         match keycode {
             KeyCode::C => {
                 self.clock();

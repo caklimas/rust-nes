@@ -3,6 +3,7 @@ use std::cell::RefCell;
 
 use crate::ppu;
 use crate::cartridge;
+use crate::addresses;
 
 const RAM_SIZE: usize = 2048;
 const CPU_MAX_ADDRESS: u16 = 0x1FFF;
@@ -43,8 +44,8 @@ impl Memory {
         if address <= CPU_MAX_ADDRESS {
             // Need to mirror every 2KB
             data = self.ram[(address & CPU_MIRROR) as usize];
-        } else if address >= ppu::PPU_ADDRESS_START && address <= ppu::PPU_ADDRESS_END {
-            data = self.ppu.borrow_mut().cpu_read(address & ppu::PPU_ADDRESS_RANGE, read_only);
+        } else if address >= addresses::PPU_ADDRESS_START && address <= addresses::PPU_ADDRESS_END {
+            data = self.ppu.borrow_mut().cpu_read(address & addresses::PPU_ADDRESS_RANGE, read_only);
         }
 
         data
@@ -62,8 +63,8 @@ impl Memory {
 
         if address <= CPU_MAX_ADDRESS {
             self.ram[(address & CPU_MIRROR) as usize] = data;
-        } else if address >= ppu::PPU_ADDRESS_START && address <= ppu::PPU_ADDRESS_END {
-            self.ppu.borrow_mut().cpu_write(address & ppu::PPU_ADDRESS_RANGE, data);
+        } else if address >= addresses::PPU_ADDRESS_START && address <= addresses::PPU_ADDRESS_END {
+            self.ppu.borrow_mut().cpu_write(address & addresses::PPU_ADDRESS_RANGE, data);
         }
     }
     
