@@ -14,4 +14,6 @@ fn main() {
     bus.reset();
     let cartridge = cartridge::Cartridge::new(r".\src\test_roms\nestest.nes");
     bus.load_cartridge(cartridge);
+
+    bus.clock();
 }

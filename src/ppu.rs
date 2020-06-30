@@ -37,6 +37,7 @@ pub struct Olc2C02 {
     pub pallete_table: [u8; 32],
     pub pattern_table: [[u8; memory_sizes::KILOBYTES_4 as usize]; 2],
     pub cartridge: Option<Rc<RefCell<cartridge::Cartridge>>>,
+    pub nmi: bool,
     scanline: i16,
     cycle: u16,
     frame_complete: bool,
@@ -45,7 +46,7 @@ pub struct Olc2C02 {
     control: u8,
     address_latch: u8,
     ppu_data_buffer: u8,
-    ppu_address: u16
+    ppu_address: u16,
 }
 
 impl Olc2C02 {
@@ -55,6 +56,7 @@ impl Olc2C02 {
             pallete_table: [0; 32],
             pattern_table: [[0; memory_sizes::KILOBYTES_4 as usize]; 2],
             cartridge: None,
+            nmi: false,
             scanline: 0,
             cycle: 0,
             frame_complete: false,
@@ -126,16 +128,27 @@ impl Olc2C02 {
                 Color::from_rgb(160, 162, 160),
                 Color::from_rgb(0, 0, 0),
                 Color::from_rgb(0, 0, 0)
-            ],
-            status: 0,
-            control: 0,
-            address_latch: 0,
-            ppu_data_buffer: 0,
-            ppu_address: 0
+                ],
+                status: 0,
+                control: 0,
+                address_latch: 0,
+                ppu_data_buffer: 0,
+                ppu_address: 0
+            }
         }
-    }
-
+        
     pub fn clock(&mut self) {
+        if self.scanline == -1 && self.cycle == 1 {
+            self.set_status(Status2C02::VerticalBlank, false);
+        }
+
+        if self.scanline == 241 && self.cycle == 1 {
+            self.set_status(Status2C02::VerticalBlank, true);
+            if self.get_control(Control2C02::GenerateNmi) == 1 {
+                self.nmi = true;
+            }
+        }
+
         self.cycle += 1;
 
         if self.cycle >= MAX_CLOCK_CYCLE {
@@ -153,8 +166,8 @@ impl Olc2C02 {
         let mut data: u8 = 0;
 
         match address {
-            CONTROL => (),
-            MASK => (),
+            CONTROL => (), // Can't be read
+            MASK => (), // Can't be read
             STATUS => {
                 data = self.status | 0xE0;
                 self.set_status(Status2C02::VerticalBlank, false);
@@ -346,6 +359,17 @@ pub enum Control2C02 {
     SpriteSize = 0x00100000, // (0: 8x8 pixels; 1: 8x16 pixels)
     PpuMasterSlaveSelect = 0x01000000, // PPU master/slave select (0: read backdrop from EXT pins; 1: output color on EXT pins)
     GenerateNmi = 0x10000000 // Generate an NMI at the start of the vertical blanking interval (0: off; 1: on)
+}
+
+pub enum Mask2C02 {
+    Greyscale =          0x00000001, // Greyscale (0: normal color, 1: produce a greyscale display)
+    ShowBackgroundLeft = 0x00000010, // Show background in leftmost 8 pixels of screen, 0: Hide
+    ShowSpriteLeft =     0x00000100, // Show sprites in leftmost 8 pixels of screen, 0: Hide
+    ShowBackground =     0x00001000, // Show background
+    ShowSprite =         0x00010000, // Show sprites
+    EmphasizeRed =       0x00100000, // Emphasize red
+    EmphasizeGreen =     0x01000000, // Emphasize green
+    EMphasizeBlue =      0x10000000 // Emphasize blue
 }
 
 pub enum Status2C02 {

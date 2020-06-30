@@ -6,8 +6,6 @@ use crate::ppu;
 use crate::cartridge;
 use crate::memory;
 
-const CPU_MAX_ADDRESS: u16 = 0x1FFF;
-
 pub struct Bus {
     pub cpu: cpu::Olc6502,
     pub ppu: Rc<RefCell<ppu::Olc2C02>>,
@@ -52,6 +50,11 @@ impl Bus {
         // The CPU runs 3 times slower than the PPU
         if self.system_clock_counter % 3 == 0 {
             self.cpu.clock(self.system_clock_counter);
+        }
+
+        if self.ppu.borrow_mut().nmi {
+            self.ppu.borrow_mut().nmi = false;
+            self.cpu.non_mask_interrupt_request();
         }
 
         self.system_clock_counter += 1;

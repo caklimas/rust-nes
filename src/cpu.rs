@@ -1,7 +1,6 @@
 use std::rc::Rc;
 use std::cell::RefCell;
 use std::{
-    fs::File,
     io::{BufWriter, Write},
 };
 use std::fs::OpenOptions;
@@ -165,7 +164,7 @@ impl Olc6502 {
         }
     }
 
-    pub fn non_mask_interrupt_request(&mut self, bus: &mut bus::Bus) {
+    pub fn non_mask_interrupt_request(&mut self) {
         self.write_counter_to_stack();
         self.set_flag(Flags6502::Break, false);
         self.set_flag(Flags6502::Unused, true);
