@@ -311,7 +311,7 @@ impl Olc2C02 {
         self.pallete_table[masked_address as usize] = data;
     }
 
-    fn get_pattern_table(&mut self, pattern_index: u16) -> [[Color; 128]; 128] {
+    pub fn get_pattern_table(&mut self, pattern_index: u16, palette_id: u16) -> [[Color; 128]; 128] {
         let mut pattern_table: [[Color; 128]; 128] = [[graphics::BLACK; 128]; 128];
 
         for tile_y in 0..TILE_HEIGHT {
@@ -329,13 +329,16 @@ impl Olc2C02 {
                     // add them together to get the pixel index
                     for column in 0..8 {
                         let pixel = (tile_lsb & 0x01) + (tile_msb & 0x01);
-                        let color = self.get_color_from_palette(pattern_index, pixel as u16);
+                        let color = self.get_color_from_palette(palette_id, pixel as u16);
                         tile_lsb = tile_lsb >> 1;
                         tile_msb = tile_msb >> 1;
 
-                        let y = (tile_y * TILE_HEIGHT) + row;
-                        let x = (tile_x * TILE_WIDTH) + (7 - column);
-                        pattern_table[y as usize][x as usize] = color;
+                        let y = (tile_y * 8) + row;
+                        let x = (tile_x * 8) + (7 - column);
+
+                        if x < 128 && y < 128 {
+                            pattern_table[y as usize][x as usize] = color;
+                        }
                     }
                 }
             }

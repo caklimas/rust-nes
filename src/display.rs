@@ -27,13 +27,13 @@ impl ggez::event::EventHandler for bus::Bus {
     }
 
     fn draw(&mut self, ctx: &mut Context) -> GameResult<()> {
-        if !self.can_draw {
-            return Ok(());
-        }
+        // if !self.can_draw {
+        //     return Ok(());
+        // }
 
         graphics::clear(ctx, graphics::BLACK);
 
-        self.draw_table_ids(ctx);
+        self.draw_pattern_tables(ctx);
         graphics::present(ctx).expect("Error presenting graphics");
         self.can_draw = false;
 
@@ -113,5 +113,26 @@ impl bus::Bus {
 
         
         graphics::draw_queued_text(ctx, graphics::DrawParam::default(), None, graphics::FilterMode::Linear).expect("Draw text failed");
+    }
+
+    pub fn draw_pattern_tables(&mut self, ctx: &mut Context) {
+        let table = self.ppu.borrow_mut().get_pattern_table(0, 1);
+        let mut mesh_builder = graphics::MeshBuilder::new();
+
+        for row in 0..128 {
+            for column in 0..128 {
+                let rect = graphics::Rect::new_i32(
+                    column as i32 * PIXEL_SIZE, 
+                    row as i32 * PIXEL_SIZE, 
+                    PIXEL_SIZE, 
+                    PIXEL_SIZE
+                );
+    
+                mesh_builder.rectangle(graphics::DrawMode::fill(), rect, table[row][column]);
+            }
+        }
+        
+        let mesh = mesh_builder.build(ctx).expect("Error building the mesh");
+        graphics::draw(ctx, &mesh, (nalgebra::Point2::new(0.0, 0.0),)).expect("Error drawing");
     }
 }
