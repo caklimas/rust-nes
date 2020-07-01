@@ -7,7 +7,7 @@ pub struct Cartridge {
     mapper_id: u8,
     prg_banks: u8,
     chr_banks: u8,
-    mapper: Box<dyn mappers::Mapper>,
+    mapper: Option<Box<dyn mappers::Mapper>>,
     pub mirror: Mirror
 }
 
@@ -23,7 +23,8 @@ impl Cartridge {
     pub fn new(file_name: &str) -> Self {
         let bytes = fs::read(file_name).expect("Cannot find file");
         let header = CartridgeHeader::new(&bytes);
-        let mapper_id = ((header.mapper_2 >> 4) << 4) | (header.mapper_1 >> 4); 
+        let mapper_id = ((header.mapper_2 >> 4) << 4) | (header.mapper_1 >> 4);
+        let mirror = if (header.mapper_1 & 0x01) > 0 { Mirror::Vertical } else { Mirror::Horizontal };
 
         let prg_memory_size = ((header.prg_rom_chunks as u16) * 16384) as usize;
         let post_header_index = if (header.mapper_1 & 0x04) > 0 { 16 + 512 } else { 16 };
@@ -38,17 +39,31 @@ impl Cartridge {
             prg_banks: header.prg_rom_chunks,
             chr_banks: header.chr_rom_chunks,
             mapper: Cartridge::get_mapper(mapper_id),
-            mirror: Mirror::Horizontal
+            mirror
         }
+    }
+
+    pub fn reset(&mut self) {
+        match self.mapper {
+            Some(ref mut m) => {
+                m.reset()
+            },
+            None => ()
+        };
     }
 
     /// Read from the Main Bus
     pub fn cpu_read(&mut self, address: u16, data: &mut u8) -> bool {
         let mut mapped_address: u32 = 0;
-        if self.mapper.cpu_map_read(address, &mut mapped_address) {
-            *data = self.prg_memory[mapped_address as usize];
-            return true;
-        }
+        match self.mapper {
+            Some(ref mut m) => {
+                if m.cpu_map_read(address, &mut mapped_address) {
+                    *data = self.prg_memory[mapped_address as usize];
+                    return true;
+                }
+            },
+            None => ()
+        };
 
         false
     }
@@ -56,41 +71,58 @@ impl Cartridge {
     /// Write to the Main Bus
     pub fn cpu_write(&mut self, address: u16, data: u8) -> bool {
         let mut mapped_address: u32 = 0;
-        if self.mapper.cpu_map_write(address, &mut mapped_address) {
-            self.prg_memory[mapped_address as usize] = data;
-            return true;
-        }
 
+        match self.mapper {
+            Some(ref mut m) => {
+                if m.cpu_map_write(address, &mut mapped_address) {
+                    self.prg_memory[mapped_address as usize] = data;
+                    return true;
+                }
+            },
+            None => ()
+        };
+        
         false
     }
 
     /// Read from the PPU Bus
     pub fn ppu_read(&mut self, address: u16, data: &mut u8) -> bool {
         let mut mapped_address: u32 = 0;
-        if self.mapper.ppu_map_read(address, &mut mapped_address) {
-            *data = self.chr_memory[mapped_address as usize];
-            return true;
-        }
+
+        match self.mapper {
+            Some(ref mut m) => {
+                if m.ppu_map_read(address, &mut mapped_address) {
+                    *data = self.chr_memory[mapped_address as usize];
+                    return true;
+                }
+            },
+            None => ()
+        };
 
         false
     }
 
-    /// WRite to the PPU Bus
+    /// Write to the PPU Bus
     pub fn ppu_write(&mut self, address: u16, data: u8) -> bool {
         let mut mapped_address: u32 = 0;
-        if self.mapper.ppu_map_write(address, &mut mapped_address) {
-            self.chr_memory[mapped_address as usize] = data;
-            return true;
-        }
+        match self.mapper {
+            Some(ref mut m) => {
+                if m.ppu_map_write(address, &mut mapped_address) {
+                    self.chr_memory[mapped_address as usize] = data;
+                    return true;
+                }
+            },
+            None => ()
+        };
 
         false
     }
 
-    fn get_mapper(mapper_id: u8) -> Box<dyn mappers::Mapper> {
-        let mapper: Box<dyn mappers::Mapper>;
+    fn get_mapper(mapper_id: u8) -> Option<Box<dyn mappers::Mapper>> {
+        let mut mapper: Option<Box<dyn mappers::Mapper>> = None;
         match mapper_id {
-            0 => mapper = Box::new(mappers::Mapper000 { prg_banks: 0, chr_banks: 0 }),
-            _ => panic!("Mapper not found")
+            0 => mapper = Some(Box::new(mappers::Mapper000 { prg_banks: 0, chr_banks: 0 })),
+            _ => ()
         };
 
         mapper

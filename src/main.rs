@@ -13,11 +13,15 @@ mod memory_sizes;
 mod display;
 mod addresses;
 
+use std::rc::Rc;
+use std::cell::RefCell;
+
 fn main() {
     let mut bus = bus::Bus::new();
-    bus.reset();
     let cartridge = cartridge::Cartridge::new(r".\src\test_roms\nestest.nes");
     bus.load_cartridge(cartridge);
+
+    bus.reset();
 
     let mut configuration = conf::Conf::new();
     configuration.window_setup = conf::WindowSetup::default().title("NES");

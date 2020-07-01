@@ -39,7 +39,7 @@ impl Olc6502 {
             x_register: 0,
             y_register: 0,
             stack_pointer: STACK_END_LOCATION,
-            program_counter: 0xc000,
+            program_counter: 0,
             status_register: 0x24,
             fetched_data: 0,
             addr_abs: 0x0000,
@@ -89,7 +89,9 @@ impl Olc6502 {
             self.cycles += additional_cycle_1 & additional_cycle_2;
         }
 
-        self.cycles -= 1;
+        if self.cycles > 0 {
+            self.cycles -= 1;
+        }
     }
     
     pub fn fetch(&mut self) -> u8 {
@@ -107,7 +109,7 @@ impl Olc6502 {
         self.y_register = 0;
         self.stack_pointer = STACK_END_LOCATION;
 
-        self.read_program_counter(RESET_PROGRAM_COUNTER_ADDRESS);
+        self.program_counter = self.read_program_counter(RESET_PROGRAM_COUNTER_ADDRESS);
         self.addr_rel = 0x0000;
         self.addr_abs = 0x0000;
         self.fetched_data = 0x00;
@@ -161,7 +163,7 @@ impl Olc6502 {
                 self.program_counter = self.read_program_counter(INTERRUPT_PROGRAM_COUNTER_ADDRESS);
                 self.cycles = 7;
             }
-        }
+        };
     }
 
     pub fn non_mask_interrupt_request(&mut self) {
@@ -211,22 +213,32 @@ impl Olc6502 {
                 _ => addr_abs
             };
 
-            match writeln!(
-                &mut writer,
-                "{:#06x} {:#04x} {:#06x} {} A: {:#04x} X: {:#04x} Y: {:#04x} P: {:#04x} SP: {:#04x} PPU: {} CYC: {}", 
-                program_counter,
-                opcode, 
-                address, 
-                op_name, 
-                accumulator, 
-                x_register, 
-                y_register, 
-                status_register, 
-                stack_pointer, counter % 341, counter + 7
-            ) {
-                Err(e) => println!("{:?}", e),
-                _ => ()
-            }
+            // println!("{:#06x} {:#04x} {:#06x} {} A: {:#04x} X: {:#04x} Y: {:#04x} P: {:#04x} SP: {:#04x} PPU: {} CYC: {}", 
+            // program_counter,
+            // opcode, 
+            // address, 
+            // op_name, 
+            // accumulator, 
+            // x_register, 
+            // y_register, 
+            // status_register, 
+            // stack_pointer, counter % 341, counter + 7);
+            // match writeln!(
+            //     &mut writer,
+            //     "{:#06x} {:#04x} {:#06x} {} A: {:#04x} X: {:#04x} Y: {:#04x} P: {:#04x} SP: {:#04x} PPU: {} CYC: {}", 
+            //     program_counter,
+            //     opcode, 
+            //     address, 
+            //     op_name, 
+            //     accumulator, 
+            //     x_register, 
+            //     y_register, 
+            //     status_register, 
+            //     stack_pointer, counter % 341, counter + 7
+            // ) {
+            //     Err(e) => println!("{:?}", e),
+            //     _ => ()
+            // }
             // println!("{:#06x} {} A: {:#04x} X: {:#04x} Y: {:#04x} P: {:#04x} SP: {:#04x} PPU: {} CYC: {}", self.program_counter, record.0, self.accumulator, self.x_register, self.y_register, self.status_register, self.stack_pointer, counter, counter + 7);
     }
 }

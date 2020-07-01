@@ -12,7 +12,9 @@ pub struct Bus {
     pub cartridge: Option<Rc<RefCell<cartridge::Cartridge>>>,
     pub memory: Rc<RefCell<memory::Memory>>,
     pub system_clock_counter: u32,
-    pub can_draw: bool
+    pub can_draw: bool,
+    pub emulation: bool,
+    pub residual_time: f32
 }
 
 impl Bus {
@@ -26,7 +28,9 @@ impl Bus {
             cartridge: None,
             memory: Rc::clone(&memory),
             system_clock_counter: 0,
-            can_draw: false
+            can_draw: false,
+            emulation: false,
+            residual_time: 0.0
         }
     }
 
@@ -34,7 +38,7 @@ impl Bus {
         let c = Rc::new(RefCell::new(cartridge));
         self.cartridge = Some(Rc::clone(&c));
         self.ppu.borrow_mut().cartridge = Some(Rc::clone(&c));
-        self.memory.borrow_mut().load_cartridge(c);
+        self.memory.borrow_mut().cartridge = Some(Rc::clone(&c));
     }
 
     pub fn clock(&mut self) {

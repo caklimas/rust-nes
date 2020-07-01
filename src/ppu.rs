@@ -34,11 +34,12 @@ pub struct Olc2C02 {
     pub nmi: bool,
     scanline: i16,
     cycle: u16,
-    frame_complete: bool,
+    pub frame_complete: bool,
     pub colors: [Color; 0x40],
     status: u8,
     control: u8,
-    address_latch: u8,
+    mask: u8,
+    address_latch: bool,
     ppu_data_buffer: u8,
     ppu_address: u16,
 }
@@ -55,13 +56,14 @@ impl Olc2C02 {
             cycle: 0,
             frame_complete: false,
             colors: get_colors(),
-                status: 0,
-                control: 0,
-                address_latch: 0,
-                ppu_data_buffer: 0,
-                ppu_address: 0
-            }
+            status: 0,
+            control: 0,
+            mask: 0,
+            address_latch: false,
+            ppu_data_buffer: 0,
+            ppu_address: 0
         }
+    }
         
     pub fn clock(&mut self) {
         if self.scanline == -1 && self.cycle == 1 {
@@ -90,14 +92,13 @@ impl Olc2C02 {
     /// Read from the Main Bus
     pub fn cpu_read(&mut self, address: u16, read_only: bool) -> u8 {
         let mut data: u8 = 0;
-
         match address {
             CONTROL => (), // Can't be read
             MASK => (), // Can't be read
             STATUS => {
-                data = self.status | 0xE0;
+                data = (self.status & 0xE0) | (self.ppu_data_buffer & 0x1F);
                 self.set_status(Status2C02::VerticalBlank, false);
-                self.address_latch = 0;
+                self.address_latch = false;
             },
             OAM_ADDRESS => (),
             OAM_DATA => (),
@@ -107,14 +108,14 @@ impl Olc2C02 {
                 data = self.ppu_data_buffer;
                 self.ppu_data_buffer = self.ppu_read(self.ppu_address, false);
 
-                if self.ppu_address >= addresses::PALETTE_ADDRESS_LOWER {
+                if self.ppu_address > addresses::PALETTE_ADDRESS_LOWER {
                     data = self.ppu_data_buffer;
                 }
 
-                self.ppu_address += 1;
+                self.ppu_address = self.ppu_address.wrapping_add(1);
             },
             _ => ()
-        }
+        };
 
         data
     }
@@ -122,27 +123,31 @@ impl Olc2C02 {
     /// Write to the Main Bus
     pub fn cpu_write(&mut self, address: u16, data: u8) {
         match address {
-            CONTROL => (),
-            MASK => (),
+            CONTROL => {
+                self.control = data;
+            },
+            MASK => {
+                self.mask = data;
+            },
             STATUS => (),
             OAM_ADDRESS => (),
             OAM_DATA => (),
             SCROLL => (),
             PPU_ADDRESS => {
-                if self.address_latch == 0 {
-                    self.ppu_address = (self.ppu_address & 0x00FF) | ((data as u16) << 8) | 0xFF00;
-                    self.address_latch = 1;
+                if !self.address_latch {
+                    self.ppu_address = (self.ppu_address & 0x00FF) | ((data as u16) << 8);
+                    self.address_latch = true;
                 } else {
                     self.ppu_address = (self.ppu_address & 0xFF00) | (data as u16);
-                    self.address_latch = 0;
+                    self.address_latch = false;
                 }
             },
             PPU_DATA => {
                 self.ppu_write(self.ppu_address, data);
-                self.ppu_address += 1;
+                self.ppu_address = self.ppu_address.wrapping_add(1);
             },
             _ => ()
-        }
+        };
     }
 
     /// Read from the PPU Bus
@@ -150,9 +155,16 @@ impl Olc2C02 {
         let mut data: u8 = 0;
         let ppu_address = address & addresses::PPU_ADDRESS_END;
 
-        if self.cartridge().borrow_mut().ppu_read(ppu_address, &mut data) {
+        match self.cartridge {
+            Some(ref mut c) => {
+                if c.borrow_mut().ppu_read(ppu_address, &mut data) {
+                    return data;
+                }
+            },
+            None => ()
+        };
 
-        } else if ppu_address <= addresses::PATTERN_ADDRESS_UPPER {
+        if ppu_address <= addresses::PATTERN_ADDRESS_UPPER {
             data = self.read_pattern_table_data(ppu_address);
         } else if ppu_address >= addresses::NAME_TABLE_ADDRESS_LOWER && ppu_address <= addresses::NAME_TABLE_ADDRESS_UPPER {
             data = self.read_name_table_data(ppu_address);
@@ -167,9 +179,16 @@ impl Olc2C02 {
     pub fn ppu_write(&mut self, address: u16, data: u8) {
         let ppu_address = address & addresses::PPU_ADDRESS_END;
 
-        if self.cartridge().borrow_mut().ppu_write(address, data) {
-            return;
-        } else if ppu_address <= addresses::PATTERN_ADDRESS_UPPER {
+        match self.cartridge {
+            Some(ref mut c) => {
+                if c.borrow_mut().ppu_write(address, data) {
+                    return;
+                }
+            },
+            None => ()
+        };
+
+        if ppu_address <= addresses::PATTERN_ADDRESS_UPPER {
             self.write_pattern_table_data(ppu_address, data);
         } else if ppu_address >= addresses::NAME_TABLE_ADDRESS_LOWER && ppu_address <= addresses::NAME_TABLE_ADDRESS_UPPER {
             self.write_name_table_data(ppu_address, data);
@@ -191,61 +210,74 @@ impl Olc2C02 {
     fn read_name_table_data(&mut self, address: u16) -> u8 {
         let mut data: u8 = 0;
         let address_offset = (address & 0x03FF) as usize; // Offset by size of name table(1023)
-        match self.cartridge().borrow_mut().mirror {
-            cartridge::Mirror::Vertical => {
-                if address <= 0x03FF {
-                    data = self.name_table[0][address_offset];
-                } else if address >= 0x0400 && address <= 0x07FF {
-                    data = self.name_table[1][address_offset];
-                } else if address >= 0x800 && address <= 0x0BFF {
-                    data = self.name_table[0][address_offset];
-                } else if address >= 0x0C00 && address <= 0x0FFF {
-                    data = self.name_table[1][address_offset];
-                }
+
+        match self.cartridge {
+            Some(ref mut c) => {
+                match c.borrow_mut().mirror {
+                    cartridge::Mirror::Vertical => {
+                        if address <= 0x03FF {
+                            data = self.name_table[0][address_offset];
+                        } else if address >= 0x0400 && address <= 0x07FF {
+                            data = self.name_table[1][address_offset];
+                        } else if address >= 0x800 && address <= 0x0BFF {
+                            data = self.name_table[0][address_offset];
+                        } else if address >= 0x0C00 && address <= 0x0FFF {
+                            data = self.name_table[1][address_offset];
+                        }
+                    },
+                    cartridge::Mirror::Horizontal => {
+                        if address <= 0x03FF {
+                            data = self.name_table[0][address_offset];
+                        } else if address >= 0x0400 && address <= 0x07FF {
+                            data = self.name_table[0][address_offset];
+                        } else if address >= 0x800 && address <= 0x0BFF {
+                            data = self.name_table[1][address_offset];
+                        } else if address >= 0x0C00 && address <= 0x0FFF {
+                            data = self.name_table[1][address_offset];
+                        }
+                    }, 
+                    _ => ()
+                };
             },
-            cartridge::Mirror::Horizontal => {
-                if address <= 0x03FF {
-                    data = self.name_table[0][address_offset];
-                } else if address >= 0x0400 && address <= 0x07FF {
-                    data = self.name_table[0][address_offset];
-                } else if address >= 0x800 && address <= 0x0BFF {
-                    data = self.name_table[1][address_offset];
-                } else if address >= 0x0C00 && address <= 0x0FFF {
-                    data = self.name_table[1][address_offset];
-                }
-            }, 
-            _ => ()
+            None => ()
         };
 
         data
     }
 
     fn write_name_table_data(&mut self, address: u16, data: u8) {
-        let address_offset = (address & 0x03FF) as usize; // Offset by size of name table(1023)
-        match self.cartridge().borrow_mut().mirror {
-            cartridge::Mirror::Vertical => {
-                if address <= 0x03FF {
-                    self.name_table[0][address_offset] = data;
-                } else if address >= 0x0400 && address <= 0x07FF {
-                    self.name_table[1][address_offset] = data;
-                } else if address >= 0x800 && address <= 0x0BFF {
-                    self.name_table[0][address_offset] = data;
-                } else if address >= 0x0C00 && address <= 0x0FFF {
-                    self.name_table[1][address_offset] = data;
-                }
+        let masked_address = address & 0x0FFF;
+        let address_offset = (masked_address & 0x03FF) as usize; // Offset by size of name table(1023)
+
+        match self.cartridge {
+            Some(ref mut c) => {
+                match c.borrow_mut().mirror {
+                    cartridge::Mirror::Vertical => {
+                        if masked_address <= 0x03FF {
+                            self.name_table[0][address_offset] = data;
+                        } else if masked_address >= 0x0400 && masked_address <= 0x07FF {
+                            self.name_table[1][address_offset] = data;
+                        } else if masked_address >= 0x800 && masked_address <= 0x0BFF {
+                            self.name_table[0][address_offset] = data;
+                        } else if masked_address >= 0x0C00 && masked_address <= 0x0FFF {
+                            self.name_table[1][address_offset] = data;
+                        }
+                    },
+                    cartridge::Mirror::Horizontal => {
+                        if masked_address <= 0x03FF {
+                            self.name_table[0][address_offset] = data;
+                        } else if masked_address >= 0x0400 && masked_address <= 0x07FF {
+                            self.name_table[0][address_offset] = data;
+                        } else if masked_address >= 0x800 && masked_address <= 0x0BFF {
+                            self.name_table[1][address_offset] = data;
+                        } else if masked_address >= 0x0C00 && masked_address <= 0x0FFF {
+                            self.name_table[1][address_offset] = data;
+                        }
+                    }, 
+                    _ => ()
+                };
             },
-            cartridge::Mirror::Horizontal => {
-                if address <= 0x03FF {
-                    self.name_table[0][address_offset] = data;
-                } else if address >= 0x0400 && address <= 0x07FF {
-                    self.name_table[0][address_offset] = data;
-                } else if address >= 0x800 && address <= 0x0BFF {
-                    self.name_table[1][address_offset] = data;
-                } else if address >= 0x0C00 && address <= 0x0FFF {
-                    self.name_table[1][address_offset] = data;
-                }
-            }, 
-            _ => ()
+            None => ()
         };
     }
 
@@ -324,7 +356,8 @@ impl Olc2C02 {
                 return self.control & 0x03;
             },
             _ => {
-                if self.control & (control as u8) > 1 {
+                let num = control as u8;
+                if self.control & num > 0 {
                     1
                 } else {
                     0
@@ -342,39 +375,38 @@ impl Olc2C02 {
     }
 
     fn get_status(&mut self, status: Status2C02) -> u8 {
-        if self.status & (status as u8) > 1 {
+        if self.status & (status as u8) > 0 {
             1
         } else {
             0
         }
     }
-
-    fn cartridge(&mut self) -> Rc<RefCell<cartridge::Cartridge>> {
-        self.cartridge.take().unwrap()
-    }
 }
 
+#[derive(Debug)]
 pub enum Control2C02 {
-    NameTableAddress =   0x00000011, // Base nametable address (0 = $2000; 1 = $2400; 2 = $2800; 3 = $2C00)
-    VramAddress =        0x00000100, // VRAM address increment per CPU read/write of PPUDATA (0: add 1, going across; 1: add 32, going down)
-    SpriteTableAddress = 0x00001000, // Sprite pattern table address for 8x8 sprites (0: $0000; 1: $1000; ignored in 8x16 mode)
-    BackgroundTableAddress = 0x00010000, // Background pattern table address (0: $0000; 1: $1000)
-    SpriteSize = 0x00100000, // (0: 8x8 pixels; 1: 8x16 pixels)
-    PpuMasterSlaveSelect = 0x01000000, // PPU master/slave select (0: read backdrop from EXT pins; 1: output color on EXT pins)
-    GenerateNmi = 0x10000000 // Generate an NMI at the start of the vertical blanking interval (0: off; 1: on)
+    NameTableAddress =       0b00000011, // Base nametable address (0 = $2000; 1 = $2400; 2 = $2800; 3 = $2C00)
+    VramAddress =            0b00000100, // VRAM address increment per CPU read/write of PPUDATA (0: add 1, going across; 1: add 32, going down)
+    SpriteTableAddress =     0b00001000, // Sprite pattern table address for 8x8 sprites (0: $0000; 1: $1000; ignored in 8x16 mode)
+    BackgroundTableAddress = 0b00010000, // Background pattern table address (0: $0000; 1: $1000)
+    SpriteSize =             0b00100000, // (0: 8x8 pixels; 1: 8x16 pixels)
+    PpuMasterSlaveSelect =   0b01000000, // PPU master/slave select (0: read backdrop from EXT pins; 1: output color on EXT pins)
+    GenerateNmi =            0b10000000 // Generate an NMI at the start of the vertical blanking interval (0: off; 1: on)
 }
 
+#[derive(Debug)]
 pub enum Mask2C02 {
-    Greyscale =          0x00000001, // Greyscale (0: normal color, 1: produce a greyscale display)
-    ShowBackgroundLeft = 0x00000010, // Show background in leftmost 8 pixels of screen, 0: Hide
-    ShowSpriteLeft =     0x00000100, // Show sprites in leftmost 8 pixels of screen, 0: Hide
-    ShowBackground =     0x00001000, // Show background
-    ShowSprite =         0x00010000, // Show sprites
-    EmphasizeRed =       0x00100000, // Emphasize red
-    EmphasizeGreen =     0x01000000, // Emphasize green
-    EMphasizeBlue =      0x10000000 // Emphasize blue
+    Greyscale =          0b00000001, // Greyscale (0: normal color, 1: produce a greyscale display)
+    ShowBackgroundLeft = 0b00000010, // Show background in leftmost 8 pixels of screen, 0: Hide
+    ShowSpriteLeft =     0b00000100, // Show sprites in leftmost 8 pixels of screen, 0: Hide
+    ShowBackground =     0b00001000, // Show background
+    ShowSprite =         0b00010000, // Show sprites
+    EmphasizeRed =       0b00100000, // Emphasize red
+    EmphasizeGreen =     0b01000000, // Emphasize green
+    EMphasizeBlue =      0b10000000 // Emphasize blue
 }
 
+#[derive(Debug)]
 pub enum Status2C02 {
     Unused = 0b00011111,
     SpriteOverflow = (1 << 5),

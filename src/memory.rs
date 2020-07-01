@@ -12,7 +12,7 @@ const CPU_MIRROR: u16 = 0x07FF;
 pub struct Memory {
     ram: [u8; RAM_SIZE],
     ppu: Rc<RefCell<ppu::Olc2C02>>,
-    cartridge: Option<Rc<RefCell<cartridge::Cartridge>>>
+    pub cartridge: Option<Rc<RefCell<cartridge::Cartridge>>>
 }
 
 impl Memory {
@@ -24,21 +24,17 @@ impl Memory {
         }
     }
 
-    pub fn load_cartridge(&mut self, cartridge: Rc<RefCell<cartridge::Cartridge>>) {
-        self.cartridge = Some(Rc::clone(&cartridge));
-    }
-
     pub fn read(&mut self, address: u16, read_only: bool) -> u8 {
         let mut data: u8 = 0x00;
 
-        match &self.cartridge {
-            Some(c) => {
+        match self.cartridge {
+            Some(ref mut c) => {
                 if c.borrow_mut().cpu_read(address, &mut data) {
                     return data;
                 }
             },
             None => ()
-        }
+        };
         
         // Check the 8KB range of the CPU
         if address <= CPU_MAX_ADDRESS {
@@ -52,14 +48,14 @@ impl Memory {
     }
     
     pub fn write(&mut self, address: u16, data: u8) {
-        match &self.cartridge {
-            Some(c) => {
+        match self.cartridge {
+            Some(ref mut c) => {
                 if c.borrow_mut().cpu_write(address, data) {
                     return;
                 }
             },
             None => ()
-        }
+        };
 
         if address <= CPU_MAX_ADDRESS {
             self.ram[(address & CPU_MIRROR) as usize] = data;
@@ -69,7 +65,6 @@ impl Memory {
     }
     
     pub fn reset(&mut self) {
-        self.cartridge = None;
         for i in 0..self.ram.len() {
             self.ram[i] = 0
         }
