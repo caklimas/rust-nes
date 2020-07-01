@@ -391,25 +391,12 @@ impl Olc2C02 {
         }
     }
 
-    fn get_scroll_address(&mut self, source: u16, address: ScrollAddress) -> u16 {
-        match address {
-            ScrollAddress::CoarseX => {
-                let value = source & (address as u16);
-                return value;
-            },
-            ScrollAddress::CoarseY => {
-                let value = source & (address as u16);
-                return value >> 5;
-            },
-            ScrollAddress::NameTableSelect => {
-                let value = source & (address as u16);
-                return value >> 10;
-            },
-            ScrollAddress::FineYScroll => {
-                let value = source & (address as u16);
-                return value >> 12;
-            }
-        };
+    fn set_current_scroll_address(&mut self, address: ScrollAddress, value: bool) {
+        if value {
+            self.current_vram_address = self.current_vram_address | (address as u16);
+        } else {
+            self.current_vram_address = self.current_vram_address & !(address as u16);
+        }
     }
 }
 
@@ -446,10 +433,21 @@ pub enum Status2C02 {
 
 #[derive(Debug)]
 pub enum ScrollAddress {
-    CoarseX =         0b0000000000011111,
-    CoarseY =         0b0000001111100000,
-    NameTableSelect = 0b0000110000000000,
-    FineYScroll =     0b0111000000000000
+    CoarseX0 = (1 << 0),
+    CoarseX1 = (1 << 1),
+    CoarseX2 = (1 << 2),
+    CoarseX3 = (1 << 3),
+    CoarseX4 = (1 << 4),
+    CoarseY0 = (1 << 5),
+    CoarseY1 = (1 << 6),
+    CoarseY2 = (1 << 7),
+    CoarseY3 = (1 << 8),
+    CoarseY4 = (1 << 9),
+    NameTableSelect0 = (1 << 10),
+    NameTableSelect1 = (1 << 11),
+    FineYScroll0 = (1 << 12),
+    FineYScroll1 = (1 << 13),
+    FineYScroll2 = (1 << 14)
 }
 
 fn get_colors() -> [Color; 0x40] {
