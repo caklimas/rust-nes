@@ -32,10 +32,10 @@ pub struct Olc2C02 {
     pub pattern_table: [[u8; memory_sizes::KILOBYTES_4 as usize]; 2],
     pub cartridge: Option<Rc<RefCell<cartridge::Cartridge>>>,
     pub nmi: bool,
-    scanline: i16,
-    cycle: u16,
     pub frame_complete: bool,
     pub colors: [Color; 0x40],
+    scanline: i16,
+    cycle: u16,
     status: u8,
     control: u8,
     mask: u8,
@@ -112,7 +112,8 @@ impl Olc2C02 {
                     data = self.ppu_data_buffer;
                 }
 
-                self.ppu_address = self.ppu_address.wrapping_add(1);
+                let address_increment = if self.get_control(Control2C02::VramAddress) == 1 { 32 } else { 1 };
+                self.ppu_address = self.ppu_address.wrapping_add(address_increment);
             },
             _ => ()
         };
@@ -144,7 +145,9 @@ impl Olc2C02 {
             },
             PPU_DATA => {
                 self.ppu_write(self.ppu_address, data);
-                self.ppu_address = self.ppu_address.wrapping_add(1);
+                
+                let address_increment = if self.get_control(Control2C02::VramAddress) == 1 { 32 } else { 1 };
+                self.ppu_address = self.ppu_address.wrapping_add(address_increment);
             },
             _ => ()
         };
@@ -359,8 +362,7 @@ impl Olc2C02 {
                 return self.control & 0x03;
             },
             _ => {
-                let num = control as u8;
-                if self.control & num > 0 {
+                if self.control & (control as u8) > 0 {
                     1
                 } else {
                     0
@@ -394,7 +396,7 @@ pub enum Control2C02 {
     BackgroundTableAddress = 0b00010000, // Background pattern table address (0: $0000; 1: $1000)
     SpriteSize =             0b00100000, // (0: 8x8 pixels; 1: 8x16 pixels)
     PpuMasterSlaveSelect =   0b01000000, // PPU master/slave select (0: read backdrop from EXT pins; 1: output color on EXT pins)
-    GenerateNmi =            0b10000000 // Generate an NMI at the start of the vertical blanking interval (0: off; 1: on)
+    GenerateNmi =            0b10000000  // Generate an NMI at the start of the vertical blanking interval (0: off; 1: on)
 }
 
 #[derive(Debug)]
@@ -406,7 +408,7 @@ pub enum Mask2C02 {
     ShowSprite =         0b00010000, // Show sprites
     EmphasizeRed =       0b00100000, // Emphasize red
     EmphasizeGreen =     0b01000000, // Emphasize green
-    EMphasizeBlue =      0b10000000 // Emphasize blue
+    EMphasizeBlue =      0b10000000  // Emphasize blue
 }
 
 #[derive(Debug)]

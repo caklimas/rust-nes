@@ -72,6 +72,7 @@ impl Olc6502 {
             let additional_cycle_2 = record.1(self);
 
             self.write_to_file(
+                false,
                 program_counter, 
                 opcode,
                 &record.3,
@@ -194,6 +195,7 @@ impl Olc6502 {
     }
 
     fn write_to_file(&mut self,
+        log: bool,
         program_counter: u16, 
         opcode: u8, 
         address_mode: &address_modes::AddressMode,
@@ -213,32 +215,34 @@ impl Olc6502 {
                 _ => addr_abs
             };
 
-            // println!("{:#06x} {:#04x} {:#06x} {} A: {:#04x} X: {:#04x} Y: {:#04x} P: {:#04x} SP: {:#04x} PPU: {} CYC: {}", 
-            // program_counter,
-            // opcode, 
-            // address, 
-            // op_name, 
-            // accumulator, 
-            // x_register, 
-            // y_register, 
-            // status_register, 
-            // stack_pointer, counter % 341, counter + 7);
-            // match writeln!(
-            //     &mut writer,
-            //     "{:#06x} {:#04x} {:#06x} {} A: {:#04x} X: {:#04x} Y: {:#04x} P: {:#04x} SP: {:#04x} PPU: {} CYC: {}", 
-            //     program_counter,
-            //     opcode, 
-            //     address, 
-            //     op_name, 
-            //     accumulator, 
-            //     x_register, 
-            //     y_register, 
-            //     status_register, 
-            //     stack_pointer, counter % 341, counter + 7
-            // ) {
-            //     Err(e) => println!("{:?}", e),
-            //     _ => ()
-            // }
+            if log {
+                println!("{:#06x} {:#04x} {:#06x} {} A: {:#04x} X: {:#04x} Y: {:#04x} P: {:#04x} SP: {:#04x} PPU: {} CYC: {}", 
+                program_counter,
+                opcode, 
+                address, 
+                op_name, 
+                accumulator, 
+                x_register, 
+                y_register, 
+                status_register, 
+                stack_pointer, counter % 341, counter + 7);
+                // match writeln!(
+                //     &mut writer,
+                //     "{:#06x} {:#04x} {:#06x} {} A: {:#04x} X: {:#04x} Y: {:#04x} P: {:#04x} SP: {:#04x} PPU: {} CYC: {}", 
+                //     program_counter,
+                //     opcode, 
+                //     address, 
+                //     op_name, 
+                //     accumulator, 
+                //     x_register, 
+                //     y_register, 
+                //     status_register, 
+                //     stack_pointer, counter % 341, counter + 7
+                // ) {
+                //     Err(e) => println!("{:?}", e),
+                //     _ => ()
+                // }
+            }
             // println!("{:#06x} {} A: {:#04x} X: {:#04x} Y: {:#04x} P: {:#04x} SP: {:#04x} PPU: {} CYC: {}", self.program_counter, record.0, self.accumulator, self.x_register, self.y_register, self.status_register, self.stack_pointer, counter, counter + 7);
     }
 }

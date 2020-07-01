@@ -13,12 +13,9 @@ mod memory_sizes;
 mod display;
 mod addresses;
 
-use std::rc::Rc;
-use std::cell::RefCell;
-
 fn main() {
     let mut bus = bus::Bus::new();
-    let cartridge = cartridge::Cartridge::new(r".\src\test_roms\Super Mario Bros (E).nes");
+    let cartridge = cartridge::Cartridge::new(r".\src\test_roms\smb.nes");
     bus.load_cartridge(cartridge);
 
     bus.reset();
