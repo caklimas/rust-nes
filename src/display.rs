@@ -33,7 +33,7 @@ impl ggez::event::EventHandler for bus::Bus {
 
         graphics::clear(ctx, graphics::BLACK);
 
-        self.draw_table_ids(ctx);
+        self.draw_palette(ctx);
         graphics::present(ctx).expect("Error presenting graphics");
         self.can_draw = false;
 
@@ -90,8 +90,8 @@ impl bus::Bus {
         graphics::draw(ctx, &mesh, (nalgebra::Point2::new(0.0, 0.0),)).expect("Error drawing");
     }
 
-    pub fn draw_table_ids(&mut self, ctx: &mut Context) {
-        let table = self.ppu.borrow_mut().get_pattern_table(1, 0);
+    pub fn draw_palette(&mut self, ctx: &mut Context) {
+        let table = self.ppu.borrow_mut().get_pattern_table(0, 0);
         let mut mesh_builder = graphics::MeshBuilder::new();
         for height in 0..30 {
             for width in 0..32 {
@@ -112,32 +112,40 @@ impl bus::Bus {
                         mesh_builder.rectangle(graphics::DrawMode::fill(), rect, color);
                     }
                 }
-                // let text = graphics::Text::new(graphics::TextFragment {
-                //     // `TextFragment` stores a string, and optional parameters which will override those
-                //     // of `Text` itself. This allows inlining differently formatted lines, words,
-                //     // or even individual letters, into the same block of text.
-                //     text: self.ppu.borrow().name_table[0][height * 32 + width].to_string(),
-                //     color: Some(graphics::WHITE),
-                //     // `Font` is a handle to a loaded TTF, stored inside the `Context`.
-                //     // `Font::default()` always exists and maps to DejaVuSerif.
-                //     font: Some(graphics::Font::default()),
-                //     scale: Some(graphics::Scale::uniform(10.0)),
-                //     // This doesn't do anything at this point; can be used to omit fields in declarations.
-                //     ..Default::default()
-                // });
-
-                // graphics::queue_text(ctx, &text, Point2 { x: (width * 32) as f32, y: (height * 30) as f32 }, Some(graphics::WHITE));
             }
         }
 
-        
-        //graphics::draw_queued_text(ctx, graphics::DrawParam::default(), None, graphics::FilterMode::Linear).expect("Draw text failed");
         let mesh = mesh_builder.build(ctx).expect("Error building the mesh");
         graphics::draw(ctx, &mesh, (nalgebra::Point2::new(0.0, 0.0),)).expect("Error drawing");
     }
 
+    pub fn draw_table_ids(&mut self, ctx: &mut Context) {
+        for height in 0..30 {
+            for width in 0..32 {
+                let text = graphics::Text::new(graphics::TextFragment {
+                    // `TextFragment` stores a string, and optional parameters which will override those
+                    // of `Text` itself. This allows inlining differently formatted lines, words,
+                    // or even individual letters, into the same block of text.
+                    text: self.ppu.borrow().name_table[0][height * 32 + width].to_string(),
+                    color: Some(graphics::WHITE),
+                    // `Font` is a handle to a loaded TTF, stored inside the `Context`.
+                    // `Font::default()` always exists and maps to DejaVuSerif.
+                    font: Some(graphics::Font::default()),
+                    scale: Some(graphics::Scale::uniform(10.0)),
+                    // This doesn't do anything at this point; can be used to omit fields in declarations.
+                    ..Default::default()
+                });
+
+                graphics::queue_text(ctx, &text, Point2 { x: (width * 32) as f32, y: (height * 30) as f32 }, Some(graphics::WHITE));
+            }
+        }
+
+        
+        graphics::draw_queued_text(ctx, graphics::DrawParam::default(), None, graphics::FilterMode::Linear).expect("Draw text failed");
+    }
+
     pub fn draw_pattern_tables(&mut self, ctx: &mut Context) {
-        let table = self.ppu.borrow_mut().get_pattern_table(0, 1);
+        let table = self.ppu.borrow_mut().get_pattern_table(0, 0);
         let mut mesh_builder = graphics::MeshBuilder::new();
 
         for row in 0..128 {

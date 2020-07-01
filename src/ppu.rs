@@ -41,7 +41,9 @@ pub struct Olc2C02 {
     mask: u8,
     address_latch: bool,
     ppu_data_buffer: u8,
-    ppu_address: u16,
+    current_vram_address: u16,
+    temp_vram_address: u16,
+    fine_x_scroll: u8
 }
 
 impl Olc2C02 {
@@ -61,7 +63,9 @@ impl Olc2C02 {
             mask: 0,
             address_latch: false,
             ppu_data_buffer: 0,
-            ppu_address: 0
+            current_vram_address: 0,
+            temp_vram_address: 0,
+            fine_x_scroll: 0
         }
     }
         
@@ -106,14 +110,14 @@ impl Olc2C02 {
             PPU_ADDRESS => (),
             PPU_DATA => {
                 data = self.ppu_data_buffer;
-                self.ppu_data_buffer = self.ppu_read(self.ppu_address, false);
+                self.ppu_data_buffer = self.ppu_read(self.current_vram_address, false);
 
-                if self.ppu_address > addresses::PALETTE_ADDRESS_LOWER {
+                if self.current_vram_address > addresses::PALETTE_ADDRESS_LOWER {
                     data = self.ppu_data_buffer;
                 }
 
                 let address_increment = if self.get_control(Control2C02::VramAddress) == 1 { 32 } else { 1 };
-                self.ppu_address = self.ppu_address.wrapping_add(address_increment);
+                self.current_vram_address = self.current_vram_address.wrapping_add(address_increment);
             },
             _ => ()
         };
@@ -136,18 +140,18 @@ impl Olc2C02 {
             SCROLL => (),
             PPU_ADDRESS => {
                 if !self.address_latch {
-                    self.ppu_address = (self.ppu_address & 0x00FF) | ((data as u16) << 8);
+                    self.current_vram_address = (self.current_vram_address & 0x00FF) | ((data as u16) << 8);
                     self.address_latch = true;
                 } else {
-                    self.ppu_address = (self.ppu_address & 0xFF00) | (data as u16);
+                    self.current_vram_address = (self.current_vram_address & 0xFF00) | (data as u16);
                     self.address_latch = false;
                 }
             },
             PPU_DATA => {
-                self.ppu_write(self.ppu_address, data);
-                
+                self.ppu_write(self.current_vram_address, data);
+
                 let address_increment = if self.get_control(Control2C02::VramAddress) == 1 { 32 } else { 1 };
-                self.ppu_address = self.ppu_address.wrapping_add(address_increment);
+                self.current_vram_address = self.current_vram_address.wrapping_add(address_increment);
             },
             _ => ()
         };
@@ -386,6 +390,27 @@ impl Olc2C02 {
             0
         }
     }
+
+    fn get_scroll_address(&mut self, source: u16, address: ScrollAddress) -> u16 {
+        match address {
+            ScrollAddress::CoarseX => {
+                let value = source & (address as u16);
+                return value;
+            },
+            ScrollAddress::CoarseY => {
+                let value = source & (address as u16);
+                return value >> 5;
+            },
+            ScrollAddress::NameTableSelect => {
+                let value = source & (address as u16);
+                return value >> 10;
+            },
+            ScrollAddress::FineYScroll => {
+                let value = source & (address as u16);
+                return value >> 12;
+            }
+        };
+    }
 }
 
 #[derive(Debug)]
@@ -417,6 +442,14 @@ pub enum Status2C02 {
     SpriteOverflow = (1 << 5),
     SpriteZeroHit = (1 << 6),
     VerticalBlank = (1 << 7),
+}
+
+#[derive(Debug)]
+pub enum ScrollAddress {
+    CoarseX =         0b0000000000011111,
+    CoarseY =         0b0000001111100000,
+    NameTableSelect = 0b0000110000000000,
+    FineYScroll =     0b0111000000000000
 }
 
 fn get_colors() -> [Color; 0x40] {
