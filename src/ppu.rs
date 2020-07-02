@@ -81,6 +81,12 @@ impl Olc2C02 {
             }
         }
 
+        if self.scanline == 256 {
+            if self.get_mask(Mask2C02::RenderBackground) || self.get_mask(Mask2C02::RenderSprite) {
+
+            }
+        }
+
         self.cycle += 1;
 
         if self.cycle >= MAX_CLOCK_CYCLE {
@@ -130,6 +136,11 @@ impl Olc2C02 {
         match address {
             CONTROL => {
                 self.control = data;
+
+                // t: ...BA.. ........ = d: ......BA
+                let name_table_data = data & 0x03;
+                self.set_current_scroll_address(ScrollAddress::NameTableSelect0, (name_table_data & 0x01) > 0);
+                self.set_current_scroll_address(ScrollAddress::NameTableSelect1, (name_table_data & 0x02) > 0);
             },
             MASK => {
                 self.mask = data;
@@ -137,13 +148,37 @@ impl Olc2C02 {
             STATUS => (),
             OAM_ADDRESS => (),
             OAM_DATA => (),
-            SCROLL => (),
-            PPU_ADDRESS => {
+            SCROLL => {
                 if !self.address_latch {
-                    self.current_vram_address = (self.current_vram_address & 0x00FF) | ((data as u16) << 8);
+                    // t: ....... ...HGFED = d: HGFED...
+                    // x:              CBA = d: .....CBA
+                    // w:                  = 1
+                    let hgfed = ((data & 0b11111000) >> 3) as u16;
+                    self.temp_vram_address = (self.temp_vram_address & 0x7FE0) | hgfed;
+                    self.fine_x_scroll = data & 0b111;
                     self.address_latch = true;
                 } else {
-                    self.current_vram_address = (self.current_vram_address & 0xFF00) | (data as u16);
+                    // t: CBA..HGFED..... = d: HGFEDCBA
+                    // w:                  = 0
+                    let cba = ((data & 0b111) as u16) << 12;
+                    let hgfed = ((data & 0b11111000) as u16) << 2;
+                    self.temp_vram_address = ((self.temp_vram_address & 0b000110000011111) | cba) | hgfed;
+                    self.address_latch = false;
+                }
+            },
+            PPU_ADDRESS => {
+                if !self.address_latch {
+                    // t: .FEDCBA ........ = d: ..FEDCBA
+                    // t: X...... ........ = 0
+                    // w:                  = 1
+                    self.temp_vram_address = (self.temp_vram_address & 0x00FF) | ((data as u16) << 8);
+                    self.address_latch = true;
+                } else {
+                    // t: ....... HGFEDCBA = d: HGFEDCBA
+                    // v                   = t
+                    // w:                  = 0
+                    self.temp_vram_address = (self.temp_vram_address & 0xFF00) | (data as u16);
+                    self.current_vram_address = self.temp_vram_address;
                     self.address_latch = false;
                 }
             },
@@ -375,6 +410,10 @@ impl Olc2C02 {
         }
     }
 
+    fn get_mask(&mut self, mask: Mask2C02) -> bool {
+        self.status & (mask as u8) > 0
+    }
+
     fn set_status(&mut self, status: Status2C02, value: bool) {
         if value {
             self.status = self.status | (status as u8);
@@ -414,10 +453,10 @@ pub enum Control2C02 {
 #[derive(Debug)]
 pub enum Mask2C02 {
     Greyscale =          0b00000001, // Greyscale (0: normal color, 1: produce a greyscale display)
-    ShowBackgroundLeft = 0b00000010, // Show background in leftmost 8 pixels of screen, 0: Hide
-    ShowSpriteLeft =     0b00000100, // Show sprites in leftmost 8 pixels of screen, 0: Hide
-    ShowBackground =     0b00001000, // Show background
-    ShowSprite =         0b00010000, // Show sprites
+    RenderBackgroundLeft = 0b00000010, // Show background in leftmost 8 pixels of screen, 0: Hide
+    RenderSpriteLeft =     0b00000100, // Show sprites in leftmost 8 pixels of screen, 0: Hide
+    RenderBackground =     0b00001000, // Show background
+    RenderSprite =         0b00010000, // Show sprites
     EmphasizeRed =       0b00100000, // Emphasize red
     EmphasizeGreen =     0b01000000, // Emphasize green
     EMphasizeBlue =      0b10000000  // Emphasize blue

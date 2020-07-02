@@ -208,14 +208,14 @@ impl Olc6502 {
         status_register: u8,
         stack_pointer: u8,
         counter: u32) {
-            let file = OpenOptions::new().write(true).truncate(false).append(true).open(r"H:\Repos\rust-nes\src\result.txt").expect("Not found");
-            let mut writer = BufWriter::new(&file);
-            let address = match address_mode {
-                address_modes::AddressMode::Rel => addr_rel,
-                _ => addr_abs
-            };
-
             if log {
+                let file = OpenOptions::new().write(true).truncate(false).append(true).open(r"H:\Repos\rust-nes\src\result.txt").expect("Not found");
+                let mut writer = BufWriter::new(&file);
+                let address = match address_mode {
+                    address_modes::AddressMode::Rel => addr_rel,
+                    _ => addr_abs
+                };
+                
                 println!("{:#06x} {:#04x} {:#06x} {} A: {:#04x} X: {:#04x} Y: {:#04x} P: {:#04x} SP: {:#04x} PPU: {} CYC: {}", 
                 program_counter,
                 opcode, 

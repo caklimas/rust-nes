@@ -8,7 +8,7 @@ use rand::Rng;
 
 use crate::bus;
 
-const PIXEL_SIZE: i32 = 4;
+const PIXEL_SIZE: i32 = 3;
 pub const SCREEN_WIDTH: u16 = 256;
 pub const SCREEN_HEIGHT: u16 = 240;
 pub const WINDOW_WIDTH: f32 = SCREEN_WIDTH as f32 * PIXEL_SIZE as f32;
