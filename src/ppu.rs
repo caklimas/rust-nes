@@ -81,9 +81,27 @@ impl Olc2C02 {
             }
         }
 
-        if self.scanline == 256 {
+        if self.scanline >= -1 || self.scanline < 240 {
             if self.get_mask(Mask2C02::RenderBackground) || self.get_mask(Mask2C02::RenderSprite) {
+                if self.scanline == 256 {
+                    // If rendering is enabled, the PPU increments the vertical position in v.
+                    // The effective Y scroll coordinate is incremented, which is a complex operation that will correctly skip the attribute table memory regions,
+                    // and wrap to the next nametable appropriately.
+                    self.increment_y();
+                } else if self.scanline == 257 {
+                    // If rendering is enabled, the PPU copies all bits related to horizontal position from t to v:
+                    // v: ....F.. ...EDCBA = t: ....F.. ...EDCBA
+                    let fedcba = self.temp_vram_address & 0x41F;
+                    self.current_vram_address |= fedcba;
+                } else if self.scanline >= 280 && self.scanline <= 304 {
+                    // If rendering is enabled, at the end of vblank, shortly after the horizontal bits are copied from t to v at dot 257, 
+                    // the PPU will repeatedly copy the vertical bits from t to v from dots 280 to 304, completing the full initialization of v from t:
+                    // v: IHGF.ED CBA..... = t: IHGF.ED CBA.....
+                    let ihgfedcba = self.temp_vram_address & 0x7BE0;
+                    self.current_vram_address |= ihgfedcba;
+                } else if (self.scanline >= 328 || (self.scanline != 0 && self.scanline <= 256)) && self.scanline % 8 == 0 {
 
+                } 
             }
         }
 
@@ -137,10 +155,9 @@ impl Olc2C02 {
             CONTROL => {
                 self.control = data;
 
-                // t: ...BA.. ........ = d: ......BA
-                let name_table_data = data & 0x03;
-                self.set_current_scroll_address(ScrollAddress::NameTableSelect0, (name_table_data & 0x01) > 0);
-                self.set_current_scroll_address(ScrollAddress::NameTableSelect1, (name_table_data & 0x02) > 0);
+                // t: ...BA.......... = d: ......BA
+                let ba = (data & 0x03) as u16;
+                self.temp_vram_address = (self.temp_vram_address & 0x73FF) | (ba << 10);
             },
             MASK => {
                 self.mask = data;
@@ -236,6 +253,27 @@ impl Olc2C02 {
             self.write_name_table_data(ppu_address, data);
         } else if ppu_address >= addresses::PALETTE_ADDRESS_LOWER && ppu_address <= addresses::PALETTE_ADDRESS_UPPER {
             self.write_palette_table_data(ppu_address, data);
+        }
+    }
+
+    fn increment_y(&mut self) {
+        // See https://wiki.nesdev.com/w/index.php/PPU_scrolling#Wrapping_around
+        if (self.current_vram_address & 0x7000) != 0x7000 {
+            self.current_vram_address += 0x1000; // If fine Y < 7 then increment fine Y
+        } else {
+            self.current_vram_address &= !(0x7000); // Set fine Y to 0
+            let mut y = (self.current_vram_address & 0x03E0) >> 5; // Set y to coarse y
+            if y == 29 { // 29 is the last row of tiles in the name table
+                y = 0; // Set coarse Y to 0
+                self.current_vram_address ^= 0x8000; // Switch vertical nametable
+            } else if y == 31 { // Coarse Y can be set out of bounds and will wrap to 0
+                y = 0; // Coarse Y is 0 and the nametable is not switched
+            } else {
+                y += 1; // Increment Coarse Y
+            }
+
+            self.current_vram_address = 
+                (self.current_vram_address & !0x03E0) | (y << 5); // Put coarse Y back into address
         }
     }
 
@@ -430,11 +468,11 @@ impl Olc2C02 {
         }
     }
 
-    fn set_current_scroll_address(&mut self, address: ScrollAddress, value: bool) {
-        if value {
-            self.current_vram_address = self.current_vram_address | (address as u16);
+    fn get_temp_address(&mut self, scroll: ScrollAddress) -> u8 {
+        if self.temp_vram_address & (scroll as u16) > 0 {
+            1
         } else {
-            self.current_vram_address = self.current_vram_address & !(address as u16);
+            0
         }
     }
 }
