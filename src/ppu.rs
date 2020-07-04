@@ -90,15 +90,30 @@ impl Olc2C02 {
                     self.increment_y();
                 } else if self.scanline == 257 {
                     // If rendering is enabled, the PPU copies all bits related to horizontal position from t to v:
-                    // v: ....F.. ...EDCBA = t: ....F.. ...EDCBA
+                    // v: ....F.. ...EDCBA = t: ....F.....EDCBA
                     let fedcba = self.temp_vram_address & 0x41F;
+                    self.set_current_address(ScrollAddress::CoarseX0, ((fedcba >> 0) & 0x01) > 0);
+                    self.set_current_address(ScrollAddress::CoarseX1, ((fedcba >> 1) & 0x01) > 0);
+                    self.set_current_address(ScrollAddress::CoarseX2, ((fedcba >> 2) & 0x01) > 0);
+                    self.set_current_address(ScrollAddress::CoarseX3, ((fedcba >> 3) & 0x01) > 0);
+                    self.set_current_address(ScrollAddress::CoarseX4, ((fedcba >> 4) & 0x01) > 0);
+                    self.set_current_address(ScrollAddress::NameTableSelect0, ((fedcba >> 10) & 0x01) > 0);
+
                     self.current_vram_address |= fedcba;
                 } else if self.scanline >= 280 && self.scanline <= 304 {
                     // If rendering is enabled, at the end of vblank, shortly after the horizontal bits are copied from t to v at dot 257, 
                     // the PPU will repeatedly copy the vertical bits from t to v from dots 280 to 304, completing the full initialization of v from t:
                     // v: IHGF.ED CBA..... = t: IHGF.ED CBA.....
                     let ihgfedcba = self.temp_vram_address & 0x7BE0;
-                    self.current_vram_address |= ihgfedcba;
+                    self.set_current_address(ScrollAddress::CoarseY0, ((ihgfedcba >> 5) & 0x01) > 0);
+                    self.set_current_address(ScrollAddress::CoarseY1, ((ihgfedcba >> 6) & 0x01) > 0);
+                    self.set_current_address(ScrollAddress::CoarseY2, ((ihgfedcba >> 7) & 0x01) > 0);
+                    self.set_current_address(ScrollAddress::CoarseY3, ((ihgfedcba >> 8) & 0x01) > 0);
+                    self.set_current_address(ScrollAddress::CoarseY4, ((ihgfedcba >> 9) & 0x01) > 0);
+                    self.set_current_address(ScrollAddress::NameTableSelect1, ((ihgfedcba >> 11) & 0x01) > 0);
+                    self.set_current_address(ScrollAddress::FineYScroll0, ((ihgfedcba >> 12) & 0x01) > 0);
+                    self.set_current_address(ScrollAddress::FineYScroll1, ((ihgfedcba >> 13) & 0x01) > 0);
+                    self.set_current_address(ScrollAddress::FineYScroll2, ((ihgfedcba >> 14) & 0x01) > 0);
                 } else if (self.scanline >= 328 || (self.scanline != 0 && self.scanline <= 256)) && self.scanline % 8 == 0 {
 
                 } 
@@ -157,7 +172,8 @@ impl Olc2C02 {
 
                 // t: ...BA.......... = d: ......BA
                 let ba = (data & 0x03) as u16;
-                self.temp_vram_address = (self.temp_vram_address & 0x73FF) | (ba << 10);
+                self.set_temp_address(ScrollAddress::NameTableSelect0, (ba & 0x01) > 0);
+                self.set_temp_address(ScrollAddress::NameTableSelect1, ((ba >> 1) & 0x01) > 0);
             },
             MASK => {
                 self.mask = data;
@@ -171,30 +187,59 @@ impl Olc2C02 {
                     // x:              CBA = d: .....CBA
                     // w:                  = 1
                     let hgfed = ((data & 0b11111000) >> 3) as u16;
-                    self.temp_vram_address = (self.temp_vram_address & 0x7FE0) | hgfed;
+                    self.set_temp_address(ScrollAddress::CoarseX0, ((hgfed >> 0) & 0x01) > 0);
+                    self.set_temp_address(ScrollAddress::CoarseX1, ((hgfed >> 1) & 0x01) > 0);
+                    self.set_temp_address(ScrollAddress::CoarseX2, ((hgfed >> 2) & 0x01) > 0);
+                    self.set_temp_address(ScrollAddress::CoarseX3, ((hgfed >> 3) & 0x01) > 0);
+                    self.set_temp_address(ScrollAddress::CoarseX4, ((hgfed >> 4) & 0x01) > 0);
                     self.fine_x_scroll = data & 0b111;
                     self.address_latch = true;
                 } else {
                     // t: CBA..HGFED..... = d: HGFEDCBA
                     // w:                  = 0
-                    let cba = ((data & 0b111) as u16) << 12;
-                    let hgfed = ((data & 0b11111000) as u16) << 2;
-                    self.temp_vram_address = ((self.temp_vram_address & 0b000110000011111) | cba) | hgfed;
+                    let cba = (data & 0b111) as u16;
+                    let hgfed = ((data & 0b11111000) as u16) >> 3;
+                    self.set_temp_address(ScrollAddress::CoarseY0, ((hgfed >> 0) & 0x01) > 0);
+                    self.set_temp_address(ScrollAddress::CoarseY1, ((hgfed >> 1) & 0x01) > 0);
+                    self.set_temp_address(ScrollAddress::CoarseY2, ((hgfed >> 2) & 0x01) > 0);
+                    self.set_temp_address(ScrollAddress::CoarseY3, ((hgfed >> 3) & 0x01) > 0);
+                    self.set_temp_address(ScrollAddress::CoarseY4, ((hgfed >> 4) & 0x01) > 0);
+
+                    self.set_temp_address(ScrollAddress::FineYScroll0, ((cba >> 0) & 0x01) > 0);
+                    self.set_temp_address(ScrollAddress::FineYScroll1, ((cba >> 1) & 0x01) > 0);
+                    self.set_temp_address(ScrollAddress::FineYScroll2, ((cba >> 2) & 0x01) > 0);
+
                     self.address_latch = false;
                 }
             },
             PPU_ADDRESS => {
                 if !self.address_latch {
-                    // t: .FEDCBA ........ = d: ..FEDCBA
-                    // t: X...... ........ = 0
+                    // t: .FEDCBA........ = d: ..FEDCBA
+                    // t: X.............. = 0
                     // w:                  = 1
-                    self.temp_vram_address = (self.temp_vram_address & 0x00FF) | ((data as u16) << 8);
+                    let fedbca = data & 0b00111111;
+                    self.set_temp_address(ScrollAddress::CoarseY3, ((fedbca >> 0) & 0x01) > 0);
+                    self.set_temp_address(ScrollAddress::CoarseY4, ((fedbca >> 1) & 0x01) > 0);
+                    self.set_temp_address(ScrollAddress::NameTableSelect0, ((fedbca >> 2) & 0x01) > 0);
+                    self.set_temp_address(ScrollAddress::NameTableSelect1, ((fedbca >> 3) & 0x01) > 0);
+                    self.set_temp_address(ScrollAddress::FineYScroll0, ((fedbca >> 4) & 0x01) > 0);
+                    self.set_temp_address(ScrollAddress::FineYScroll1, ((fedbca >> 5) & 0x01) > 0);
+                    self.set_temp_address(ScrollAddress::FineYScroll2, false);
+
                     self.address_latch = true;
                 } else {
                     // t: ....... HGFEDCBA = d: HGFEDCBA
                     // v                   = t
                     // w:                  = 0
-                    self.temp_vram_address = (self.temp_vram_address & 0xFF00) | (data as u16);
+                    self.set_temp_address(ScrollAddress::CoarseX0, ((data >> 0) & 0x01) > 0);
+                    self.set_temp_address(ScrollAddress::CoarseX1, ((data >> 1) & 0x01) > 0);
+                    self.set_temp_address(ScrollAddress::CoarseX2, ((data >> 2) & 0x01) > 0);
+                    self.set_temp_address(ScrollAddress::CoarseX3, ((data >> 3) & 0x01) > 0);
+                    self.set_temp_address(ScrollAddress::CoarseX4, ((data >> 4) & 0x01) > 0);
+                    self.set_temp_address(ScrollAddress::CoarseY0, ((data >> 5) & 0x01) > 0);
+                    self.set_temp_address(ScrollAddress::CoarseY1, ((data >> 6) & 0x01) > 0);
+                    self.set_temp_address(ScrollAddress::CoarseY2, ((data >> 7) & 0x01) > 0);
+
                     self.current_vram_address = self.temp_vram_address;
                     self.address_latch = false;
                 }
@@ -468,11 +513,19 @@ impl Olc2C02 {
         }
     }
 
-    fn get_temp_address(&mut self, scroll: ScrollAddress) -> u8 {
-        if self.temp_vram_address & (scroll as u16) > 0 {
-            1
+    fn set_current_address(&mut self, scroll: ScrollAddress, value: bool) {
+        if value {
+            self.current_vram_address |= scroll as u16;
         } else {
-            0
+            self.current_vram_address &= !(scroll as u16);
+        }
+    }
+
+    fn set_temp_address(&mut self, scroll: ScrollAddress, value: bool) {
+        if value {
+            self.temp_vram_address |= scroll as u16;
+        } else {
+            self.temp_vram_address &= !(scroll as u16);
         }
     }
 }
