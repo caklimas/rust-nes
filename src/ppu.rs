@@ -70,10 +70,6 @@ impl Olc2C02 {
     }
         
     pub fn clock(&mut self) {
-        if self.scanline == -1 && self.cycle == 1 {
-            self.set_status(Status2C02::VerticalBlank, false);
-        }
-
         if self.scanline == 241 && self.cycle == 1 {
             self.set_status(Status2C02::VerticalBlank, true);
             if self.get_control(Control2C02::GenerateNmi) == 1 {
@@ -82,13 +78,19 @@ impl Olc2C02 {
         }
 
         if self.scanline >= -1 || self.scanline < 240 {
+            if self.scanline == -1 && self.cycle == 1 {
+                self.set_status(Status2C02::VerticalBlank, false);
+            }
+
             if self.get_mask(Mask2C02::RenderBackground) || self.get_mask(Mask2C02::RenderSprite) {
-                if self.scanline == 256 {
+                if self.cycle == 256 {
                     // If rendering is enabled, the PPU increments the vertical position in v.
                     // The effective Y scroll coordinate is incremented, which is a complex operation that will correctly skip the attribute table memory regions,
                     // and wrap to the next nametable appropriately.
                     self.increment_y();
-                } else if self.scanline == 257 {
+                }
+                
+                if self.cycle == 257 {
                     // If rendering is enabled, the PPU copies all bits related to horizontal position from t to v:
                     // v: ....F.. ...EDCBA = t: ....F.....EDCBA
                     let fedcba = self.temp_vram_address & 0x41F;
@@ -100,7 +102,9 @@ impl Olc2C02 {
                     self.set_current_address(ScrollAddress::NameTableSelect0, ((fedcba >> 10) & 0x01) > 0);
 
                     self.current_vram_address |= fedcba;
-                } else if self.scanline >= 280 && self.scanline <= 304 {
+                }
+                
+                if self.scanline == -1 && self.cycle >= 280 && self.cycle <= 304 {
                     // If rendering is enabled, at the end of vblank, shortly after the horizontal bits are copied from t to v at dot 257, 
                     // the PPU will repeatedly copy the vertical bits from t to v from dots 280 to 304, completing the full initialization of v from t:
                     // v: IHGF.ED CBA..... = t: IHGF.ED CBA.....
@@ -114,8 +118,10 @@ impl Olc2C02 {
                     self.set_current_address(ScrollAddress::FineYScroll0, ((ihgfedcba >> 12) & 0x01) > 0);
                     self.set_current_address(ScrollAddress::FineYScroll1, ((ihgfedcba >> 13) & 0x01) > 0);
                     self.set_current_address(ScrollAddress::FineYScroll2, ((ihgfedcba >> 14) & 0x01) > 0);
-                } else if (self.scanline >= 328 || (self.scanline != 0 && self.scanline <= 256)) && self.scanline % 8 == 0 {
-
+                } 
+                
+                if (self.cycle >= 328 || (self.cycle != 0 && self.cycle <= 256)) && self.cycle % 8 == 0 {
+                    
                 } 
             }
         }
