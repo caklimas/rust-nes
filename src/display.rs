@@ -27,9 +27,9 @@ impl ggez::event::EventHandler for bus::Bus {
     }
 
     fn draw(&mut self, ctx: &mut Context) -> GameResult<()> {
-    //     if !self.can_draw {
-    //         return Ok(());
-    //     }
+        if !self.can_draw {
+            return Ok(());
+        }
 
         graphics::clear(ctx, graphics::BLACK);
 
@@ -93,27 +93,41 @@ impl bus::Bus {
     pub fn draw_palette(&mut self, ctx: &mut Context) {
         let table = self.ppu.borrow_mut().get_pattern_table(0, 0);
         let mut mesh_builder = graphics::MeshBuilder::new();
-        for height in 0..30 {
-            for width in 0..32 {
-                let id = self.ppu.borrow().name_table[0][height * 32 + width];
-                let x = (id & 0x0F) << 3;
-                let y = ((id >> 4) & 0x0F) << 3;
-                let sub = self.get_sub_array(x, y, 8, 8, table);
-                for i in 0..sub.len() {
-                    for j in 0..sub[i].len() {
-                        let color = sub[i][j];
-                        let rect = graphics::Rect::new_i32(
-                            ((width * 8) + j) as i32 * PIXEL_SIZE, 
-                            ((height * 8) + i) as i32 * PIXEL_SIZE, 
-                            PIXEL_SIZE, 
-                            PIXEL_SIZE
-                        );
-            
-                        mesh_builder.rectangle(graphics::DrawMode::fill(), rect, color);
-                    }
-                }
+        for i in 0..SCREEN_WIDTH {
+            for j in 0..SCREEN_HEIGHT {
+                let color = self.ppu.borrow().frame[j as usize][i as usize];
+                let rect = graphics::Rect::new_i32(
+                    i as i32 * PIXEL_SIZE, 
+                    j as i32 * PIXEL_SIZE, 
+                    PIXEL_SIZE, 
+                    PIXEL_SIZE
+                );
+    
+                mesh_builder.rectangle(graphics::DrawMode::fill(), rect, color);
             }
         }
+
+        // for height in 0..30 {
+        //     for width in 0..32 {
+        //         let id = self.ppu.borrow().name_table[0][height * 32 + width];
+        //         let x = (id & 0x0F) << 3;
+        //         let y = ((id >> 4) & 0x0F) << 3;
+        //         let sub = self.get_sub_array(x, y, 8, 8, table);
+        //         for i in 0..sub.len() {
+        //             for j in 0..sub[i].len() {
+        //                 let color = sub[i][j];
+        //                 let rect = graphics::Rect::new_i32(
+        //                     ((width * 8) + j) as i32 * PIXEL_SIZE, 
+        //                     ((height * 8) + i) as i32 * PIXEL_SIZE, 
+        //                     PIXEL_SIZE, 
+        //                     PIXEL_SIZE
+        //                 );
+            
+        //                 mesh_builder.rectangle(graphics::DrawMode::fill(), rect, color);
+        //             }
+        //         }
+        //     }
+        // }
 
         let mesh = mesh_builder.build(ctx).expect("Error building the mesh");
         graphics::draw(ctx, &mesh, (nalgebra::Point2::new(0.0, 0.0),)).expect("Error drawing");

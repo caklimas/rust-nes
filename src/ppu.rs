@@ -6,6 +6,7 @@ use ggez::graphics::Color;
 use crate::cartridge;
 use crate::memory_sizes;
 use crate::addresses;
+use crate::display;
 
 const CONTROL: u16 = 0x0000; // Configure ppu to render in different ways
 const MASK: u16 = 0x0001; // Decides what sprites or backgrounds are being drawn and what happens at the edges of the screen
@@ -18,13 +19,12 @@ const PPU_DATA: u16 = 0x0007; // The data to send to the ppu address
 
 const MAX_CLOCK_CYCLE: u16 = 341;
 const MAX_SCANLINE: i16 = 261;
+const MAX_VISIBLE_SCANLINE: i16 = 239;
 
 const TILE_WIDTH: u16 = 16;
 const TILE_HEIGHT: u16 = 16;
 const FRAME_WIDTH: u16 = 256;
 const FRAME_HEIGHT: u16 = 240;
-
-
 
 pub struct Olc2C02 {
     pub name_table: [[u8; memory_sizes::KILOBYTES_1 as usize]; 2], // A full name table is 1KB and the NES can hold 2 name tables
@@ -34,6 +34,7 @@ pub struct Olc2C02 {
     pub nmi: bool,
     pub frame_complete: bool,
     pub colors: [Color; 0x40],
+    pub frame: [[Color; 256]; 240],
     scanline: i16,
     cycle: u16,
     status: u8,
@@ -43,7 +44,15 @@ pub struct Olc2C02 {
     ppu_data_buffer: u8,
     current_vram_address: u16,
     temp_vram_address: u16,
-    fine_x_scroll: u8
+    fine_x_scroll: u8,
+    bg_next_tile_id: u8,
+    bg_next_tile_attribute: u8,
+    bg_next_tile_lsb: u8,
+    bg_next_tile_msb: u8,
+    bg_shifter_pattern_low: u16,
+    bg_shifter_pattern_high: u16,
+    bg_shifter_attribute_low: u16,
+    bg_shifter_attribute_high: u16
 }
 
 impl Olc2C02 {
@@ -58,6 +67,7 @@ impl Olc2C02 {
             cycle: 0,
             frame_complete: false,
             colors: get_colors(),
+            frame: [[graphics::BLACK; 256]; 240],
             status: 0,
             control: 0,
             mask: 0,
@@ -65,21 +75,75 @@ impl Olc2C02 {
             ppu_data_buffer: 0,
             current_vram_address: 0,
             temp_vram_address: 0,
-            fine_x_scroll: 0
+            fine_x_scroll: 0,
+            bg_next_tile_id: 0x00,
+            bg_next_tile_attribute: 0x00,
+            bg_next_tile_lsb: 0x00,
+            bg_next_tile_msb: 0x00,
+            bg_shifter_pattern_low: 0x0000,
+            bg_shifter_pattern_high: 0x0000,
+            bg_shifter_attribute_low: 0x0000,
+            bg_shifter_attribute_high: 0x0000
         }
     }
         
     pub fn clock(&mut self) {
-        if self.scanline == 241 && self.cycle == 1 {
-            self.set_status(Status2C02::VerticalBlank, true);
-            if self.get_control(Control2C02::GenerateNmi) == 1 {
-                self.nmi = true;
-            }
-        }
-
-        if self.scanline >= -1 || self.scanline < 240 {
+        if self.scanline >= -1 || self.scanline <= MAX_VISIBLE_SCANLINE {
             if self.scanline == -1 && self.cycle == 1 {
                 self.set_status(Status2C02::VerticalBlank, false);
+            }
+
+            // Skipped on BG+odd
+            if self.scanline == 0 && self.cycle == 0 {
+                self.cycle = 1;
+            }
+
+            if (self.cycle >= 2 && self.cycle <= 257) || (self.cycle >= 321 && self.cycle <= 340) {
+                self.update_shifters();
+
+                let sub_cycle = (self.cycle - 1) % 8;
+                if sub_cycle == 0 {
+                    self.load_shifters();
+                    let name_table_address = addresses::NAME_TABLE_ADDRESS_LOWER | (self.current_vram_address & 0x0FFF);
+                    self.bg_next_tile_id = self.ppu_read(name_table_address, false);
+                } else if sub_cycle == 2 {
+                    let coarse_x = self.get_coarse_x();
+                    let coarse_y = self.get_coarse_y();
+                    let name_table_x = self.get_current_address(ScrollAddress::NameTableSelectX) << 10;
+                    let name_table_y = self.get_current_address(ScrollAddress::NameTableSelectY) << 11;
+                    let attribute_table_address = 
+                        addresses::ATTRIBUTE_TABLE_ADDRESS_LOWER |
+                        name_table_y |
+                        name_table_x |
+                        (coarse_y >> 2) << 3 |
+                        coarse_x >> 2;
+                    self.bg_next_tile_attribute = self.ppu_read(attribute_table_address, false);
+
+                    // Since there are only 4 palettes for the background tiles, we only need 2 bits to select a palette(2 bits range is 0-3)
+                    // We get a byte of data we can split that byte up into 4 sets of 2 bits.
+                    // One attribute byte covers a block of data (4x4 tiles) so we can apply each set of 2 bits to one quadrant of the block
+                    // Bits 7,6 => bottom right, Bits 5,4 => bottom left, Bits 3,2 => top right, Bits 1,0 => top left
+                    // If coarse y % 4 < 2 then it is in the top half
+                    // If coarse x % 4 < 2 then it is in the left half
+                    // Knowing this and that we want the last two bits to be the palette selected so we shift accordingly.
+                    if coarse_y & 0x02 > 0 {
+                        self.bg_next_tile_attribute >>= 4; // Use bits 7,6 or 5,4
+                    }
+
+                    if coarse_x & 0x02 > 0 {
+                        self.bg_next_tile_attribute >>= 2; // USe bits 7,6 or 3,2
+                    }
+
+                    self.bg_next_tile_attribute &= 0x03;
+                } else if sub_cycle == 4 {
+                    let pattern_address = self.get_pattern_address(0);
+                    self.bg_next_tile_lsb = self.ppu_read(pattern_address, false);
+                } else if sub_cycle == 6 {
+                    let pattern_address = self.get_pattern_address(8);
+                    self.bg_next_tile_msb = self.ppu_read(pattern_address, false);
+                } else if sub_cycle == 7 {
+                    self.increment_x();
+                }
             }
 
             if self.get_mask(Mask2C02::RenderBackground) || self.get_mask(Mask2C02::RenderSprite) {
@@ -99,7 +163,7 @@ impl Olc2C02 {
                     self.set_current_address(ScrollAddress::CoarseX2, ((fedcba >> 2) & 0x01) > 0);
                     self.set_current_address(ScrollAddress::CoarseX3, ((fedcba >> 3) & 0x01) > 0);
                     self.set_current_address(ScrollAddress::CoarseX4, ((fedcba >> 4) & 0x01) > 0);
-                    self.set_current_address(ScrollAddress::NameTableSelect0, ((fedcba >> 10) & 0x01) > 0);
+                    self.set_current_address(ScrollAddress::NameTableSelectX, ((fedcba >> 10) & 0x01) > 0);
 
                     self.current_vram_address |= fedcba;
                 }
@@ -114,16 +178,43 @@ impl Olc2C02 {
                     self.set_current_address(ScrollAddress::CoarseY2, ((ihgfedcba >> 7) & 0x01) > 0);
                     self.set_current_address(ScrollAddress::CoarseY3, ((ihgfedcba >> 8) & 0x01) > 0);
                     self.set_current_address(ScrollAddress::CoarseY4, ((ihgfedcba >> 9) & 0x01) > 0);
-                    self.set_current_address(ScrollAddress::NameTableSelect1, ((ihgfedcba >> 11) & 0x01) > 0);
+                    self.set_current_address(ScrollAddress::NameTableSelectY, ((ihgfedcba >> 11) & 0x01) > 0);
                     self.set_current_address(ScrollAddress::FineYScroll0, ((ihgfedcba >> 12) & 0x01) > 0);
                     self.set_current_address(ScrollAddress::FineYScroll1, ((ihgfedcba >> 13) & 0x01) > 0);
                     self.set_current_address(ScrollAddress::FineYScroll2, ((ihgfedcba >> 14) & 0x01) > 0);
-                } 
-                
-                if (self.cycle >= 328 || (self.cycle != 0 && self.cycle <= 256)) && self.cycle % 8 == 0 {
-                    
-                } 
+                }
             }
+        }
+
+        if self.scanline == 240 {
+            // Post render scanline does nothing
+        }
+
+        if self.scanline == 241 && self.cycle == 1 {
+            self.set_status(Status2C02::VerticalBlank, true);
+            if self.get_control(Control2C02::GenerateNmi) == 1 {
+                self.nmi = true;
+            }
+        }
+
+        let mut bg_pixel = 0x00;
+        let mut bg_palette = 0x00;
+        if self.get_mask(Mask2C02::RenderBackground) {
+            let shift_register_bit = 0x8000 >> self.fine_x_scroll;
+            let pixel_plane_0 = if (self.bg_shifter_pattern_low & shift_register_bit) > 0 { 1 } else { 0 };
+            let pixel_plane_1 = if (self.bg_shifter_pattern_high & shift_register_bit) > 0 { 1 } else { 0 };
+
+            bg_pixel = (pixel_plane_1 << 1) | pixel_plane_0;
+
+            let bg_palette_0 = if (self.bg_shifter_attribute_low & shift_register_bit) > 0 { 1 } else { 0 };
+            let bg_palette_1 = if (self.bg_shifter_attribute_high & shift_register_bit) > 0 { 1 } else { 0 };
+
+            bg_palette = (bg_palette_1 << 1) | bg_palette_0;
+        }
+
+        let color = self.get_color_from_palette(bg_palette, bg_pixel);
+        if self.cycle > 0 && self.scanline >= 0 {
+            self.frame[self.scanline as usize][(self.cycle - 1) as usize] = color;
         }
 
         self.cycle += 1;
@@ -178,8 +269,8 @@ impl Olc2C02 {
 
                 // t: ...BA.......... = d: ......BA
                 let ba = (data & 0x03) as u16;
-                self.set_temp_address(ScrollAddress::NameTableSelect0, (ba & 0x01) > 0);
-                self.set_temp_address(ScrollAddress::NameTableSelect1, ((ba >> 1) & 0x01) > 0);
+                self.set_temp_address(ScrollAddress::NameTableSelectX, (ba & 0x01) > 0);
+                self.set_temp_address(ScrollAddress::NameTableSelectY, ((ba >> 1) & 0x01) > 0);
             },
             MASK => {
                 self.mask = data;
@@ -226,8 +317,8 @@ impl Olc2C02 {
                     let fedbca = data & 0b00111111;
                     self.set_temp_address(ScrollAddress::CoarseY3, ((fedbca >> 0) & 0x01) > 0);
                     self.set_temp_address(ScrollAddress::CoarseY4, ((fedbca >> 1) & 0x01) > 0);
-                    self.set_temp_address(ScrollAddress::NameTableSelect0, ((fedbca >> 2) & 0x01) > 0);
-                    self.set_temp_address(ScrollAddress::NameTableSelect1, ((fedbca >> 3) & 0x01) > 0);
+                    self.set_temp_address(ScrollAddress::NameTableSelectX, ((fedbca >> 2) & 0x01) > 0);
+                    self.set_temp_address(ScrollAddress::NameTableSelectY, ((fedbca >> 3) & 0x01) > 0);
                     self.set_temp_address(ScrollAddress::FineYScroll0, ((fedbca >> 4) & 0x01) > 0);
                     self.set_temp_address(ScrollAddress::FineYScroll1, ((fedbca >> 5) & 0x01) > 0);
                     self.set_temp_address(ScrollAddress::FineYScroll2, false);
@@ -307,6 +398,17 @@ impl Olc2C02 {
         }
     }
 
+    fn increment_x(&mut self) {
+        if self.get_mask(Mask2C02::RenderBackground) || self.get_mask(Mask2C02::RenderSprite) {
+            if (self.current_vram_address & 0x001F) == 31 {
+                self.current_vram_address &= !0x001F; // Set coarse x = 0
+                self.current_vram_address ^= 0x0400; // Switch horizontal table
+            } else {
+                self.current_vram_address += 1; // Increment coarse x
+            }
+        }
+    }
+
     fn increment_y(&mut self) {
         // See https://wiki.nesdev.com/w/index.php/PPU_scrolling#Wrapping_around
         if (self.current_vram_address & 0x7000) != 0x7000 {
@@ -326,6 +428,23 @@ impl Olc2C02 {
             self.current_vram_address = 
                 (self.current_vram_address & !0x03E0) | (y << 5); // Put coarse Y back into address
         }
+    }
+
+    fn load_shifters(&mut self) {
+        self.bg_shifter_pattern_low = (self.bg_shifter_pattern_low & 0xFF00) | (self.bg_next_tile_lsb as u16);
+        self.bg_shifter_pattern_high = (self.bg_shifter_pattern_low & 0xFF00) | (self.bg_next_tile_msb as u16);
+
+        // Attribute bits don't change per pixel, but for every tile(8 pixels)
+        // We then inflate the bottom and top bit to 8 bits
+        self.bg_shifter_attribute_low = (self.bg_shifter_attribute_low & 0xFF00) | (if self.bg_next_tile_attribute & 0b01 > 0 { 0xFF } else { 0x00 });
+        self.bg_shifter_attribute_high = (self.bg_shifter_attribute_high & 0xFF00) | (if self.bg_next_tile_attribute & 0b10 > 0 { 0xFF } else { 0x00 });
+    }
+
+    fn update_shifters(&mut self) {
+        self.bg_shifter_pattern_low <<= 1;
+        self.bg_shifter_pattern_high <<= 1;
+        self.bg_shifter_attribute_low <<= 1;
+        self.bg_shifter_attribute_high <<= 1;
     }
 
     fn read_pattern_table_data(&mut self, address: u16) -> u8 {
@@ -484,6 +603,12 @@ impl Olc2C02 {
         self.colors[color_index as usize]
     }
 
+    fn get_pattern_address(&mut self, offset: u16) -> u16 {
+        ((self.get_control(Control2C02::BackgroundTableAddress) as u16) << 12) +
+        ((self.bg_next_tile_id as u16) * 16) +
+        (self.get_fine_y() + offset)
+    }
+
     fn get_control(&mut self, control: Control2C02) -> u8 {
         match control {
             Control2C02::NameTableAddress => {
@@ -527,12 +652,48 @@ impl Olc2C02 {
         }
     }
 
+    fn get_current_address(&mut self, scroll: ScrollAddress) -> u16 {
+        if self.current_vram_address & (scroll as u16) > 0 {
+            1
+        } else {
+            0
+        }
+    }
+
     fn set_temp_address(&mut self, scroll: ScrollAddress, value: bool) {
         if value {
             self.temp_vram_address |= scroll as u16;
         } else {
             self.temp_vram_address &= !(scroll as u16);
         }
+    }
+
+    fn get_coarse_x(&mut self) -> u16 {
+        let coarse_x_0 = self.get_current_address(ScrollAddress::CoarseX0) << 0;
+        let coarse_x_1 = self.get_current_address(ScrollAddress::CoarseX1) << 1;
+        let coarse_x_2 = self.get_current_address(ScrollAddress::CoarseX2) << 2;
+        let coarse_x_3 = self.get_current_address(ScrollAddress::CoarseX3) << 3;
+        let coarse_x_4 = self.get_current_address(ScrollAddress::CoarseX4) << 4;
+
+        coarse_x_0 + coarse_x_1 + coarse_x_2 + coarse_x_3 + coarse_x_4
+    }
+
+    fn get_coarse_y(&mut self) -> u16 {
+        let coarse_y_0 = self.get_current_address(ScrollAddress::CoarseY0) << 0;
+        let coarse_y_1 = self.get_current_address(ScrollAddress::CoarseY1) << 1;
+        let coarse_y_2 = self.get_current_address(ScrollAddress::CoarseY2) << 2;
+        let coarse_y_3 = self.get_current_address(ScrollAddress::CoarseY3) << 3;
+        let coarse_y_4 = self.get_current_address(ScrollAddress::CoarseY4) << 4;
+
+        coarse_y_0 + coarse_y_1 + coarse_y_2 + coarse_y_3 + coarse_y_4
+    }
+
+    fn get_fine_y(&mut self) -> u16 {
+        let fine_y_0 = self.get_current_address(ScrollAddress::FineYScroll0) << 0;
+        let fine_y_1 = self.get_current_address(ScrollAddress::FineYScroll1) << 1;
+        let fine_y_2 = self.get_current_address(ScrollAddress::FineYScroll2) << 2;
+
+        fine_y_0 + fine_y_1 + fine_y_2
     }
 }
 
@@ -579,8 +740,8 @@ pub enum ScrollAddress {
     CoarseY2 = (1 << 7),
     CoarseY3 = (1 << 8),
     CoarseY4 = (1 << 9),
-    NameTableSelect0 = (1 << 10),
-    NameTableSelect1 = (1 << 11),
+    NameTableSelectX = (1 << 10),
+    NameTableSelectY = (1 << 11),
     FineYScroll0 = (1 << 12),
     FineYScroll1 = (1 << 13),
     FineYScroll2 = (1 << 14)
