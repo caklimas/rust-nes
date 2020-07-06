@@ -6,7 +6,6 @@ use ggez::graphics::Color;
 use crate::cartridge;
 use crate::memory_sizes;
 use crate::addresses;
-use crate::display;
 
 const CONTROL: u16 = 0x0000; // Configure ppu to render in different ways
 const MASK: u16 = 0x0001; // Decides what sprites or backgrounds are being drawn and what happens at the edges of the screen
@@ -34,7 +33,7 @@ pub struct Olc2C02 {
     pub nmi: bool,
     pub frame_complete: bool,
     pub colors: [Color; 0x40],
-    pub frame: [[Color; 256]; 240],
+    pub frame: Vec<Vec<Color>>,
     scanline: i16,
     cycle: u16,
     status: u8,
@@ -67,7 +66,7 @@ impl Olc2C02 {
             cycle: 0,
             frame_complete: false,
             colors: get_colors(),
-            frame: [[graphics::BLACK; 256]; 240],
+            frame: initialize_frame(),
             status: 0,
             control: 0,
             mask: 0,
@@ -745,6 +744,19 @@ pub enum ScrollAddress {
     FineYScroll0 = (1 << 12),
     FineYScroll1 = (1 << 13),
     FineYScroll2 = (1 << 14)
+}
+
+fn initialize_frame() -> Vec<Vec<Color>> {
+    let mut frame: Vec<Vec<Color>> = Vec::new();
+    for _y in 0..240 {
+        let mut row: Vec<Color> = Vec::new();
+        for _x in 0..256 {
+            row.push(graphics::BLACK);
+        }
+        frame.push(row);
+    }
+
+    frame
 }
 
 fn get_colors() -> [Color; 0x40] {

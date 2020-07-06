@@ -93,19 +93,19 @@ impl bus::Bus {
     pub fn draw_palette(&mut self, ctx: &mut Context) {
         let table = self.ppu.borrow_mut().get_pattern_table(0, 0);
         let mut mesh_builder = graphics::MeshBuilder::new();
-        for i in 0..SCREEN_WIDTH {
-            for j in 0..SCREEN_HEIGHT {
-                let color = self.ppu.borrow().frame[j as usize][i as usize];
-                let rect = graphics::Rect::new_i32(
-                    i as i32 * PIXEL_SIZE, 
-                    j as i32 * PIXEL_SIZE, 
-                    PIXEL_SIZE, 
-                    PIXEL_SIZE
-                );
+        // for i in 0..SCREEN_WIDTH {
+        //     for j in 0..SCREEN_HEIGHT {
+        //         let color = self.ppu.borrow().frame[j as usize][i as usize];
+        //         let rect = graphics::Rect::new_i32(
+        //             i as i32 * PIXEL_SIZE, 
+        //             j as i32 * PIXEL_SIZE, 
+        //             PIXEL_SIZE, 
+        //             PIXEL_SIZE
+        //         );
     
-                mesh_builder.rectangle(graphics::DrawMode::fill(), rect, color);
-            }
-        }
+        //         mesh_builder.rectangle(graphics::DrawMode::fill(), rect, color);
+        //     }
+        // }
 
         // for height in 0..30 {
         //     for width in 0..32 {
