@@ -16,7 +16,7 @@ mod addresses;
 
 fn main() {
     let mut bus = bus::Bus::new();
-    let cartridge = cartridge::Cartridge::new(r".\src\test_roms\Ice Climber (USA, Europe).nes");
+    let cartridge = cartridge::Cartridge::new(r"C:\Users\Christopher\Desktop\Files\ROMS\Ice Climber (USA, Europe).nes");
     bus.load_cartridge(cartridge);
 
     bus.reset();
