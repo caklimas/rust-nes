@@ -16,13 +16,6 @@ pub const WINDOW_HEIGHT: f32 = SCREEN_HEIGHT as f32 * PIXEL_SIZE as f32;
 
 impl ggez::event::EventHandler for bus::Bus {
     fn update(&mut self, _ctx: &mut Context) -> GameResult {
-        if self.emulation {
-            while !self.ppu.borrow().frame_complete {
-                self.clock();
-            }
-
-            self.ppu.borrow_mut().frame_complete = false;
-        }
         Ok(())
     }
 
@@ -33,9 +26,24 @@ impl ggez::event::EventHandler for bus::Bus {
 
         graphics::clear(ctx, graphics::BLACK);
 
+        loop {
+            self.clock();
+            if self.ppu.borrow().frame_complete {
+                break;
+            }
+        }
+
+        loop {
+            self.clock();
+            if self.cpu.is_complete() {
+                break;
+            }
+        }
+
+        self.ppu.borrow_mut().frame_complete = false;
+
         self.draw_palette(ctx);
         graphics::present(ctx).expect("Error presenting graphics");
-        self.can_draw = false;
 
         Ok(())
     }
@@ -49,16 +57,8 @@ impl ggez::event::EventHandler for bus::Bus {
                 }
             },
             KeyCode::D => {
-                self.can_draw = true;
-            },
-            KeyCode::Space => {
-              self.emulation = !self.emulation;
-              if !self.emulation {
-                  println!("Stop");
-              } else {
-                println!("Start");
-              }
-            },
+                self.can_draw = !self.can_draw;
+            }
             _ => ()
         };
     }
@@ -66,14 +66,13 @@ impl ggez::event::EventHandler for bus::Bus {
 
 impl bus::Bus {
     pub fn draw_random_colors(&mut self, ctx: &mut Context) {
-        let colors = self.ppu.borrow_mut().colors;
         let mut rand = rand::thread_rng();
         let mut mesh_builder = graphics::MeshBuilder::new();
 
         for row in 0..SCREEN_HEIGHT {
             for column in 0..SCREEN_WIDTH {
-                let random = rand.gen_range(0, colors.len());
-                let color = colors[random];
+                let random = rand.gen_range(0, self.ppu.borrow().colors.len());
+                let color = self.ppu.borrow().colors[random];
 
                 let rect = graphics::Rect::new_i32(
                     column as i32 * PIXEL_SIZE, 
@@ -91,21 +90,21 @@ impl bus::Bus {
     }
 
     pub fn draw_palette(&mut self, ctx: &mut Context) {
-        let table = self.ppu.borrow_mut().get_pattern_table(0, 0);
+        let table = self.ppu.borrow_mut().get_pattern_table(1, 0);
         let mut mesh_builder = graphics::MeshBuilder::new();
-        // for i in 0..SCREEN_WIDTH {
-        //     for j in 0..SCREEN_HEIGHT {
-        //         let color = self.ppu.borrow().frame[j as usize][i as usize];
-        //         let rect = graphics::Rect::new_i32(
-        //             i as i32 * PIXEL_SIZE, 
-        //             j as i32 * PIXEL_SIZE, 
-        //             PIXEL_SIZE, 
-        //             PIXEL_SIZE
-        //         );
+        for i in 0..SCREEN_WIDTH {
+            for j in 0..SCREEN_HEIGHT {
+                let color = self.ppu.borrow_mut().frame.get_pixel(i as i32, j as i32);
+                let rect = graphics::Rect::new_i32(
+                    i as i32 * PIXEL_SIZE, 
+                    j as i32 * PIXEL_SIZE, 
+                    PIXEL_SIZE, 
+                    PIXEL_SIZE
+                );
     
-        //         mesh_builder.rectangle(graphics::DrawMode::fill(), rect, color);
-        //     }
-        // }
+                mesh_builder.rectangle(graphics::DrawMode::fill(), rect, color);
+            }
+        }
 
         // for height in 0..30 {
         //     for width in 0..32 {

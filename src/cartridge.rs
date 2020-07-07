@@ -26,10 +26,10 @@ impl Cartridge {
         let mapper_id = ((header.mapper_2 >> 4) << 4) | (header.mapper_1 >> 4);
         let mirror = if (header.mapper_1 & 0x01) > 0 { Mirror::Vertical } else { Mirror::Horizontal };
 
-        let prg_memory_size = ((header.prg_rom_chunks as u16) * 16384) as usize;
+        let prg_memory_size = ((header.prg_rom_chunks as u32) * 16384) as usize;
         let post_header_index = if (header.mapper_1 & 0x04) > 0 { 16 + 512 } else { 16 };
 
-        let chr_memory_size = ((header.chr_rom_chunks as u16) * 8192) as usize;
+        let chr_memory_size = ((header.chr_rom_chunks as u32) * 8192) as usize;
         let chr_memory_start = (post_header_index + prg_memory_size) as usize;
 
         Cartridge {

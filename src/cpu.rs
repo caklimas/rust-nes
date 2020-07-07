@@ -114,7 +114,9 @@ impl Olc6502 {
         self.addr_rel = 0x0000;
         self.addr_abs = 0x0000;
         self.fetched_data = 0x00;
-        self.cycles = 0;
+
+        // Resetting takes time
+        self.cycles = 8;
     }
 
     pub fn read(&mut self, address: u16, read_only: bool) -> u8 {
@@ -175,6 +177,10 @@ impl Olc6502 {
         self.write_to_stack(self.status_register);
         self.program_counter = self.read_program_counter(NON_MASK_INTERRUPT_PROGRAM_COUNTER_ADDRESS);
         self.cycles = 8;
+    }
+
+    pub fn is_complete(&mut self) -> bool {
+        return self.cycles == 0;
     }
 
     /// Sets or clears a specific bit of the status register

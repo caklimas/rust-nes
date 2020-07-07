@@ -39,6 +39,7 @@ impl Bus {
         self.cartridge = Some(Rc::clone(&c));
         self.ppu.borrow_mut().cartridge = Some(Rc::clone(&c));
         self.memory.borrow_mut().cartridge = Some(Rc::clone(&c));
+        self.reset();
     }
 
     pub fn clock(&mut self) {

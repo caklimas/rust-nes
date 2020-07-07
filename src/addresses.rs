@@ -11,7 +11,7 @@ pub const PALETTE_ADDRESS_LOWER: u16 = 0x3F00;
 pub const PALETTE_ADDRESS_UPPER: u16 = 0x3FFF;
 
 // Attribute table
-pub const ATTRIBUTE_TABLE_ADDRESS_LOWER: u16 = 0x2C03;
+pub const ATTRIBUTE_TABLE_ADDRESS_LOWER: u16 = 0x23C0;
 
 // PPU
 pub const PPU_ADDRESS_START: u16 = 0x2000;
