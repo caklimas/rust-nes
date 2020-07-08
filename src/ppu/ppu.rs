@@ -22,8 +22,9 @@ const MAX_CLOCK_CYCLE: u16 = 341;
 const MAX_SCANLINE: i16 = 261;
 const MAX_VISIBLE_SCANLINE: i16 = 239;
 
-const OAM_ENTRY_LENGTH: u16 = 32;
-const MAX_SPRITES: u16 = 64;
+const OAM_ENTRY_SIZE: usize = 4;
+const OAM_ENTRY_LENGTH: usize = 32;
+const MAX_SPRITES: usize = 64;
 
 pub struct Olc2C02 {
     pub name_table: [[u8; memory_sizes::KILOBYTES_1 as usize]; 2], // A full name table is 1KB and the NES can hold 2 name tables
@@ -97,8 +98,7 @@ impl Olc2C02 {
     pub fn clock(&mut self) {
         if self.scanline >= -1 && self.scanline <= MAX_VISIBLE_SCANLINE {
             self.render_background();
-
-
+            self.render_foreground();
         }
 
         if self.scanline == 240 {
@@ -398,6 +398,45 @@ impl Olc2C02 {
         if self.cycle == 338 || self.cycle == 340 {
             self.bg_next_tile_id = self.ppu_read(addresses::NAME_TABLE_ADDRESS_LOWER | (self.current_vram_address & 0x0FFF), false);
         }
+    }
+
+    fn render_foreground(&mut self) {
+        // This isn't exactly how the NES does foreground rendering, however it gets there most of the way
+        if self.cycle != 257 || self.scanline < 0 {
+            return;
+        }
+
+        self.evaluate_sprites();
+    }
+
+    fn evaluate_sprites(&mut self) {
+        // Clear sprite scanline
+        for i in 0..self.sprite_scanline.len() {
+            self.sprite_scanline[i] = 0xFF;
+            self.sprite_count = 0;
+        }
+
+        let sprite_size = if self.get_control(Control2C02::SpriteSize) > 0 { 16 } else { 8 };
+        let mut current_oam_entry: usize = 0;
+        // You can only have 8 sprites on the screen
+        while current_oam_entry < MAX_SPRITES && self.sprite_count <= 8 {
+            let diff = (self.scanline as i16) - (self.oam[current_oam_entry] as i16);
+            if diff >= 0 && diff < sprite_size {
+                if self.sprite_count < 8 {
+                    for i in 0..OAM_ENTRY_SIZE {
+                        let sprite_index = (self.sprite_count as usize) + i;
+                        let oam_index = current_oam_entry + i;
+                        self.sprite_scanline[sprite_index] = self.oam[oam_index];
+                    }
+
+                    self.sprite_count += 1;
+                }
+            }
+
+            current_oam_entry += OAM_ENTRY_SIZE;
+        }
+
+        self.set_status(Status2C02::SpriteOverflow, self.sprite_count > 8);
     }
 
     fn increment_x(&mut self) {
