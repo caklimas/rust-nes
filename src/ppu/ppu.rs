@@ -486,7 +486,7 @@ impl Olc2C02 {
             if diff >= 0 && diff < sprite_size {
                 if self.sprite_count < sprites::MAX_SPRITE_COUNT {
                     for i in 0..sprites::OAM_ENTRY_SIZE {
-                        let sprite_index = (self.sprite_count as usize) + i;
+                        let sprite_index = (self.sprite_count * sprites::OAM_ENTRY_SIZE) + i;
                         let oam_index = current_oam_entry + i;
                         self.sprite_scanline[sprite_index] = self.oam[oam_index];
                     }
@@ -645,7 +645,7 @@ impl Olc2C02 {
             for i in 0..self.sprite_count {
 
                 // First thing that needs to be done is decrement the x coordinate or else we'll shift everything off the screen
-                let x_index = i + 3;
+                let x_index = (i * sprites::OAM_ENTRY_SIZE) + 3;
                 if self.sprite_scanline[x_index] > 0 {
                     self.sprite_scanline[x_index] -= 1;
                 } else {
