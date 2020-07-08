@@ -1,5 +1,5 @@
 use std::fs;
-use crate::mappers;
+use crate::cartridge::mappers;
 
 pub struct Cartridge {
     prg_memory: Vec<u8>,

@@ -1,4 +1,4 @@
-use crate::cpu;
+use crate::cpu::cpu;
 
 #[derive(Debug)]
 pub enum AddressMode {

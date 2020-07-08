@@ -1,9 +1,11 @@
 use std::rc::Rc;
 use std::cell::RefCell;
 
-use crate::ppu;
-use crate::cartridge;
+use crate::ppu::ppu;
+use crate::ppu::sprites;
+use crate::cartridge::cartridge;
 use crate::addresses;
+use crate::controller;
 
 const RAM_SIZE: usize = 2048;
 const CPU_MAX_ADDRESS: u16 = 0x1FFF;
@@ -12,7 +14,10 @@ const CPU_MIRROR: u16 = 0x07FF;
 pub struct Memory {
     ram: [u8; RAM_SIZE],
     ppu: Rc<RefCell<ppu::Olc2C02>>,
-    pub cartridge: Option<Rc<RefCell<cartridge::Cartridge>>>
+    pub cartridge: Option<Rc<RefCell<cartridge::Cartridge>>>,
+    pub controllers: [controller::Controller; 2],
+    pub dma: sprites::DirectMemoryAccess,
+    pub dma_transfer: bool
 }
 
 impl Memory {
@@ -20,7 +25,10 @@ impl Memory {
         Memory {
             ram: [0; RAM_SIZE],
             ppu: ppu,
-            cartridge: None
+            cartridge: None,
+            controllers: Default::default(),
+            dma: Default::default(),
+            dma_transfer: false
         }
     }
 
@@ -42,6 +50,9 @@ impl Memory {
             data = self.ram[(address & CPU_MIRROR) as usize];
         } else if address >= addresses::PPU_ADDRESS_START && address <= addresses::PPU_ADDRESS_END {
             data = self.ppu.borrow_mut().cpu_read(address & addresses::PPU_ADDRESS_RANGE, read_only);
+        } else if address >= addresses::CONTROLLER_ONE_INPUT && address <= addresses::CONTROLLER_TWO_INPUT {
+            let masked_address = address & 0x0001;
+            data = self.controllers[masked_address as usize].get_msb();
         }
 
         data
@@ -61,6 +72,13 @@ impl Memory {
             self.ram[(address & CPU_MIRROR) as usize] = data;
         } else if address >= addresses::PPU_ADDRESS_START && address <= addresses::PPU_ADDRESS_END {
             self.ppu.borrow_mut().cpu_write(address & addresses::PPU_ADDRESS_RANGE, data);
+        } else if address == addresses::DMA_ADDRESS {
+            self.dma.page = data;
+            self.dma.address = 0x00;
+            self.dma_transfer = true;
+        } else if address >= addresses::CONTROLLER_ONE_INPUT && address <= addresses::CONTROLLER_TWO_INPUT {
+            let masked_address = address & 0x0001;
+            self.controllers[masked_address as usize].set_state();
         }
     }
     

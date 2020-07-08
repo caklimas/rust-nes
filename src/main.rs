@@ -3,20 +3,17 @@ use ggez::*;
 mod memory;
 mod bus;
 mod cpu;
-mod opcodes;
-mod address_modes;
-mod opcode_table;
 mod ppu;
 mod cartridge;
-mod mappers;
 mod memory_sizes;
 mod display;
 mod frame;
 mod addresses;
+mod controller;
 
 fn main() {
     let mut bus = bus::Bus::new();
-    let cartridge = cartridge::Cartridge::new(r"C:\Users\Christopher\Desktop\Files\ROMS\Ice Climber (USA, Europe).nes");
+    let cartridge = cartridge::cartridge::Cartridge::new(r"C:\Users\Christopher\Desktop\Files\ROMS\donkey kong.nes");
     bus.load_cartridge(cartridge);
 
     bus.reset();

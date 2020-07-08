@@ -51,6 +51,60 @@ impl ggez::event::EventHandler for bus::Bus {
             },
             KeyCode::D => {
                 self.can_draw = !self.can_draw;
+            },
+            KeyCode::Right => {
+                self.memory.borrow_mut().controllers[0].buttons[0] = true;
+            },
+            KeyCode::Left => {
+                self.memory.borrow_mut().controllers[0].buttons[1] = true;
+            },
+            KeyCode::Down => {
+                self.memory.borrow_mut().controllers[0].buttons[2] = true;
+            },
+            KeyCode::Up => {
+                self.memory.borrow_mut().controllers[0].buttons[3] = true;
+            },
+            KeyCode::Return => {
+                self.memory.borrow_mut().controllers[0].buttons[4] = true;
+            },
+            KeyCode::RShift => {
+                self.memory.borrow_mut().controllers[0].buttons[5] = true;
+            },
+            KeyCode::Z => {
+                self.memory.borrow_mut().controllers[0].buttons[6] = true;
+            },
+            KeyCode::X => {
+                self.memory.borrow_mut().controllers[0].buttons[7] = true;
+            }
+            _ => ()
+        };
+    }
+
+    fn key_up_event(&mut self, _ctx: &mut Context, keycode: KeyCode, _keymods: KeyMods) {
+        match keycode {
+            KeyCode::Right => {
+                self.memory.borrow_mut().controllers[0].buttons[0] = false;
+            },
+            KeyCode::Left => {
+                self.memory.borrow_mut().controllers[0].buttons[1] = false;
+            },
+            KeyCode::Down => {
+                self.memory.borrow_mut().controllers[0].buttons[2] = false;
+            },
+            KeyCode::Up => {
+                self.memory.borrow_mut().controllers[0].buttons[3] = false;
+            },
+            KeyCode::Return => {
+                self.memory.borrow_mut().controllers[0].buttons[4] = false;
+            },
+            KeyCode::RShift => {
+                self.memory.borrow_mut().controllers[0].buttons[5] = false;
+            },
+            KeyCode::Z => {
+                self.memory.borrow_mut().controllers[0].buttons[6] = false;
+            },
+            KeyCode::X => {
+                self.memory.borrow_mut().controllers[0].buttons[7] = false;
             }
             _ => ()
         };

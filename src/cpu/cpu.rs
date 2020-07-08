@@ -1,14 +1,14 @@
 use std::rc::Rc;
 use std::cell::RefCell;
 use std::{
-    io::{BufWriter, Write},
+    io::{BufWriter},
 };
 use std::fs::OpenOptions;
 
 use crate::bus;
 use crate::memory;
-use crate::opcode_table;
-use crate::address_modes;
+use crate::cpu::opcode_table;
+use crate::cpu::address_modes;
 
 const NON_MASK_INTERRUPT_PROGRAM_COUNTER_ADDRESS: u16 = 0xFFFA;
 const RESET_PROGRAM_COUNTER_ADDRESS: u16 = 0xFFFC;
@@ -64,7 +64,7 @@ impl Olc6502 {
                 self.stack_pointer
             );
 
-            self.program_counter += 1;
+            self.program_counter = self.program_counter.wrapping_add(1);
 
             self.cycles = record.4;
             

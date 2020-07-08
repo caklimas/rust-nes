@@ -1,9 +1,9 @@
 use std::rc::Rc;
 use std::cell::RefCell;
 
-use crate::cpu;
-use crate::ppu;
-use crate::cartridge;
+use crate::cpu::cpu;
+use crate::ppu::ppu;
+use crate::cartridge::cartridge;
 use crate::memory;
 
 pub struct Bus {
@@ -13,8 +13,7 @@ pub struct Bus {
     pub memory: Rc<RefCell<memory::Memory>>,
     pub system_clock_counter: u32,
     pub can_draw: bool,
-    pub emulation: bool,
-    pub residual_time: f32
+    dma_dummy: bool
 }
 
 impl Bus {
@@ -29,8 +28,7 @@ impl Bus {
             memory: Rc::clone(&memory),
             system_clock_counter: 0,
             can_draw: false,
-            emulation: false,
-            residual_time: 0.0
+            dma_dummy: false
         }
     }
 
@@ -56,7 +54,35 @@ impl Bus {
 
         // The CPU runs 3 times slower than the PPU
         if self.system_clock_counter % 3 == 0 {
-            self.cpu.clock(self.system_clock_counter);
+            // If DMA transer is happening, then the cpu is suspended
+            if self.memory.borrow().dma_transfer {
+                // The DMA is synchronized with every other clock cycle
+                // Without loss of generality, we will do it every odd cycle
+                if self.dma_dummy && self.system_clock_counter % 2 == 1 {
+                    self.dma_dummy = false;
+                } else {
+                    if self.system_clock_counter % 2 == 0 {
+                        // Read data from cpu space
+                        let dma = self.memory.borrow().dma;
+                        let address = ((dma.page as u16) << 8) | (dma.address as u16);
+                        let data = self.memory.borrow_mut().read(address, false);
+                        self.memory.borrow_mut().dma.data = data;
+                    } else {
+                        // Write it to the ppu's OAM and increment DMA address
+                        let dma = self.memory.borrow().dma;
+                        self.ppu.borrow_mut().oam[dma.address as usize] = dma.data;
+                        self.memory.borrow_mut().dma.address = dma.address.wrapping_add(1);
+
+                        // Since we're wrapping around, we know when it goes back to zero that it has written all 256 bytes
+                        if self.memory.borrow().dma.address == 0x00 {
+                            self.memory.borrow_mut().dma_transfer = false;
+                            self.dma_dummy = true;
+                        }
+                    }
+                }
+            } else {
+                self.cpu.clock(self.system_clock_counter);
+            }
         }
 
         if self.ppu.borrow_mut().nmi {

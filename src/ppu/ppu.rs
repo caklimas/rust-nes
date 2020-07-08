@@ -3,10 +3,11 @@ use std::cell::RefCell;
 use ggez::graphics;
 use ggez::graphics::Color;
 
-use crate::cartridge;
+use crate::cartridge::cartridge;
 use crate::memory_sizes;
 use crate::addresses;
 use crate::frame;
+use crate::ppu::sprites;
 
 const CONTROL: u16 = 0x0000; // Configure ppu to render in different ways
 const MASK: u16 = 0x0001; // Decides what sprites or backgrounds are being drawn and what happens at the edges of the screen
@@ -21,8 +22,8 @@ const MAX_CLOCK_CYCLE: u16 = 341;
 const MAX_SCANLINE: i16 = 261;
 const MAX_VISIBLE_SCANLINE: i16 = 239;
 
-const TILE_WIDTH: u16 = 16;
-const TILE_HEIGHT: u16 = 16;
+const OAM_ENTRY_LENGTH: u16 = 32;
+const MAX_SPRITES: u16 = 64;
 
 pub struct Olc2C02 {
     pub name_table: [[u8; memory_sizes::KILOBYTES_1 as usize]; 2], // A full name table is 1KB and the NES can hold 2 name tables
@@ -33,6 +34,8 @@ pub struct Olc2C02 {
     pub frame_complete: bool,
     pub colors: Vec<Color>,
     pub frame: frame::Frame,
+    pub oam: Vec<u8>,
+    pub oam_address: u8,
     scanline: i16,
     cycle: u16,
     status: u8,
@@ -50,7 +53,9 @@ pub struct Olc2C02 {
     bg_shifter_pattern_low: u16,
     bg_shifter_pattern_high: u16,
     bg_shifter_attribute_low: u16,
-    bg_shifter_attribute_high: u16
+    bg_shifter_attribute_high: u16,
+    sprite_scanline: Vec<u8>,
+    sprite_count: u8
 }
 
 impl Olc2C02 {
@@ -66,6 +71,8 @@ impl Olc2C02 {
             frame_complete: false,
             colors: get_colors(),
             frame: frame::Frame::new(),
+            oam: initialize_oam(),
+            oam_address: 0x00,
             status: 0,
             control: 0,
             mask: 0,
@@ -81,89 +88,17 @@ impl Olc2C02 {
             bg_shifter_pattern_low: 0x0000,
             bg_shifter_pattern_high: 0x0000,
             bg_shifter_attribute_low: 0x0000,
-            bg_shifter_attribute_high: 0x0000
+            bg_shifter_attribute_high: 0x0000,
+            sprite_scanline: vec![0; 8 * 4], // 8 sprites times size of an entry
+            sprite_count: 0
         }
     }
    
     pub fn clock(&mut self) {
         if self.scanline >= -1 && self.scanline <= MAX_VISIBLE_SCANLINE {
-            // Skipped on BG+odd
-            if self.scanline == 0 && self.cycle == 0 {
-                self.cycle = 1;
-            }
- 
-            if self.scanline == -1 && self.cycle == 1 {
-                self.set_status(Status2C02::VerticalBlank, false);
-            }
+            self.render_background();
 
-            if (self.cycle >= 2 && self.cycle <= 257) || (self.cycle >= 321 && self.cycle < 338) {
-                self.update_shifters();
 
-                let sub_cycle = (self.cycle - 1) % 8;
-                if sub_cycle == 0 {
-                    self.load_shifters();
-                    let name_table_address = addresses::NAME_TABLE_ADDRESS_LOWER | (self.current_vram_address & 0x0FFF);
-                    self.bg_next_tile_id = self.ppu_read(name_table_address, false);
-                } else if sub_cycle == 2 {
-                    let coarse_x = self.get_coarse_x();
-                    let coarse_y = self.get_coarse_y();
-                    let name_table_x = self.get_current_address(ScrollAddress::NameTableSelectX) << 10;
-                    let name_table_y = self.get_current_address(ScrollAddress::NameTableSelectY) << 11;
-                    let attribute_table_address = 
-                        addresses::ATTRIBUTE_TABLE_ADDRESS_LOWER |
-                        name_table_y |
-                        name_table_x |
-                        (coarse_y >> 2) << 3 |
-                        coarse_x >> 2;
-                    self.bg_next_tile_attribute = self.ppu_read(attribute_table_address, false);
-
-                    // Since there are only 4 palettes for the background tiles, we only need 2 bits to select a palette(2 bits range is 0-3)
-                    // We get a byte of data we can split that byte up into 4 sets of 2 bits.
-                    // One attribute byte covers a block of data (4x4 tiles) so we can apply each set of 2 bits to one quadrant of the block
-                    // Bits 7,6 => bottom right, Bits 5,4 => bottom left, Bits 3,2 => top right, Bits 1,0 => top left
-                    // If coarse y % 4 < 2 then it is in the top half
-                    // If coarse x % 4 < 2 then it is in the left half
-                    // Knowing this and that we want the last two bits to be the palette selected so we shift accordingly.
-                    if coarse_y & 0x02 > 0 {
-                        self.bg_next_tile_attribute >>= 4; // Use bits 7,6 or 5,4
-                    }
-
-                    if coarse_x & 0x02 > 0 {
-                        self.bg_next_tile_attribute >>= 2; // USe bits 7,6 or 3,2
-                    }
-
-                    self.bg_next_tile_attribute &= 0x03;
-                } else if sub_cycle == 4 {
-                    let pattern_address = self.get_pattern_address(0);
-                    self.bg_next_tile_lsb = self.ppu_read(pattern_address, false);
-                } else if sub_cycle == 6 {
-                    let pattern_address = self.get_pattern_address(8);
-                    self.bg_next_tile_msb = self.ppu_read(pattern_address, false);
-                } else if sub_cycle == 7 {
-                    self.increment_x();
-                }
-            }
-
-            if self.cycle == 256 {
-                // If rendering is enabled, the PPU increments the vertical position in v.
-                // The effective Y scroll coordinate is incremented, which is a complex operation that will correctly skip the attribute table memory regions,
-                // and wrap to the next nametable appropriately.
-                self.increment_y();
-            }
-            
-            if self.cycle == 257 {
-                self.load_shifters();
-                self.transfer_x_address();
-            }
-
-            // Useless read of the tile id at the end of the scanline
-            if self.cycle == 338 || self.cycle == 340 {
-                self.bg_next_tile_id = self.ppu_read(addresses::NAME_TABLE_ADDRESS_LOWER | (self.current_vram_address & 0x0FFF), false);
-            }
-            
-            if self.scanline == -1 && self.cycle >= 280 && self.cycle <= 304 {
-                self.transfer_y_address();
-            }
         }
 
         if self.scanline == 240 {
@@ -223,7 +158,9 @@ impl Olc2C02 {
                 self.address_latch = false;
             },
             OAM_ADDRESS => (),
-            OAM_DATA => (),
+            OAM_DATA => {
+                data = self.oam[self.oam_address as usize];
+            },
             SCROLL => (),
             PPU_ADDRESS => (),
             PPU_DATA => {
@@ -258,8 +195,12 @@ impl Olc2C02 {
                 self.mask = data;
             },
             STATUS => (),
-            OAM_ADDRESS => (),
-            OAM_DATA => (),
+            OAM_ADDRESS => {
+                self.oam_address = data;
+            },
+            OAM_DATA => {
+                self.oam[self.oam_address as usize] = data;
+            },
             SCROLL => {
                 if !self.address_latch {
                     // t: ....... ...HGFED = d: HGFED...
@@ -376,6 +317,86 @@ impl Olc2C02 {
             self.write_name_table_data(ppu_address, data);
         } else if ppu_address >= addresses::PALETTE_ADDRESS_LOWER && ppu_address <= addresses::PALETTE_ADDRESS_UPPER {
             self.write_palette_table_data(ppu_address, data);
+        }
+    }
+
+    fn render_background(&mut self) {
+        // Skipped on BG+odd
+        if self.scanline == 0 && self.cycle == 0 {
+            self.cycle = 1;
+        }
+
+        if self.scanline == -1 && self.cycle == 1 {
+            self.set_status(Status2C02::VerticalBlank, false);
+        }
+
+        if (self.cycle >= 2 && self.cycle <= 257) || (self.cycle >= 321 && self.cycle < 338) {
+            self.update_shifters();
+
+            let sub_cycle = (self.cycle - 1) % 8;
+            if sub_cycle == 0 {
+                self.load_shifters();
+                let name_table_address = addresses::NAME_TABLE_ADDRESS_LOWER | (self.current_vram_address & 0x0FFF);
+                self.bg_next_tile_id = self.ppu_read(name_table_address, false);
+            } else if sub_cycle == 2 {
+                let coarse_x = self.get_coarse_x();
+                let coarse_y = self.get_coarse_y();
+                let name_table_x = self.get_current_address(ScrollAddress::NameTableSelectX) << 10;
+                let name_table_y = self.get_current_address(ScrollAddress::NameTableSelectY) << 11;
+                let attribute_table_address = 
+                    addresses::ATTRIBUTE_TABLE_ADDRESS_LOWER |
+                    name_table_y |
+                    name_table_x |
+                    (coarse_y >> 2) << 3 |
+                    coarse_x >> 2;
+                self.bg_next_tile_attribute = self.ppu_read(attribute_table_address, false);
+
+                // Since there are only 4 palettes for the background tiles, we only need 2 bits to select a palette(2 bits range is 0-3)
+                // We get a byte of data we can split that byte up into 4 sets of 2 bits.
+                // One attribute byte covers a block of data (4x4 tiles) so we can apply each set of 2 bits to one quadrant of the block
+                // Bits 7,6 => bottom right, Bits 5,4 => bottom left, Bits 3,2 => top right, Bits 1,0 => top left
+                // If coarse y % 4 < 2 then it is in the top half
+                // If coarse x % 4 < 2 then it is in the left half
+                // Knowing this and that we want the last two bits to be the palette selected so we shift accordingly.
+                if coarse_y & 0x02 > 0 {
+                    self.bg_next_tile_attribute >>= 4; // Use bits 7,6 or 5,4
+                }
+
+                if coarse_x & 0x02 > 0 {
+                    self.bg_next_tile_attribute >>= 2; // USe bits 7,6 or 3,2
+                }
+
+                self.bg_next_tile_attribute &= 0x03;
+            } else if sub_cycle == 4 {
+                let pattern_address = self.get_pattern_address(0);
+                self.bg_next_tile_lsb = self.ppu_read(pattern_address, false);
+            } else if sub_cycle == 6 {
+                let pattern_address = self.get_pattern_address(8);
+                self.bg_next_tile_msb = self.ppu_read(pattern_address, false);
+            } else if sub_cycle == 7 {
+                self.increment_x();
+            }
+        }
+
+        if self.cycle == 256 {
+            // If rendering is enabled, the PPU increments the vertical position in v.
+            // The effective Y scroll coordinate is incremented, which is a complex operation that will correctly skip the attribute table memory regions,
+            // and wrap to the next nametable appropriately.
+            self.increment_y();
+        }
+        
+        if self.cycle == 257 {
+            self.load_shifters();
+            self.transfer_x_address();
+        }
+
+        if self.scanline == -1 && self.cycle >= 280 && self.cycle <= 304 {
+            self.transfer_y_address();
+        }
+
+        // Useless read of the tile id at the end of the scanline
+        if self.cycle == 338 || self.cycle == 340 {
+            self.bg_next_tile_id = self.ppu_read(addresses::NAME_TABLE_ADDRESS_LOWER | (self.current_vram_address & 0x0FFF), false);
         }
     }
 
@@ -676,46 +697,6 @@ impl Olc2C02 {
     fn is_rendering_enabled(&mut self) -> bool {
         self.get_mask(Mask2C02::RenderBackground) || self.get_mask(Mask2C02::RenderSprite)
     }
-
-    pub fn get_pattern_table(&mut self, pattern_index: u16, palette_id: u16) -> [[Color; 128]; 128] {
-        let mut pattern_table: [[Color; 128]; 128] = [[graphics::BLACK; 128]; 128];
-
-        for tile_y in 0..TILE_HEIGHT {
-            for tile_x in 0..TILE_WIDTH {
-                // We have 16 tiles which have 16 bytes of information
-                let byte_offset = (tile_y * frame::FRAME_WIDTH) + (tile_x * TILE_WIDTH);
-                
-                // Loop through 8 rows of 8 pixels
-                for row in 0..8 {
-                    let address = pattern_index * memory_sizes::KILOBYTES_4 + byte_offset + row;
-                    let mut tile_lsb = self.ppu_read(address, false);
-                    let mut tile_msb = self.ppu_read(address + 8, false);
-
-                    // Now that we have the two bytes necessary, we need to loop through each bit and
-                    // add them together to get the pixel index
-                    for column in 0..8 {
-                        let pixel = (tile_lsb & 0x01) + (tile_msb & 0x01);
-                        let color = self.get_color_from_palette(palette_id, pixel as u16);
-                        if color != graphics::BLACK && color != Color::new(0.329411775, 0.329411775, 0.329411775, 1.0) {
-                            let xasd = 5;
-                        }
-
-                        tile_lsb = tile_lsb >> 1;
-                        tile_msb = tile_msb >> 1;
-
-                        let y = (tile_y * 8) + row;
-                        let x = (tile_x * 8) + (7 - column);
-
-                        if x < 128 && y < 128 {
-                            pattern_table[y as usize][x as usize] = color;
-                        }
-                    }
-                }
-            }
-        }
-
-        pattern_table
-    }
 }
 
 #[derive(Debug)]
@@ -838,4 +819,15 @@ fn get_colors() -> Vec<Color> {
         Color::from_rgb(0, 0, 0),
         Color::from_rgb(0, 0, 0)
     ]
+}
+
+fn initialize_oam() -> Vec<u8> {
+    let capacity = OAM_ENTRY_LENGTH * MAX_SPRITES;
+    let mut vec: Vec<u8> = Vec::with_capacity(capacity as usize);
+
+    for _ in 0..capacity {
+        vec.push(0);
+    }
+
+    vec
 }

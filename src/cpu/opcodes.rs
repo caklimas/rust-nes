@@ -1,6 +1,6 @@
-use crate::cpu;
-use crate::opcode_table;
-use crate::address_modes;
+use crate::cpu::cpu;
+use crate::cpu::opcode_table;
+use crate::cpu::address_modes;
 
 
 /// Opcode: Add with Carry

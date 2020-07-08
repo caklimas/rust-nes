@@ -1,6 +1,6 @@
-use crate::cpu;
-use crate::address_modes;
-use crate::opcodes;
+use crate::cpu::cpu;
+use crate::cpu::address_modes;
+use crate::cpu::opcodes;
 
 pub const OPCODE_TABLE: [(&str, fn(&mut cpu::Olc6502) -> u8, fn(&mut cpu::Olc6502) -> u8, address_modes::AddressMode, u8); 256] = [
     ( "brk", opcodes::brk, address_modes::imm, address_modes::AddressMode::Imm, 7 ),( "ora", opcodes::ora, address_modes::izx, address_modes::AddressMode::Izx, 6 ),( "???", opcodes::xxx, address_modes::imp, address_modes::AddressMode::Imp, 2 ),( "???", opcodes::xxx, address_modes::imp, address_modes::AddressMode::Imp, 8 ),( "???", opcodes::nop, address_modes::imp, address_modes::AddressMode::Imp, 3 ),( "ora", opcodes::ora, address_modes::zp0, address_modes::AddressMode::Zp0, 3 ),( "asl", opcodes::asl, address_modes::zp0, address_modes::AddressMode::Zp0, 5 ),( "???", opcodes::xxx, address_modes::imp, address_modes::AddressMode::Imp, 5 ),( "php", opcodes::php, address_modes::imp, address_modes::AddressMode::Imp, 3 ),( "ora", opcodes::ora, address_modes::imm, address_modes::AddressMode::Imm, 2 ),( "asl", opcodes::asl, address_modes::imp, address_modes::AddressMode::Imp, 2 ),( "???", opcodes::xxx, address_modes::imp, address_modes::AddressMode::Imp, 2 ),( "???", opcodes::nop, address_modes::imp, address_modes::AddressMode::Imp, 4 ),( "ora", opcodes::ora, address_modes::abs, address_modes::AddressMode::Abs, 4 ),( "asl", opcodes::asl, address_modes::abs, address_modes::AddressMode::Abs, 6 ),( "???", opcodes::xxx, address_modes::imp, address_modes::AddressMode::Imp, 6 ),

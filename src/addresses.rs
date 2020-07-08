@@ -17,3 +17,10 @@ pub const ATTRIBUTE_TABLE_ADDRESS_LOWER: u16 = 0x23C0;
 pub const PPU_ADDRESS_START: u16 = 0x2000;
 pub const PPU_ADDRESS_END: u16 = 0x3FFF;
 pub const PPU_ADDRESS_RANGE: u16 = 0x0007;
+
+// Controls
+pub const CONTROLLER_ONE_INPUT: u16 = 0x4016;
+pub const CONTROLLER_TWO_INPUT: u16 = 0x4017;
+
+// Direct Memory Access
+pub const DMA_ADDRESS: u16 = 0x4014;
