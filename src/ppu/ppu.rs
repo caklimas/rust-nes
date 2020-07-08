@@ -1,6 +1,5 @@
 use std::rc::Rc;
 use std::cell::RefCell;
-use ggez::graphics;
 use ggez::graphics::Color;
 
 use crate::cartridge::cartridge;
@@ -21,10 +20,7 @@ const PPU_DATA: u16 = 0x0007; // The data to send to the ppu address
 const MAX_CLOCK_CYCLE: u16 = 341;
 const MAX_SCANLINE: i16 = 261;
 const MAX_VISIBLE_SCANLINE: i16 = 239;
-
-const OAM_ENTRY_SIZE: usize = 4;
-const OAM_ENTRY_LENGTH: usize = 32;
-const MAX_SPRITES: usize = 64;
+const MAX_VISIBLE_CLOCK_CYCLE: u16 = 257;
 
 pub struct Olc2C02 {
     pub name_table: [[u8; memory_sizes::KILOBYTES_1 as usize]; 2], // A full name table is 1KB and the NES can hold 2 name tables
@@ -56,7 +52,9 @@ pub struct Olc2C02 {
     bg_shifter_attribute_low: u16,
     bg_shifter_attribute_high: u16,
     sprite_scanline: Vec<u8>,
-    sprite_count: u8
+    sprite_count: usize,
+    sprite_shifter_pattern_low: Vec<u8>,
+    sprite_shifter_pattern_high: Vec<u8>
 }
 
 impl Olc2C02 {
@@ -90,13 +88,30 @@ impl Olc2C02 {
             bg_shifter_pattern_high: 0x0000,
             bg_shifter_attribute_low: 0x0000,
             bg_shifter_attribute_high: 0x0000,
-            sprite_scanline: vec![0; 8 * 4], // 8 sprites times size of an entry
-            sprite_count: 0
+            sprite_scanline: vec![0; sprites::MAX_SPRITE_COUNT * sprites::OAM_ENTRY_SIZE], // 8 sprites times size of an entry
+            sprite_count: 0,
+            sprite_shifter_pattern_low: vec![0; sprites::MAX_SPRITE_COUNT],
+            sprite_shifter_pattern_high: vec![0; sprites::MAX_SPRITE_COUNT]
         }
     }
    
     pub fn clock(&mut self) {
         if self.scanline >= -1 && self.scanline <= MAX_VISIBLE_SCANLINE {
+            // Skipped on BG+odd
+            if self.scanline == 0 && self.cycle == 0 {
+                self.cycle = 1;
+            }
+
+            if self.scanline == -1 && self.cycle == 1 {
+                self.set_status(Status2C02::VerticalBlank, false);
+                self.set_status(Status2C02::SpriteOverflow, false);
+
+                for i in 0..sprites::MAX_SPRITE_COUNT {
+                    self.sprite_shifter_pattern_low[i] = 0;
+                    self.sprite_shifter_pattern_high[i] = 0;
+                }
+            }
+
             self.render_background();
             self.render_foreground();
         }
@@ -114,25 +129,7 @@ impl Olc2C02 {
             }
         }
 
-        let mut bg_pixel = 0x00;
-        let mut bg_palette = 0x00;
-        if self.get_mask(Mask2C02::RenderBackground) {
-            let shift_register_bit = 0x8000 >> self.fine_x_scroll;
-            let pixel_plane_0 = if (self.bg_shifter_pattern_low & shift_register_bit) > 0 { 1 } else { 0 };
-            let pixel_plane_1 = if (self.bg_shifter_pattern_high & shift_register_bit) > 0 { 1 } else { 0 };
-
-            bg_pixel = (pixel_plane_1 << 1) | pixel_plane_0;
-
-            let bg_palette_0 = if (self.bg_shifter_attribute_low & shift_register_bit) > 0 { 1 } else { 0 };
-            let bg_palette_1 = if (self.bg_shifter_attribute_high & shift_register_bit) > 0 { 1 } else { 0 };
-
-            bg_palette = (bg_palette_1 << 1) | bg_palette_0;
-        }
-
-        let color = self.get_color_from_palette(bg_palette, bg_pixel);
-        if self.cycle > 0 {
-            self.frame.set_pixel((self.cycle - 1) as i32, self.scanline as i32, color);
-        }
+        self.render_pixel();
 
         self.cycle += 1;
 
@@ -321,16 +318,7 @@ impl Olc2C02 {
     }
 
     fn render_background(&mut self) {
-        // Skipped on BG+odd
-        if self.scanline == 0 && self.cycle == 0 {
-            self.cycle = 1;
-        }
-
-        if self.scanline == -1 && self.cycle == 1 {
-            self.set_status(Status2C02::VerticalBlank, false);
-        }
-
-        if (self.cycle >= 2 && self.cycle <= 257) || (self.cycle >= 321 && self.cycle < 338) {
+        if (self.cycle >= 2 && self.cycle <= MAX_VISIBLE_CLOCK_CYCLE) || (self.cycle >= 321 && self.cycle < 338) {
             self.update_shifters();
 
             let sub_cycle = (self.cycle - 1) % 8;
@@ -385,7 +373,7 @@ impl Olc2C02 {
             self.increment_y();
         }
         
-        if self.cycle == 257 {
+        if self.cycle == MAX_VISIBLE_CLOCK_CYCLE {
             self.load_shifters();
             self.transfer_x_address();
         }
@@ -402,28 +390,102 @@ impl Olc2C02 {
 
     fn render_foreground(&mut self) {
         // This isn't exactly how the NES does foreground rendering, however it gets there most of the way
-        if self.cycle != 257 || self.scanline < 0 {
-            return;
+        if self.cycle == MAX_VISIBLE_CLOCK_CYCLE && self.scanline >= 0 {
+            self.evaluate_sprites();
         }
 
-        self.evaluate_sprites();
+        if self.cycle == MAX_CLOCK_CYCLE - 1 {
+            let sprite_mode = self.get_control(Control2C02::SpriteSize);
+            for i in 0..self.sprite_count {
+                let oam_entry = sprites::get_object_attribute_entry(&self.sprite_scanline, i * sprites::OAM_ENTRY_SIZE);
+                let mut sprite_pattern_bit_low: u8;
+                let mut sprite_pattern_bit_high: u8;
+                let sprite_pattern_address_low: u16;
+                let sprite_pattern_address_high: u16;
+                let flip_vertically = oam_entry.get_oam_attribute(sprites::OamAttribute::FlipVertically) > 0;
+                let flip_horizontally = oam_entry.get_oam_attribute(sprites::OamAttribute::FlipHorizontally) > 0;
+                let row = if flip_vertically { 
+                    7 - (self.scanline as u16) - (oam_entry.y as u16) 
+                } else { 
+                    (self.scanline as u16) - (oam_entry.y as u16) 
+                };
+
+                if sprite_mode == 0 {
+                    // We're in 8x8 pixel mode and the control register determines the pattern table
+                    sprite_pattern_address_low = 
+                        (self.get_control(Control2C02::SpriteTableAddress) as u16) << 12 |
+                        ((oam_entry.tile_id as u16) << 4) |
+                        row;
+                } else {
+                    // We're in 8x16 pixel mode and the sprite attribute determines the pattern table
+                    // Because the sprite is double the height it means we have half the sprites available
+                    if flip_vertically {
+                        let cell = if (self.scanline - (oam_entry.y as i16)) < 8 {
+                            // Top half
+                            (((oam_entry.tile_id as u16) & 0xFE) + 1) << 4
+                        } else {
+                            // Bottom half
+                            ((oam_entry.tile_id as u16) & 0xFE) << 4
+                        };
+
+                        sprite_pattern_address_low = 
+                            (((oam_entry.tile_id & 0x01) as u16) << 12) |
+                            cell |
+                            (row & 0x07);
+                    } else {
+                        let cell = if (self.scanline - (oam_entry.y as i16)) < 8 {
+                            // Top half
+                            ((oam_entry.tile_id as u16) & 0xFE) << 4
+                        } else {
+                            // Bottom half
+                            (((oam_entry.tile_id as u16) & 0xFE) + 1) << 4
+                        };
+
+                        sprite_pattern_address_low = 
+                            (((oam_entry.tile_id & 0x01) as u16) << 12) |
+                            cell |
+                            (row & 0x07);
+                    }
+                }
+
+                sprite_pattern_address_high = sprite_pattern_address_low + 8;
+                sprite_pattern_bit_low = self.ppu_read(sprite_pattern_address_low, false);
+                sprite_pattern_bit_high = self.ppu_read(sprite_pattern_address_high, false);
+
+                if flip_horizontally {
+                    sprite_pattern_bit_low = sprites::flip_byte_horizontally(sprite_pattern_bit_low);
+                    sprite_pattern_bit_high = sprites::flip_byte_horizontally(sprite_pattern_bit_high);
+                }
+
+                self.sprite_shifter_pattern_low[i] = sprite_pattern_bit_low;
+                self.sprite_shifter_pattern_high[i] = sprite_pattern_bit_high;
+            }
+        }
     }
 
+    /// Check to see if each sprite should be rendered on the current scanline
+    /// This is done checking the y coordinates of each sprite to the current visible scanline
+    /// If it's greater
     fn evaluate_sprites(&mut self) {
         // Clear sprite scanline
+        self.sprite_count = 0;
         for i in 0..self.sprite_scanline.len() {
             self.sprite_scanline[i] = 0xFF;
-            self.sprite_count = 0;
+        }
+
+        for i in 0..sprites::MAX_SPRITE_COUNT {
+            self.sprite_shifter_pattern_low[i] = 0;
+            self.sprite_shifter_pattern_high[i] = 0;
         }
 
         let sprite_size = if self.get_control(Control2C02::SpriteSize) > 0 { 16 } else { 8 };
         let mut current_oam_entry: usize = 0;
         // You can only have 8 sprites on the screen
-        while current_oam_entry < MAX_SPRITES && self.sprite_count <= 8 {
+        while current_oam_entry < sprites::MAX_SPRITES && self.sprite_count <= sprites::MAX_SPRITE_COUNT {
             let diff = (self.scanline as i16) - (self.oam[current_oam_entry] as i16);
             if diff >= 0 && diff < sprite_size {
-                if self.sprite_count < 8 {
-                    for i in 0..OAM_ENTRY_SIZE {
+                if self.sprite_count < sprites::MAX_SPRITE_COUNT {
+                    for i in 0..sprites::OAM_ENTRY_SIZE {
                         let sprite_index = (self.sprite_count as usize) + i;
                         let oam_index = current_oam_entry + i;
                         self.sprite_scanline[sprite_index] = self.oam[oam_index];
@@ -433,10 +495,98 @@ impl Olc2C02 {
                 }
             }
 
-            current_oam_entry += OAM_ENTRY_SIZE;
+            current_oam_entry += sprites::OAM_ENTRY_SIZE;
         }
 
         self.set_status(Status2C02::SpriteOverflow, self.sprite_count > 8);
+    }
+
+    fn render_pixel(&mut self) {
+        let (bg_palette, bg_pixel) = self.get_background_pixel();
+        let (fg_palette, fg_pixel, fg_priority_over_bg) = self.get_foreground_pixels();
+
+        let mut pixel = 0x00;
+        let mut palette = 0x00;
+
+        if bg_pixel == 0 && fg_pixel == 0 {
+            // They're both transparent so no one wins
+            pixel = 0x00;
+            palette = 0x00;
+        } else if bg_pixel == 0 && fg_pixel > 0 {
+            // Foreground wins since background is transparent and foreground isn't
+            pixel = fg_pixel;
+            palette = fg_palette;
+        } else if bg_pixel > 0 && fg_pixel == 0 {
+            // Background wins since foreground is transparent and foreground isn't
+            pixel = bg_pixel;
+            palette = bg_palette;
+        } else {
+            // Both background and foreground are visible
+            // We then check the priority over background flag
+            if fg_priority_over_bg {
+                pixel = fg_pixel;
+                palette = fg_palette;
+            } else {
+                pixel = bg_pixel;
+                palette = bg_palette;
+            }
+        }
+
+        let color = self.get_color_from_palette(palette as u16, pixel as u16);
+        if self.cycle > 0 {
+            self.frame.set_pixel((self.cycle - 1) as i32, self.scanline as i32, color);
+        }
+    }
+
+    fn get_background_pixel(&mut self) -> (u8, u8) {
+        let mut bg_palette = 0x00;
+        let mut bg_pixel = 0x00;
+        if self.get_mask(Mask2C02::RenderBackground) {
+            let shift_register_bit = 0x8000 >> self.fine_x_scroll;
+            let pixel_plane_0 = if (self.bg_shifter_pattern_low & shift_register_bit) > 0 { 1 } else { 0 };
+            let pixel_plane_1 = if (self.bg_shifter_pattern_high & shift_register_bit) > 0 { 1 } else { 0 };
+
+            bg_pixel = (pixel_plane_1 << 1) | pixel_plane_0;
+
+            let bg_palette_0 = if (self.bg_shifter_attribute_low & shift_register_bit) > 0 { 1 } else { 0 };
+            let bg_palette_1 = if (self.bg_shifter_attribute_high & shift_register_bit) > 0 { 1 } else { 0 };
+
+            bg_palette = (bg_palette_1 << 1) | bg_palette_0;
+        }
+
+        (bg_palette, bg_pixel)
+    }
+
+    fn get_foreground_pixels(&mut self) -> (u8, u8, bool) {
+        let mut fg_pixel = 0x00;
+        let mut fg_palette = 0x00;
+        let mut fg_priority_over_background = false;
+
+        if self.get_mask(Mask2C02::RenderSprite) {
+            for i in 0..self.sprite_count {
+                let oam_entry = sprites::get_object_attribute_entry(&self.sprite_scanline, i);
+                let x_index = i + 3;
+                if self.sprite_scanline[x_index] == 0 {
+                    let pixel_plane_0 = if (self.sprite_shifter_pattern_low[i] & 0x80) > 0 { 1 } else { 0 };
+                    let pixel_plane_1 = if (self.sprite_shifter_pattern_high[i] & 0x80) > 0 { 1 } else { 0 };
+                    fg_pixel = (pixel_plane_1 << 1) | pixel_plane_0;
+
+                    let palette_plane_0 = oam_entry.get_oam_attribute(sprites::OamAttribute::Palette0) << 0;
+                    let palette_plane_1 = oam_entry.get_oam_attribute(sprites::OamAttribute::Palette1) << 1;
+                    fg_palette = (palette_plane_1 | palette_plane_0) + 4; // The foreground palettes were the last 4
+                    fg_priority_over_background = oam_entry.get_oam_attribute(sprites::OamAttribute::Priority) == 0;
+
+                    // We know the sprites are in priority order(earliest address is higher priority)
+                    // We also know that if a pixel is 0 it is transparent
+                    // Therefore the first pixel that's not transparent is the highest priority pixel so break out
+                    if fg_pixel != 0 {
+                        break;
+                    }
+                }
+            }
+        }
+
+        (fg_palette, fg_pixel, fg_priority_over_background)
     }
 
     fn increment_x(&mut self) {
@@ -489,6 +639,20 @@ impl Olc2C02 {
             self.bg_shifter_pattern_high <<= 1;
             self.bg_shifter_attribute_low <<= 1;
             self.bg_shifter_attribute_high <<= 1;
+        }
+
+        if self.get_mask(Mask2C02::RenderSprite) && self.cycle >= 1 && self.cycle <= MAX_VISIBLE_CLOCK_CYCLE {
+            for i in 0..self.sprite_count {
+
+                // First thing that needs to be done is decrement the x coordinate or else we'll shift everything off the screen
+                let x_index = i + 3;
+                if self.sprite_scanline[x_index] > 0 {
+                    self.sprite_scanline[x_index] -= 1;
+                } else {
+                    self.sprite_shifter_pattern_low[i] <<= 1;
+                    self.sprite_shifter_pattern_high[i] <<= 1;
+                }
+            }
         }
     }
 
@@ -861,7 +1025,7 @@ fn get_colors() -> Vec<Color> {
 }
 
 fn initialize_oam() -> Vec<u8> {
-    let capacity = OAM_ENTRY_LENGTH * MAX_SPRITES;
+    let capacity = sprites::OAM_ENTRY_SIZE * sprites::MAX_SPRITES;
     let mut vec: Vec<u8> = Vec::with_capacity(capacity as usize);
 
     for _ in 0..capacity {
