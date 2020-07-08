@@ -564,9 +564,8 @@ impl Olc2C02 {
 
         if self.get_mask(Mask2C02::RenderSprite) {
             for i in 0..self.sprite_count {
-                let oam_entry = sprites::get_object_attribute_entry(&self.sprite_scanline, i);
-                let x_index = i + 3;
-                if self.sprite_scanline[x_index] == 0 {
+                let oam_entry = sprites::get_object_attribute_entry(&self.sprite_scanline, i * sprites::OAM_ENTRY_SIZE);
+                if oam_entry.x == 0 {
                     let pixel_plane_0 = if (self.sprite_shifter_pattern_low[i] & 0x80) > 0 { 1 } else { 0 };
                     let pixel_plane_1 = if (self.sprite_shifter_pattern_high[i] & 0x80) > 0 { 1 } else { 0 };
                     fg_pixel = (pixel_plane_1 << 1) | pixel_plane_0;

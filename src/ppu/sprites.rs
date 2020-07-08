@@ -2,7 +2,7 @@ use crate::ppu::ppu;
 
 pub const OAM_ENTRY_SIZE: usize = 4;
 pub const MAX_SPRITES: usize = 64;
-pub const MAX_SPRITE_COUNT: usize = 8;
+pub const MAX_SPRITE_COUNT: usize = 16;
 
 #[derive(Copy, Clone, Debug, Default)]
 pub struct DirectMemoryAccess {
@@ -12,12 +12,11 @@ pub struct DirectMemoryAccess {
 }
 
 pub fn get_object_attribute_entry(oam: &Vec<u8>, index: usize) -> ObjectAttributeEntry {
-    let oam_index = index / OAM_ENTRY_SIZE;
     ObjectAttributeEntry {
-        y: oam[oam_index + 0],
-        tile_id: oam[oam_index + 1],
-        attribute: oam[oam_index + 2],
-        x: oam[oam_index + 3]
+        y: oam[index + 0],
+        tile_id: oam[index + 1],
+        attribute: oam[index + 2],
+        x: oam[index + 3]
     }
 }
 
@@ -33,6 +32,7 @@ pub fn flip_byte_horizontally(byte: u8) -> u8 {
     flipped_byte
 }
 
+#[derive(Debug)]
 pub struct ObjectAttributeEntry {
     pub y: u8,
     pub tile_id: u8,

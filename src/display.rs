@@ -6,6 +6,7 @@ use ggez::event::{
 use std::time::{Duration, Instant};
 
 use crate::bus;
+use crate::ppu::sprites;
 
 const PIXEL_SIZE: i32 = 3;
 pub const SCREEN_WIDTH: u16 = 256;
@@ -34,6 +35,10 @@ impl ggez::event::EventHandler for bus::Bus {
     }
 
     fn draw(&mut self, ctx: &mut Context) -> GameResult<()> {
+        if !self.can_draw {
+            return Ok(());
+        }
+
         graphics::clear(ctx, graphics::BLACK);
         self.draw_frame(ctx);
         graphics::present(ctx).expect("Error presenting graphics");
@@ -52,6 +57,16 @@ impl ggez::event::EventHandler for bus::Bus {
             KeyCode::D => {
                 self.can_draw = !self.can_draw;
             },
+            KeyCode::S => {
+                let oam = &self.ppu.borrow_mut().oam;
+                for i in 0..26 {
+                    println!("({}, {}) ID: {} AT: {}", 
+                        oam[(i * sprites::OAM_ENTRY_SIZE) + 3], 
+                        oam[(i * sprites::OAM_ENTRY_SIZE) + 0], 
+                        oam[(i * sprites::OAM_ENTRY_SIZE) + 1], 
+                        oam[(i * sprites::OAM_ENTRY_SIZE) + 2]);
+                }
+            }
             KeyCode::Right => {
                 self.memory.borrow_mut().controllers[0].buttons[0] = true;
             },

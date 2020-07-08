@@ -58,8 +58,10 @@ impl Bus {
             if self.memory.borrow().dma_transfer {
                 // The DMA is synchronized with every other clock cycle
                 // Without loss of generality, we will do it every odd cycle
-                if self.dma_dummy && self.system_clock_counter % 2 == 1 {
-                    self.dma_dummy = false;
+                if self.dma_dummy {
+                    if self.system_clock_counter % 2 == 1 {
+                        self.dma_dummy = false;
+                    }
                 } else {
                     if self.system_clock_counter % 2 == 0 {
                         // Read data from cpu space
