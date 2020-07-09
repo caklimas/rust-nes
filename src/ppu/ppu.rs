@@ -54,7 +54,9 @@ pub struct Ppu2C02 {
     sprite_scanline: Vec<u8>,
     sprite_count: usize,
     sprite_shifter_pattern_low: Vec<u8>,
-    sprite_shifter_pattern_high: Vec<u8>
+    sprite_shifter_pattern_high: Vec<u8>,
+    sprite_zero_hit_possible: bool,
+    sprite_zero_being_rendered: bool
 }
 
 impl Ppu2C02 {
@@ -91,7 +93,9 @@ impl Ppu2C02 {
             sprite_scanline: vec![0; sprites::MAX_SPRITE_COUNT * sprites::OAM_ENTRY_SIZE], // 8 sprites times size of an entry
             sprite_count: 0,
             sprite_shifter_pattern_low: vec![0; sprites::MAX_SPRITE_COUNT],
-            sprite_shifter_pattern_high: vec![0; sprites::MAX_SPRITE_COUNT]
+            sprite_shifter_pattern_high: vec![0; sprites::MAX_SPRITE_COUNT],
+            sprite_zero_hit_possible: false,
+            sprite_zero_being_rendered: false
         }
     }
    
@@ -105,6 +109,7 @@ impl Ppu2C02 {
             if self.scanline == -1 && self.cycle == 1 {
                 self.set_status(Status2C02::VerticalBlank, false);
                 self.set_status(Status2C02::SpriteOverflow, false);
+                self.set_status(Status2C02::SpriteZeroHit, false);
 
                 for i in 0..sprites::MAX_SPRITE_COUNT {
                     self.sprite_shifter_pattern_low[i] = 0;
@@ -519,6 +524,7 @@ impl Ppu2C02 {
             self.sprite_shifter_pattern_high[i] = 0;
         }
 
+        self.sprite_zero_hit_possible = false;
         let sprite_size = if self.get_control(Control2C02::SpriteSize) > 0 { 16 } else { 8 };
         let mut current_oam_entry: usize = 0;
         // You can only have 8 sprites on the screen
@@ -527,6 +533,10 @@ impl Ppu2C02 {
             let diff = (self.scanline as i16) - (self.oam[asd] as i16);
             if diff >= 0 && diff < sprite_size {
                 if self.sprite_count < sprites::MAX_SPRITE_COUNT {
+                    if current_oam_entry == 0 {
+                        self.sprite_zero_hit_possible = true;
+                    }
+
                     for i in 0..sprites::OAM_ENTRY_SIZE {
                         let sprite_index = (self.sprite_count * sprites::OAM_ENTRY_SIZE) + i;
                         let oam_index = asd + i;
@@ -572,6 +582,24 @@ impl Ppu2C02 {
                 pixel = bg_pixel;
                 palette = bg_palette;
             }
+
+            // If both background and foreground aren't transparent we then check sprite zero hit
+            if self.sprite_zero_hit_possible && self.sprite_zero_being_rendered {
+                if self.get_mask(Mask2C02::RenderBackground) && self.get_mask(Mask2C02::RenderSprite) {
+                    // The left edge of the screen has specific switches to control
+                    // its appearance. This is used to smooth inconsistencies when
+                    // scrolling (since sprites x coord must be >= 0)
+                    let lower_cycle = if !(self.get_mask(Mask2C02::RenderBackgroundLeft) || self.get_mask(Mask2C02::RenderSpriteLeft)) {
+                        9
+                    } else {
+                        1
+                    };
+
+                    if self.cycle >= lower_cycle && self.cycle <= MAX_VISIBLE_CLOCK_CYCLE {
+                        self.set_status(Status2C02::SpriteZeroHit, true);
+                    }
+                }
+            }
         }
 
         let color = self.get_color_from_palette(palette as u16, pixel as u16);
@@ -606,6 +634,8 @@ impl Ppu2C02 {
         let mut fg_priority_over_background = false;
 
         if self.get_mask(Mask2C02::RenderSprite) {
+            self.sprite_zero_being_rendered = false;
+
             for i in 0..self.sprite_count {
                 let oam_entry = sprites::get_object_attribute_entry(&self.sprite_scanline, i * sprites::OAM_ENTRY_SIZE);
                 if oam_entry.x == 0 {
@@ -622,6 +652,10 @@ impl Ppu2C02 {
                     // We also know that if a pixel is 0 it is transparent
                     // Therefore the first pixel that's not transparent is the highest priority pixel so break out
                     if fg_pixel != 0 {
+                        if i == 0 { // If it's in 0 of our sprite scanline then it's a candidate for sprite 0
+                            self.sprite_zero_being_rendered = true;
+                        }
+
                         break;
                     }
                 }
