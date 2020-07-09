@@ -13,7 +13,7 @@ mod controller;
 
 fn main() {
     let mut bus = bus::Bus::new();
-    let cartridge = cartridge::cartridge::Cartridge::new(r"C:\Users\Christopher\Desktop\Files\ROMS\donkey kong.nes");
+    let cartridge = cartridge::cartridge::Cartridge::new(r"C:\Users\Christopher\Desktop\Files\ROMS\blargg_ppu_tests_2005.09.15b\palette_ram.nes");
     bus.load_cartridge(cartridge);
 
     bus.reset();

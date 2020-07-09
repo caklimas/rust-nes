@@ -29,12 +29,17 @@ impl Cartridge {
         let prg_memory_size = ((header.prg_rom_chunks as u32) * 16384) as usize;
         let post_header_index = if (header.mapper_1 & 0x04) > 0 { 16 + 512 } else { 16 };
 
-        let chr_memory_size = ((header.chr_rom_chunks as u32) * 8192) as usize;
         let chr_memory_start = (post_header_index + prg_memory_size) as usize;
+        let chr_memory = if header.chr_rom_chunks == 0 { 
+            vec![0; 8192]
+        } else { 
+            let chr_memory_size = ((header.chr_rom_chunks as u32) * 8192) as usize;
+            bytes[chr_memory_start..(chr_memory_start + chr_memory_size)].to_vec()
+        };
 
         Cartridge {
             prg_memory: bytes[post_header_index..(post_header_index + prg_memory_size)].to_vec(),
-            chr_memory: bytes[chr_memory_start..(chr_memory_start + chr_memory_size)].to_vec(),
+            chr_memory,
             mapper_id: mapper_id,
             prg_banks: header.prg_rom_chunks,
             chr_banks: header.chr_rom_chunks,
