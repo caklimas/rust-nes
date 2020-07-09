@@ -43,7 +43,7 @@ impl Cartridge {
             mapper_id: mapper_id,
             prg_banks: header.prg_rom_chunks,
             chr_banks: header.chr_rom_chunks,
-            mapper: Cartridge::get_mapper(mapper_id),
+            mapper: Cartridge::get_mapper(mapper_id, header.prg_rom_chunks, header.chr_rom_chunks),
             mirror
         }
     }
@@ -123,10 +123,10 @@ impl Cartridge {
         false
     }
 
-    fn get_mapper(mapper_id: u8) -> Option<Box<dyn mappers::Mapper>> {
+    fn get_mapper(mapper_id: u8, prg_banks: u8, chr_banks: u8) -> Option<Box<dyn mappers::Mapper>> {
         let mut mapper: Option<Box<dyn mappers::Mapper>> = None;
         match mapper_id {
-            0 => mapper = Some(Box::new(mappers::Mapper000 { prg_banks: 0, chr_banks: 0 })),
+            0 => mapper = Some(Box::new(mappers::Mapper000 { prg_banks, chr_banks })),
             _ => ()
         };
 

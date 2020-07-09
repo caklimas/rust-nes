@@ -7,8 +7,8 @@ use crate::cartridge::cartridge;
 use crate::memory;
 
 pub struct Bus {
-    pub cpu: cpu::Olc6502,
-    pub ppu: Rc<RefCell<ppu::Olc2C02>>,
+    pub cpu: cpu::Cpu6502,
+    pub ppu: Rc<RefCell<ppu::Ppu2C02>>,
     pub cartridge: Option<Rc<RefCell<cartridge::Cartridge>>>,
     pub memory: Rc<RefCell<memory::Memory>>,
     pub system_clock_counter: u32,
@@ -18,11 +18,11 @@ pub struct Bus {
 
 impl Bus {
     pub fn new() -> Self {
-        let ppu = Rc::new(RefCell::new(ppu::Olc2C02::new()));
+        let ppu = Rc::new(RefCell::new(ppu::Ppu2C02::new()));
         let memory = Rc::new(RefCell::new(memory::Memory::new(Rc::clone(&ppu))));
 
         Bus {
-            cpu: cpu::Olc6502::new(Rc::clone(&memory)),
+            cpu: cpu::Cpu6502::new(Rc::clone(&memory)),
             ppu: Rc::clone(&ppu),
             cartridge: None,
             memory: Rc::clone(&memory),

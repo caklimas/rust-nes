@@ -1,7 +1,7 @@
 use std::rc::Rc;
 use std::cell::RefCell;
 use std::{
-    io::{BufWriter},
+    io::{BufWriter, Write}
 };
 use std::fs::OpenOptions;
 
@@ -16,7 +16,7 @@ const STACK_END_LOCATION: u8 = 0xFD;
 
 pub const INTERRUPT_PROGRAM_COUNTER_ADDRESS: u16 = 0xFFFE;
 
-pub struct Olc6502 {
+pub struct Cpu6502 {
     pub accumulator: u8,
     pub x_register: u8,
     pub y_register: u8,
@@ -31,9 +31,9 @@ pub struct Olc6502 {
     pub memory: Rc<RefCell<memory::Memory>>
 }
 
-impl Olc6502 {
+impl Cpu6502 {
     pub fn new(memory: Rc<RefCell<memory::Memory>>) -> Self {
-        Olc6502 {
+        Cpu6502 {
             accumulator: 0,
             x_register: 0,
             y_register: 0,
@@ -70,21 +70,21 @@ impl Olc6502 {
             let additional_cycle_1 = record.2(self);
             let additional_cycle_2 = record.1(self);
 
-            self.write_to_file(
-                false,
-                program_counter, 
-                opcode,
-                &record.3,
-                self.addr_abs,
-                self.addr_rel, 
-                record.0, 
-                accumulator, 
-                x_register, 
-                y_register, 
-                status_register, 
-                stack_pointer, 
-                counter
-            );
+            // self.write_to_file(
+            //     true,
+            //     program_counter, 
+            //     opcode,
+            //     &record.3,
+            //     self.addr_abs,
+            //     self.addr_rel, 
+            //     record.0, 
+            //     accumulator, 
+            //     x_register, 
+            //     y_register, 
+            //     status_register, 
+            //     stack_pointer, 
+            //     counter
+            // );
 
             self.cycles += additional_cycle_1 & additional_cycle_2;
         }
@@ -221,32 +221,32 @@ impl Olc6502 {
                     _ => addr_abs
                 };
                 
-                println!("{:#06x} {:#04x} {:#06x} {} A: {:#04x} X: {:#04x} Y: {:#04x} P: {:#04x} SP: {:#04x} PPU: {} CYC: {}", 
-                program_counter,
-                opcode, 
-                address, 
-                op_name, 
-                accumulator, 
-                x_register, 
-                y_register, 
-                status_register, 
-                stack_pointer, counter % 341, counter + 7);
-                // match writeln!(
-                //     &mut writer,
-                //     "{:#06x} {:#04x} {:#06x} {} A: {:#04x} X: {:#04x} Y: {:#04x} P: {:#04x} SP: {:#04x} PPU: {} CYC: {}", 
-                //     program_counter,
-                //     opcode, 
-                //     address, 
-                //     op_name, 
-                //     accumulator, 
-                //     x_register, 
-                //     y_register, 
-                //     status_register, 
-                //     stack_pointer, counter % 341, counter + 7
-                // ) {
-                //     Err(e) => println!("{:?}", e),
-                //     _ => ()
-                // }
+                // println!("{:#06x} {:#04x} {:#06x} {} A: {:#04x} X: {:#04x} Y: {:#04x} P: {:#04x} SP: {:#04x} PPU: {} CYC: {}", 
+                // program_counter,
+                // opcode, 
+                // address, 
+                // op_name, 
+                // accumulator, 
+                // x_register, 
+                // y_register, 
+                // status_register, 
+                // stack_pointer, counter % 341, counter + 7);
+                match writeln!(
+                    &mut _writer,
+                    "{:#06x} {:#04x} {:#06x} {} A: {:#04x} X: {:#04x} Y: {:#04x} P: {:#04x} SP: {:#04x} PPU: {} CYC: {}", 
+                    program_counter,
+                    opcode, 
+                    address, 
+                    op_name, 
+                    accumulator, 
+                    x_register, 
+                    y_register, 
+                    status_register, 
+                    stack_pointer, counter % 341, counter + 7
+                ) {
+                    Err(e) => println!("{:?}", e),
+                    _ => ()
+                }
             }
             // println!("{:#06x} {} A: {:#04x} X: {:#04x} Y: {:#04x} P: {:#04x} SP: {:#04x} PPU: {} CYC: {}", self.program_counter, record.0, self.accumulator, self.x_register, self.y_register, self.status_register, self.stack_pointer, counter, counter + 7);
     }

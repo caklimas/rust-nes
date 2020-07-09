@@ -22,7 +22,7 @@ const MAX_SCANLINE: i16 = 261;
 const MAX_VISIBLE_SCANLINE: i16 = 239;
 const MAX_VISIBLE_CLOCK_CYCLE: u16 = 257;
 
-pub struct Olc2C02 {
+pub struct Ppu2C02 {
     pub name_table: [[u8; memory_sizes::KILOBYTES_1 as usize]; 2], // A full name table is 1KB and the NES can hold 2 name tables
     pub pallete_table: [u8; 32],
     pub pattern_table: [[u8; memory_sizes::KILOBYTES_4 as usize]; 2],
@@ -57,9 +57,9 @@ pub struct Olc2C02 {
     sprite_shifter_pattern_high: Vec<u8>
 }
 
-impl Olc2C02 {
+impl Ppu2C02 {
     pub fn new() -> Self {
-        Olc2C02 {
+        Ppu2C02 {
             name_table: [[0; 1024]; 2],
             pallete_table: [0; 32],
             pattern_table: [[0; memory_sizes::KILOBYTES_4 as usize]; 2],

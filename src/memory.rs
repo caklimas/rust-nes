@@ -13,7 +13,7 @@ const CPU_MIRROR: u16 = 0x07FF;
 
 pub struct Memory {
     ram: [u8; RAM_SIZE],
-    ppu: Rc<RefCell<ppu::Olc2C02>>,
+    ppu: Rc<RefCell<ppu::Ppu2C02>>,
     pub cartridge: Option<Rc<RefCell<cartridge::Cartridge>>>,
     pub controllers: [controller::Controller; 2],
     pub dma: sprites::DirectMemoryAccess,
@@ -21,7 +21,7 @@ pub struct Memory {
 }
 
 impl Memory {
-    pub fn new(ppu: Rc<RefCell<ppu::Olc2C02>>) -> Self {
+    pub fn new(ppu: Rc<RefCell<ppu::Ppu2C02>>) -> Self {
         Memory {
             ram: [0; RAM_SIZE],
             ppu: ppu,
