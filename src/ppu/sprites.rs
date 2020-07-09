@@ -1,8 +1,6 @@
-use crate::ppu::ppu;
-
 pub const OAM_ENTRY_SIZE: usize = 4;
 pub const MAX_SPRITES: usize = 64;
-pub const MAX_SPRITE_COUNT: usize = 16;
+pub const MAX_SPRITE_COUNT: usize = 64;
 
 #[derive(Copy, Clone, Debug, Default)]
 pub struct DirectMemoryAccess {

@@ -144,7 +144,7 @@ impl Olc2C02 {
     }
 
     /// Read from the Main Bus
-    pub fn cpu_read(&mut self, address: u16, read_only: bool) -> u8 {
+    pub fn cpu_read(&mut self, address: u16, _read_only: bool) -> u8 {
         let mut data: u8 = 0;
         match address {
             CONTROL => (), // Can't be read
@@ -272,7 +272,7 @@ impl Olc2C02 {
     }
 
     /// Read from the PPU Bus
-    pub fn ppu_read(&mut self, address: u16, read_only: bool) -> u8 {
+    pub fn ppu_read(&mut self, address: u16, _read_only: bool) -> u8 {
         let mut data: u8 = 0;
         let ppu_address = address & addresses::PPU_ADDRESS_END;
 
@@ -404,49 +404,90 @@ impl Olc2C02 {
                 let sprite_pattern_address_high: u16;
                 let flip_vertically = oam_entry.get_oam_attribute(sprites::OamAttribute::FlipVertically) > 0;
                 let flip_horizontally = oam_entry.get_oam_attribute(sprites::OamAttribute::FlipHorizontally) > 0;
-                let row = if flip_vertically { 
-                    7 - (self.scanline as u16) - (oam_entry.y as u16) 
-                } else { 
-                    (self.scanline as u16) - (oam_entry.y as u16) 
-                };
-
+                
                 if sprite_mode == 0 {
-                    // We're in 8x8 pixel mode and the control register determines the pattern table
-                    sprite_pattern_address_low = 
-                        (self.get_control(Control2C02::SpriteTableAddress) as u16) << 12 |
-                        ((oam_entry.tile_id as u16) << 4) |
-                        row;
-                } else {
-                    // We're in 8x16 pixel mode and the sprite attribute determines the pattern table
-                    // Because the sprite is double the height it means we have half the sprites available
-                    if flip_vertically {
-                        let cell = if (self.scanline - (oam_entry.y as i16)) < 8 {
-                            // Top half
-                            (((oam_entry.tile_id as u16) & 0xFE) + 1) << 4
-                        } else {
-                            // Bottom half
-                            ((oam_entry.tile_id as u16) & 0xFE) << 4
-                        };
-
-                        sprite_pattern_address_low = 
-                            (((oam_entry.tile_id & 0x01) as u16) << 12) |
-                            cell |
-                            (row & 0x07);
+                    if !flip_vertically {
+                        sprite_pattern_address_low =
+                            (self.get_control(Control2C02::SpriteTableAddress) as u16) << 12 |
+                            ((oam_entry.tile_id as u16) << 4) |
+                            ((self.scanline - (oam_entry.y as i16)) as u16);
                     } else {
-                        let cell = if (self.scanline - (oam_entry.y as i16)) < 8 {
-                            // Top half
-                            ((oam_entry.tile_id as u16) & 0xFE) << 4
+                        sprite_pattern_address_low =
+                            (self.get_control(Control2C02::SpriteTableAddress) as u16) << 12 |
+                            ((oam_entry.tile_id as u16) << 4) |
+                            (7 - ((self.scanline - (oam_entry.y as i16)) as u16));
+                    }
+                } else {
+                    if !flip_vertically {
+                        if self.scanline - (oam_entry.y as i16) < 8 {
+                            sprite_pattern_address_low =
+                                (((oam_entry.tile_id & 0x01) as u16) << 12) |
+                                (((oam_entry.tile_id & 0xFE) as u16) << 4) |
+                                (((self.scanline - (oam_entry.y as i16)) as u16 ) & 0x07);
                         } else {
-                            // Bottom half
-                            (((oam_entry.tile_id as u16) & 0xFE) + 1) << 4
-                        };
-
-                        sprite_pattern_address_low = 
-                            (((oam_entry.tile_id & 0x01) as u16) << 12) |
-                            cell |
-                            (row & 0x07);
+                            sprite_pattern_address_low =
+                                (((oam_entry.tile_id & 0x01) as u16) << 12) |
+                                ((((oam_entry.tile_id & 0xFE) + 1) as u16) << 4) |
+                                (((self.scanline - (oam_entry.y as i16)) as u16 ) & 0x07);
+                        }
+                    } else {
+                        if self.scanline - (oam_entry.y as i16) < 8 {
+                            sprite_pattern_address_low =
+                                (((oam_entry.tile_id & 0x01) as u16) << 12) |
+                                ((((oam_entry.tile_id & 0xFE) + 1) as u16) << 4) |
+                                (((self.scanline - (oam_entry.y as i16)) as u16 ) & 0x07);
+                        } else {
+                            sprite_pattern_address_low =
+                                (((oam_entry.tile_id & 0x01) as u16) << 12) |
+                                (((oam_entry.tile_id & 0xFE) as u16) << 4) |
+                                (((self.scanline - (oam_entry.y as i16)) as u16 ) & 0x07);
+                        }
                     }
                 }
+
+                // let row = if flip_vertically { 
+                //     7 - (self.scanline as u16) - (oam_entry.y as u16) 
+                // } else { 
+                //     (self.scanline as u16) - (oam_entry.y as u16) 
+                // };
+
+                // if sprite_mode == 0 {
+                //     // We're in 8x8 pixel mode and the control register determines the pattern table
+                //     sprite_pattern_address_low = 
+                //         (self.get_control(Control2C02::SpriteTableAddress) as u16) << 12 |
+                //         ((oam_entry.tile_id as u16) << 4) |
+                //         row;
+                // } else {
+                //     // We're in 8x16 pixel mode and the sprite attribute determines the pattern table
+                //     // Because the sprite is double the height it means we have half the sprites available
+                //     if flip_vertically {
+                //         let cell = if (self.scanline - (oam_entry.y as i16)) < 8 {
+                //             // Top half
+                //             (((oam_entry.tile_id as u16) & 0xFE) + 1) << 4
+                //         } else {
+                //             // Bottom half
+                //             ((oam_entry.tile_id as u16) & 0xFE) << 4
+                //         };
+
+                //         sprite_pattern_address_low = 
+                //             (((oam_entry.tile_id & 0x01) as u16) << 12) |
+                //             cell |
+                //             (row & 0x07);
+                //     } else {
+                //         let cell = if (self.scanline - (oam_entry.y as i16)) < 8 {
+                //             // Top half
+                //             ((oam_entry.tile_id as u16) & 0xFE) << 4
+                //         } else {
+                //             // Bottom half
+                //             (((oam_entry.tile_id as u16) & 0xFE) + 1) << 4
+                //         };
+
+                //         sprite_pattern_address_low = 
+                //             (((oam_entry.tile_id & 0x01) as u16) << 12) |
+                //             cell |
+                //             (row & 0x07);
+                //     }
+                // }
 
                 sprite_pattern_address_high = sprite_pattern_address_low + 8;
                 sprite_pattern_bit_low = self.ppu_read(sprite_pattern_address_low, false);
@@ -482,12 +523,13 @@ impl Olc2C02 {
         let mut current_oam_entry: usize = 0;
         // You can only have 8 sprites on the screen
         while current_oam_entry < sprites::MAX_SPRITES && self.sprite_count <= sprites::MAX_SPRITE_COUNT {
-            let diff = (self.scanline as i16) - (self.oam[current_oam_entry] as i16);
+            let asd = current_oam_entry * sprites::OAM_ENTRY_SIZE;
+            let diff = (self.scanline as i16) - (self.oam[asd] as i16);
             if diff >= 0 && diff < sprite_size {
                 if self.sprite_count < sprites::MAX_SPRITE_COUNT {
                     for i in 0..sprites::OAM_ENTRY_SIZE {
                         let sprite_index = (self.sprite_count * sprites::OAM_ENTRY_SIZE) + i;
-                        let oam_index = current_oam_entry + i;
+                        let oam_index = asd + i;
                         self.sprite_scanline[sprite_index] = self.oam[oam_index];
                     }
 
@@ -495,7 +537,7 @@ impl Olc2C02 {
                 }
             }
 
-            current_oam_entry += sprites::OAM_ENTRY_SIZE;
+            current_oam_entry += 1;
         }
 
         self.set_status(Status2C02::SpriteOverflow, self.sprite_count > 8);
@@ -520,7 +562,7 @@ impl Olc2C02 {
             // Background wins since foreground is transparent and foreground isn't
             pixel = bg_pixel;
             palette = bg_palette;
-        } else {
+        } else if bg_pixel > 0 && fg_pixel > 0 {
             // Both background and foreground are visible
             // We then check the priority over background flag
             if fg_priority_over_bg {
@@ -534,7 +576,8 @@ impl Olc2C02 {
 
         let color = self.get_color_from_palette(palette as u16, pixel as u16);
         if self.cycle > 0 {
-            self.frame.set_pixel((self.cycle - 1) as i32, self.scanline as i32, color);
+            let x = self.cycle - 1;
+            self.frame.set_pixel((x) as i32, self.scanline as i32, color);
         }
     }
 
@@ -572,7 +615,7 @@ impl Olc2C02 {
 
                     let palette_plane_0 = oam_entry.get_oam_attribute(sprites::OamAttribute::Palette0) << 0;
                     let palette_plane_1 = oam_entry.get_oam_attribute(sprites::OamAttribute::Palette1) << 1;
-                    fg_palette = (palette_plane_1 | palette_plane_0) + 4; // The foreground palettes were the last 4
+                    fg_palette = (palette_plane_1 | palette_plane_0) + 4; // The foreground palettes were the last 4 (4-7)
                     fg_priority_over_background = oam_entry.get_oam_attribute(sprites::OamAttribute::Priority) == 0;
 
                     // We know the sprites are in priority order(earliest address is higher priority)
@@ -642,7 +685,6 @@ impl Olc2C02 {
 
         if self.get_mask(Mask2C02::RenderSprite) && self.cycle >= 1 && self.cycle <= MAX_VISIBLE_CLOCK_CYCLE {
             for i in 0..self.sprite_count {
-
                 // First thing that needs to be done is decrement the x coordinate or else we'll shift everything off the screen
                 let x_index = (i * sprites::OAM_ENTRY_SIZE) + 3;
                 if self.sprite_scanline[x_index] > 0 {

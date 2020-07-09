@@ -5,7 +5,6 @@ use std::{
 };
 use std::fs::OpenOptions;
 
-use crate::bus;
 use crate::memory;
 use crate::cpu::opcode_table;
 use crate::cpu::address_modes;
@@ -154,7 +153,7 @@ impl Olc6502 {
         self.write_to_stack((self.program_counter & 0x00FF) as u8);
     }
 
-    pub fn interrupt_request(&mut self, bus: &mut bus::Bus) {
+    pub fn interrupt_request(&mut self) {
         match self.get_flag(Flags6502::DisableInterrupts) {
             1 => return,
             _ => {
@@ -216,7 +215,7 @@ impl Olc6502 {
         counter: u32) {
             if log {
                 let file = OpenOptions::new().write(true).truncate(false).append(true).open(r"H:\Repos\rust-nes\src\result.txt").expect("Not found");
-                let mut writer = BufWriter::new(&file);
+                let mut _writer = BufWriter::new(&file);
                 let address = match address_mode {
                     address_modes::AddressMode::Rel => addr_rel,
                     _ => addr_abs

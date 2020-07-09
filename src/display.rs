@@ -3,10 +3,8 @@ use ggez::event::{
     KeyCode,
     KeyMods
 };
-use std::time::{Duration, Instant};
 
 use crate::bus;
-use crate::ppu::sprites;
 
 const PIXEL_SIZE: i32 = 3;
 pub const SCREEN_WIDTH: u16 = 256;
@@ -16,6 +14,10 @@ pub const WINDOW_HEIGHT: f32 = SCREEN_HEIGHT as f32 * PIXEL_SIZE as f32;
 
 impl ggez::event::EventHandler for bus::Bus {
     fn update(&mut self, _ctx: &mut Context) -> GameResult {
+        if !self.can_draw {
+            return Ok(());
+        }
+
         loop {
             self.clock();
             if self.ppu.borrow().frame_complete {
@@ -41,6 +43,29 @@ impl ggez::event::EventHandler for bus::Bus {
 
         graphics::clear(ctx, graphics::BLACK);
         self.draw_frame(ctx);
+        // let mut mesh_builder = graphics::MeshBuilder::new();
+        // let mut draw = false;
+        // let oam = &self.ppu.borrow_mut().oam;
+        // for i in 0..64 {
+        //     let color = graphics::Color::from_rgb(250, 243, 17);
+        //     let x = oam[(i * sprites::OAM_ENTRY_SIZE) + 3];
+        //     let y = oam[(i * sprites::OAM_ENTRY_SIZE) + 0];
+        //     let rect = graphics::Rect::new_i32(
+        //         x as i32 * PIXEL_SIZE, 
+        //         y as i32 * PIXEL_SIZE, 
+        //         PIXEL_SIZE, 
+        //         PIXEL_SIZE
+        //     );
+        //     mesh_builder.rectangle(graphics::DrawMode::fill(), rect, color);
+    
+        //     if y >= 24 && y <= 31 {
+        //         let sdjlkfhsd = 4;
+        //         // println!("({}, {})", x, y)
+        //     }
+        // }
+
+        // let mesh = mesh_builder.build(ctx).expect("Error building the mesh");
+        // graphics::draw(ctx, &mesh, (nalgebra::Point2::new(0.0, 0.0),)).expect("Error drawing");
         graphics::present(ctx).expect("Error presenting graphics");
 
         Ok(())
@@ -57,16 +82,6 @@ impl ggez::event::EventHandler for bus::Bus {
             KeyCode::D => {
                 self.can_draw = !self.can_draw;
             },
-            KeyCode::S => {
-                let oam = &self.ppu.borrow_mut().oam;
-                for i in 0..26 {
-                    println!("({}, {}) ID: {} AT: {}", 
-                        oam[(i * sprites::OAM_ENTRY_SIZE) + 3], 
-                        oam[(i * sprites::OAM_ENTRY_SIZE) + 0], 
-                        oam[(i * sprites::OAM_ENTRY_SIZE) + 1], 
-                        oam[(i * sprites::OAM_ENTRY_SIZE) + 2]);
-                }
-            }
             KeyCode::Right => {
                 self.memory.borrow_mut().controllers[0].buttons[0] = true;
             },
