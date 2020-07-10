@@ -4,11 +4,13 @@ use std::cell::RefCell;
 use crate::cpu::cpu;
 use crate::ppu::ppu;
 use crate::cartridge::cartridge;
+use crate::audio;
 use crate::memory;
 
 pub struct Bus {
     pub cpu: cpu::Cpu6502,
     pub ppu: Rc<RefCell<ppu::Ppu2C02>>,
+    pub apu: Rc<RefCell<audio::apu::Apu>>,
     pub cartridge: Option<Rc<RefCell<cartridge::Cartridge>>>,
     pub memory: Rc<RefCell<memory::Memory>>,
     pub system_clock_counter: u32,
@@ -19,11 +21,13 @@ pub struct Bus {
 impl Bus {
     pub fn new() -> Self {
         let ppu = Rc::new(RefCell::new(ppu::Ppu2C02::new()));
-        let memory = Rc::new(RefCell::new(memory::Memory::new(Rc::clone(&ppu))));
+        let apu = Rc::new(RefCell::new(audio::apu::Apu::new()));
+        let memory = Rc::new(RefCell::new(memory::Memory::new(Rc::clone(&ppu), Rc::clone(&apu))));
 
         Bus {
             cpu: cpu::Cpu6502::new(Rc::clone(&memory)),
             ppu: Rc::clone(&ppu),
+            apu: Rc::clone(&apu),
             cartridge: None,
             memory: Rc::clone(&memory),
             system_clock_counter: 0,
@@ -51,6 +55,7 @@ impl Bus {
         // about is equivalent to the PPU clock. So the PPU is clocked
         // each time this function is called
         self.ppu.borrow_mut().clock();
+        self.apu.borrow_mut().clock();
 
         // The CPU runs 3 times slower than the PPU
         if self.system_clock_counter % 3 == 0 {

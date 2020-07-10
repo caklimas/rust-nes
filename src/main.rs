@@ -13,15 +13,16 @@ mod display;
 mod frame;
 mod addresses;
 mod controller;
+mod audio;
 
 fn main() {
-    // run_game();
-    play_sound();
+    // play_sound();
+    run_game();
 }
 
 fn run_game() {
     let mut bus = bus::Bus::new();
-    let cartridge = cartridge::cartridge::Cartridge::new(r"C:\Users\Christopher\Desktop\Files\NES\ROMS\Super Mario Bros. (World).nes");
+    let cartridge = cartridge::cartridge::Cartridge::new(r"C:\Users\Christopher\Desktop\Files\NES\ROMS\Ice Climber (USA, Europe).nes");
     bus.load_cartridge(cartridge);
     
     bus.reset();
@@ -39,14 +40,21 @@ fn run_game() {
 }
 
 fn play_sound() {
-    let device = rodio::default_output_device().expect("Error loading audio device");
-    let sink = Sink::new(&device);
-    let source1 = rodio::source::SineWave::new(300).take_duration(time::Duration::from_secs(5));
-    let source2 = rodio::source::SineWave::new(400).take_duration(time::Duration::from_secs(2));
-    sink.append(source1);
-    sink.append(source2);
-    sink.play();
-    loop {
+    std::thread::spawn(move || {
+        let device = rodio::default_output_device().expect("Error loading audio device");
+        let sink = Sink::new(&device);
+        let source1 = rodio::source::SineWave::new(300).take_duration(time::Duration::from_millis(500));
+        println!("{}", source1.channels());
+        let source2 = rodio::source::SineWave::new(400).take_duration(time::Duration::from_millis(500));
+        sink.append(source1);
+        sink.append(source2);
+        sink.play();
 
-    }
+        let now = time::Instant::now();
+        loop {
+            if now.elapsed().as_millis() > 1000 {
+                break;
+            }
+        }
+    });
 }

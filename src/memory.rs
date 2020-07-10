@@ -6,6 +6,7 @@ use crate::ppu::sprites;
 use crate::cartridge::cartridge;
 use crate::addresses;
 use crate::controller;
+use crate::audio;
 
 const RAM_SIZE: usize = 2048;
 const CPU_MAX_ADDRESS: u16 = 0x1FFF;
@@ -14,6 +15,7 @@ const CPU_MIRROR: u16 = 0x07FF;
 pub struct Memory {
     ram: [u8; RAM_SIZE],
     ppu: Rc<RefCell<ppu::Ppu2C02>>,
+    apu: Rc<RefCell<audio::apu::Apu>>,
     pub cartridge: Option<Rc<RefCell<cartridge::Cartridge>>>,
     pub controllers: [controller::Controller; 2],
     pub dma: sprites::DirectMemoryAccess,
@@ -21,10 +23,11 @@ pub struct Memory {
 }
 
 impl Memory {
-    pub fn new(ppu: Rc<RefCell<ppu::Ppu2C02>>) -> Self {
+    pub fn new(ppu: Rc<RefCell<ppu::Ppu2C02>>, apu: Rc<RefCell<audio::apu::Apu>>) -> Self {
         Memory {
             ram: [0; RAM_SIZE],
-            ppu: ppu,
+            ppu,
+            apu,
             cartridge: None,
             controllers: Default::default(),
             dma: Default::default(),
@@ -72,6 +75,8 @@ impl Memory {
             self.ram[(address & CPU_MIRROR) as usize] = data;
         } else if address >= addresses::PPU_ADDRESS_START && address <= addresses::PPU_ADDRESS_END {
             self.ppu.borrow_mut().cpu_write(address & addresses::PPU_ADDRESS_RANGE, data);
+        } else if self.is_apu_address(address) {
+            self.ppu.borrow_mut().cpu_write(address, data);
         } else if address == addresses::DMA_ADDRESS {
             self.dma.page = data;
             self.dma.address = 0x00;
@@ -86,5 +91,9 @@ impl Memory {
         for i in 0..self.ram.len() {
             self.ram[i] = 0
         }
+    }
+
+    fn is_apu_address(&mut self, address: u16) -> bool {
+        (address >= addresses::APU_PULSE_1_TIMER && address <= addresses::APU_DMC) || address == addresses::APU_STATUS || address == addresses::APU_FRAME_COUNTER
     }
 }
