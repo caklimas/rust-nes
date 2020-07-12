@@ -42,7 +42,7 @@ pub struct Ppu2C02 {
     cycle: u16,
     status: super::flags::Status,
     control: u8,
-    mask: u8,
+    mask: super::flags::Mask,
     address_latch: bool,
     ppu_data_buffer: u8,
     current_vram_address: u16,
@@ -82,7 +82,7 @@ impl Ppu2C02 {
             oam_address: 0x00,
             status: flags::Status(0),
             control: 0,
-            mask: 0,
+            mask: super::flags::Mask(0),
             address_latch: false,
             ppu_data_buffer: 0,
             current_vram_address: 0,
@@ -201,7 +201,7 @@ impl Ppu2C02 {
                 self.set_temp_address(ScrollAddress::NameTableSelectY, ((ba >> 1) & 0x01) > 0);
             },
             MASK => {
-                self.mask = data;
+                self.mask.set(data);
             },
             STATUS => (),
             OAM_ADDRESS => {
@@ -549,11 +549,11 @@ impl Ppu2C02 {
 
             // If both background and foreground aren't transparent we then check sprite zero hit
             if self.sprite_zero_hit_possible && self.sprite_zero_being_rendered {
-                if self.get_mask(Mask2C02::RenderBackground) && self.get_mask(Mask2C02::RenderSprite) {
+                if self.mask.render_background() && self.mask.render_sprite() {
                     // The left edge of the screen has specific switches to control
                     // its appearance. This is used to smooth inconsistencies when
                     // scrolling (since sprites x coord must be >= 0)
-                    let lower_cycle = if !(self.get_mask(Mask2C02::RenderBackgroundLeft) || self.get_mask(Mask2C02::RenderSpriteLeft)) {
+                    let lower_cycle = if !(self.mask.render_background_left() || self.mask.render_sprite_left()) {
                         9
                     } else {
                         1
@@ -576,7 +576,7 @@ impl Ppu2C02 {
     fn get_background_pixel(&mut self) -> (u8, u8) {
         let mut bg_palette = 0x00;
         let mut bg_pixel = 0x00;
-        if self.get_mask(Mask2C02::RenderBackground) {
+        if self.mask.render_background() {
             let shift_register_bit = 0x8000 >> self.fine_x_scroll;
             let pixel_plane_0 = if (self.bg_shifter_pattern_low & shift_register_bit) > 0 { 1 } else { 0 };
             let pixel_plane_1 = if (self.bg_shifter_pattern_high & shift_register_bit) > 0 { 1 } else { 0 };
@@ -597,7 +597,7 @@ impl Ppu2C02 {
         let mut fg_palette = 0x00;
         let mut fg_priority_over_background = false;
 
-        if self.get_mask(Mask2C02::RenderSprite) {
+        if self.mask.render_sprite() {
             self.sprite_zero_being_rendered = false;
 
             for i in 0..self.sprite_count {
@@ -674,14 +674,14 @@ impl Ppu2C02 {
     }
 
     fn update_shifters(&mut self) {
-        if self.get_mask(Mask2C02::RenderBackground) {
+        if self.mask.render_background() {
             self.bg_shifter_pattern_low <<= 1;
             self.bg_shifter_pattern_high <<= 1;
             self.bg_shifter_attribute_low <<= 1;
             self.bg_shifter_attribute_high <<= 1;
         }
 
-        if self.get_mask(Mask2C02::RenderSprite) && self.cycle >= 1 && self.cycle <= MAX_VISIBLE_CLOCK_CYCLE {
+        if self.mask.render_sprite() && self.cycle >= 1 && self.cycle <= MAX_VISIBLE_CLOCK_CYCLE {
             for i in 0..self.sprite_count {
                 // First thing that needs to be done is decrement the x coordinate or else we'll shift everything off the screen
                 let x_index = (i * sprites::OAM_ENTRY_SIZE) + 3;
@@ -899,10 +899,6 @@ impl Ppu2C02 {
         }
     }
 
-    fn get_mask(&mut self, mask: Mask2C02) -> bool {
-        self.mask & (mask as u8) > 0
-    }
-
     fn set_current_address(&mut self, scroll: ScrollAddress, value: bool) {
         if value {
             self.current_vram_address |= scroll as u16;
@@ -956,7 +952,7 @@ impl Ppu2C02 {
     }
 
     fn is_rendering_enabled(&mut self) -> bool {
-        self.get_mask(Mask2C02::RenderBackground) || self.get_mask(Mask2C02::RenderSprite)
+        self.mask.render_background() || self.mask.render_sprite()
     }
 }
 
@@ -969,18 +965,6 @@ pub enum Control2C02 {
     SpriteSize =             0b00100000, // (0: 8x8 pixels; 1: 8x16 pixels)
     PpuMasterSlaveSelect =   0b01000000, // PPU master/slave select (0: read backdrop from EXT pins; 1: output color on EXT pins)
     GenerateNmi =            0b10000000  // Generate an NMI at the start of the vertical blanking interval (0: off; 1: on)
-}
-
-#[derive(Debug)]
-pub enum Mask2C02 {
-    Greyscale =          0b00000001, // Greyscale (0: normal color, 1: produce a greyscale display)
-    RenderBackgroundLeft = 0b00000010, // Show background in leftmost 8 pixels of screen, 0: Hide
-    RenderSpriteLeft =     0b00000100, // Show sprites in leftmost 8 pixels of screen, 0: Hide
-    RenderBackground =     0b00001000, // Show background
-    RenderSprite =         0b00010000, // Show sprites
-    EmphasizeRed =       0b00100000, // Emphasize red
-    EmphasizeGreen =     0b01000000, // Emphasize green
-    EmphasizeBlue =      0b10000000  // Emphasize blue
 }
 
 #[derive(Debug)]
