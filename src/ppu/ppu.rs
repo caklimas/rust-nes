@@ -47,7 +47,7 @@ pub struct Ppu2C02 {
     address_latch: bool,
     ppu_data_buffer: u8,
     current_vram_address: u16,
-    temp_vram_address: u16,
+    temp_vram_address: flags::ScrollAddress,
     fine_x_scroll: u8,
     bg_next_tile_id: u8,
     bg_next_tile_attribute: u8,
@@ -87,7 +87,7 @@ impl Ppu2C02 {
             address_latch: false,
             ppu_data_buffer: 0,
             current_vram_address: 0,
-            temp_vram_address: 0,
+            temp_vram_address: flags::ScrollAddress(0),
             fine_x_scroll: 0,
             bg_next_tile_id: 0x00,
             bg_next_tile_attribute: 0x00,
@@ -197,9 +197,8 @@ impl Ppu2C02 {
                 self.control.set(data);
 
                 // t: ...BA.......... = d: ......BA
-                let ba = (data & 0b11) as u16;
-                self.set_temp_address(ScrollAddress::NameTableSelectX, (ba & 0x01) > 0);
-                self.set_temp_address(ScrollAddress::NameTableSelectY, ((ba >> 1) & 0x01) > 0);
+                let ba = data & 0b11;
+                self.temp_vram_address.set_name_table(ba);
             },
             MASK => {
                 self.mask.set(data);
@@ -217,28 +216,17 @@ impl Ppu2C02 {
                     // t: ....... ...HGFED = d: HGFED...
                     // x:              CBA = d: .....CBA
                     // w:                  = 1
-                    let hgfed = ((data & 0b11111000) >> 3) as u16;
-                    self.set_temp_address(ScrollAddress::CoarseX0, ((hgfed >> 0) & 0x01) > 0);
-                    self.set_temp_address(ScrollAddress::CoarseX1, ((hgfed >> 1) & 0x01) > 0);
-                    self.set_temp_address(ScrollAddress::CoarseX2, ((hgfed >> 2) & 0x01) > 0);
-                    self.set_temp_address(ScrollAddress::CoarseX3, ((hgfed >> 3) & 0x01) > 0);
-                    self.set_temp_address(ScrollAddress::CoarseX4, ((hgfed >> 4) & 0x01) > 0);
+                    let hgfed = (data & 0b11111000) >> 3;
+                    self.temp_vram_address.set_coarse_x(hgfed);
                     self.fine_x_scroll = data & 0b111;
                     self.address_latch = true;
                 } else {
                     // t: CBA..HGFED..... = d: HGFEDCBA
                     // w:                  = 0
-                    let cba = (data & 0b111) as u16;
-                    let hgfed = ((data & 0b11111000) as u16) >> 3;
-                    self.set_temp_address(ScrollAddress::CoarseY0, ((hgfed >> 0) & 0x01) > 0);
-                    self.set_temp_address(ScrollAddress::CoarseY1, ((hgfed >> 1) & 0x01) > 0);
-                    self.set_temp_address(ScrollAddress::CoarseY2, ((hgfed >> 2) & 0x01) > 0);
-                    self.set_temp_address(ScrollAddress::CoarseY3, ((hgfed >> 3) & 0x01) > 0);
-                    self.set_temp_address(ScrollAddress::CoarseY4, ((hgfed >> 4) & 0x01) > 0);
-
-                    self.set_temp_address(ScrollAddress::FineYScroll0, ((cba >> 0) & 0x01) > 0);
-                    self.set_temp_address(ScrollAddress::FineYScroll1, ((cba >> 1) & 0x01) > 0);
-                    self.set_temp_address(ScrollAddress::FineYScroll2, ((cba >> 2) & 0x01) > 0);
+                    let cba = data & 0b111;
+                    let hgfed = (data & 0b11111000) >> 3;
+                    self.temp_vram_address.set_coarse_y(hgfed);
+                    self.temp_vram_address.set_fine_y(cba);
 
                     self.address_latch = false;
                 }
@@ -249,29 +237,15 @@ impl Ppu2C02 {
                     // t: X.............. = 0
                     // w:                  = 1
                     let fedbca = data & 0b00111111;
-                    self.set_temp_address(ScrollAddress::CoarseY3, ((fedbca >> 0) & 0x01) > 0);
-                    self.set_temp_address(ScrollAddress::CoarseY4, ((fedbca >> 1) & 0x01) > 0);
-                    self.set_temp_address(ScrollAddress::NameTableSelectX, ((fedbca >> 2) & 0x01) > 0);
-                    self.set_temp_address(ScrollAddress::NameTableSelectY, ((fedbca >> 3) & 0x01) > 0);
-                    self.set_temp_address(ScrollAddress::FineYScroll0, ((fedbca >> 4) & 0x01) > 0);
-                    self.set_temp_address(ScrollAddress::FineYScroll1, ((fedbca >> 5) & 0x01) > 0);
-                    self.set_temp_address(ScrollAddress::FineYScroll2, false);
-
+                    self.temp_vram_address.set_high_byte(fedbca);
                     self.address_latch = true;
                 } else {
                     // t: ....... HGFEDCBA = d: HGFEDCBA
                     // v                   = t
                     // w:                  = 0
-                    self.set_temp_address(ScrollAddress::CoarseX0, ((data >> 0) & 0x01) > 0);
-                    self.set_temp_address(ScrollAddress::CoarseX1, ((data >> 1) & 0x01) > 0);
-                    self.set_temp_address(ScrollAddress::CoarseX2, ((data >> 2) & 0x01) > 0);
-                    self.set_temp_address(ScrollAddress::CoarseX3, ((data >> 3) & 0x01) > 0);
-                    self.set_temp_address(ScrollAddress::CoarseX4, ((data >> 4) & 0x01) > 0);
-                    self.set_temp_address(ScrollAddress::CoarseY0, ((data >> 5) & 0x01) > 0);
-                    self.set_temp_address(ScrollAddress::CoarseY1, ((data >> 6) & 0x01) > 0);
-                    self.set_temp_address(ScrollAddress::CoarseY2, ((data >> 7) & 0x01) > 0);
+                    self.temp_vram_address.set_low_byte(data);
 
-                    self.current_vram_address = self.temp_vram_address;
+                    self.current_vram_address = self.temp_vram_address.get();
                     self.address_latch = false;
                 }
             },
@@ -700,7 +674,7 @@ impl Ppu2C02 {
         if self.is_rendering_enabled() {
             // If rendering is enabled, the PPU copies all bits related to horizontal position from t to v:
             // v: ....F.. ...EDCBA = t: ....F.....EDCBA
-            let fedcba = self.temp_vram_address & 0x41F;
+            let fedcba = self.temp_vram_address.get() & 0x41F;
             self.set_current_address(ScrollAddress::CoarseX0, ((fedcba >> 0) & 0x01) > 0);
             self.set_current_address(ScrollAddress::CoarseX1, ((fedcba >> 1) & 0x01) > 0);
             self.set_current_address(ScrollAddress::CoarseX2, ((fedcba >> 2) & 0x01) > 0);
@@ -715,7 +689,7 @@ impl Ppu2C02 {
             // If rendering is enabled, at the end of vblank, shortly after the horizontal bits are copied from t to v at dot 257, 
             // the PPU will repeatedly copy the vertical bits from t to v from dots 280 to 304, completing the full initialization of v from t:
             // v: IHGF.EDCBA..... = t: IHGF.ED CBA.....
-            let ihgfedcba = self.temp_vram_address & 0x7BE0;
+            let ihgfedcba = self.temp_vram_address.get() & 0x7BE0;
             self.set_current_address(ScrollAddress::CoarseY0, ((ihgfedcba >> 5) & 0x01) > 0);
             self.set_current_address(ScrollAddress::CoarseY1, ((ihgfedcba >> 6) & 0x01) > 0);
             self.set_current_address(ScrollAddress::CoarseY2, ((ihgfedcba >> 7) & 0x01) > 0);
@@ -898,14 +872,6 @@ impl Ppu2C02 {
             1
         } else {
             0
-        }
-    }
-
-    fn set_temp_address(&mut self, scroll: ScrollAddress, value: bool) {
-        if value {
-            self.temp_vram_address |= scroll as u16;
-        } else {
-            self.temp_vram_address &= !(scroll as u16);
         }
     }
 

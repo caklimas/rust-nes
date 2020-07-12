@@ -59,7 +59,7 @@ bitfield! {
     pub u8, name_table, set_name_table: 11, 10;
     pub u8, fine_y, set_fine_y: 14, 12;
     pub u8, low_byte, set_low_byte: 7, 0;
-    pub u8, high_byte, set_high_byte: 14, 8;
+    pub u8, high_byte, set_high_byte: 13, 8;
     pub u16, get, _: 14, 0;
 }
 
