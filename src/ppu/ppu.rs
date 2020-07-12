@@ -12,6 +12,7 @@ use crate::addresses;
 use crate::frame;
 use super::sprites;
 use super::flags;
+use super::colors;
 
 const CONTROL: u16 = 0x0000; // Configure ppu to render in different ways
 const MASK: u16 = 0x0001; // Decides what sprites or backgrounds are being drawn and what happens at the edges of the screen
@@ -76,7 +77,7 @@ impl Ppu2C02 {
             scanline: 0,
             cycle: 0,
             frame_complete: false,
-            colors: get_colors(),
+            colors: colors::get_colors(),
             frame: frame::Frame::new(),
             oam: initialize_oam(),
             oam_address: 0x00,
@@ -958,78 +959,6 @@ pub enum ScrollAddress {
     FineYScroll0 = (1 << 12),
     FineYScroll1 = (1 << 13),
     FineYScroll2 = (1 << 14)
-}
-
-fn get_colors() -> Vec<Color> {
-    vec![
-        Color::from_rgb(84, 84, 84),
-        Color::from_rgb(0, 30, 116),
-        Color::from_rgb(8, 16, 144),
-        Color::from_rgb(48, 0, 136),
-        Color::from_rgb(68, 0, 100),
-        Color::from_rgb(92, 0, 48),
-        Color::from_rgb(84, 4, 0),
-        Color::from_rgb(60, 24, 0),
-        Color::from_rgb(32, 42, 0),
-        Color::from_rgb(8, 58, 0),
-        Color::from_rgb(0, 64, 0),
-        Color::from_rgb(0, 60, 0),
-        Color::from_rgb(0, 50, 60),
-        Color::from_rgb(0, 0, 0),
-        Color::from_rgb(0, 0, 0),
-        Color::from_rgb(0, 0, 0),
-
-        Color::from_rgb(152, 150, 152),
-        Color::from_rgb(8, 76, 196),
-        Color::from_rgb(48, 50, 236),
-        Color::from_rgb(92, 30, 228),
-        Color::from_rgb(136, 20, 176),
-        Color::from_rgb(160, 20, 100),
-        Color::from_rgb(152, 34, 32),
-        Color::from_rgb(120, 60, 0),
-        Color::from_rgb(84, 90, 0),
-        Color::from_rgb(40, 114, 0),
-        Color::from_rgb(8, 124, 0),
-        Color::from_rgb(0, 118, 40),
-        Color::from_rgb(0, 102, 120),
-        Color::from_rgb(0, 0, 0),
-        Color::from_rgb(0, 0, 0),
-        Color::from_rgb(0, 0, 0),
-
-        Color::from_rgb(236, 238, 236),
-        Color::from_rgb(76, 154, 236),
-        Color::from_rgb(120, 124, 236),
-        Color::from_rgb(176, 98, 236),
-        Color::from_rgb(228, 84, 236),
-        Color::from_rgb(236, 88, 180),
-        Color::from_rgb(236, 106, 100),
-        Color::from_rgb(212, 136, 32),
-        Color::from_rgb(160, 170, 0),
-        Color::from_rgb(116, 196, 0),
-        Color::from_rgb(76, 208, 32),
-        Color::from_rgb(56, 204, 108),
-        Color::from_rgb(56, 180, 204),
-        Color::from_rgb(60, 60, 60),
-        Color::from_rgb(0, 0, 0),
-        Color::from_rgb(0, 0, 0),
-
-        Color::from_rgb(236, 238, 236),
-        Color::from_rgb(168, 204, 236),
-        Color::from_rgb(188, 188, 236),
-        Color::from_rgb(212, 178, 236),
-        Color::from_rgb(236, 174, 236),
-        Color::from_rgb(236, 174, 212),
-        Color::from_rgb(236, 180, 176),
-        Color::from_rgb(228, 196, 144),
-        Color::from_rgb(204, 210, 120),
-        Color::from_rgb(180, 222, 120),
-        Color::from_rgb(168, 226, 144),
-        Color::from_rgb(152, 226, 180),
-        Color::from_rgb(160, 214, 228),
-        Color::from_rgb(160, 162, 160),
-        Color::from_rgb(0, 0, 0),
-        Color::from_rgb(0, 0, 0)
-    ]
 }
 
 fn initialize_oam() -> Vec<u8> {
