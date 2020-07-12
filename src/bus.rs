@@ -88,7 +88,7 @@ impl Bus {
                     }
                 }
             } else {
-                self.cpu.clock(self.system_clock_counter);
+                self.cpu.clock();
             }
         }
 

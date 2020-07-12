@@ -49,19 +49,19 @@ impl Cpu6502 {
         }
     }
 
-    pub fn clock(&mut self, counter: u32) {
+    pub fn clock(&mut self) {
         if self.cycles == 0 {
             self.opcode = self.read(self.program_counter, false);
             let record = &opcode_table::OPCODE_TABLE[self.opcode as usize];
-            let (program_counter, opcode, accumulator, x_register, y_register, status_register, stack_pointer) = (
-                self.program_counter, 
-                self.opcode, 
-                self.accumulator, 
-                self.x_register, 
-                self.y_register, 
-                self.status_register, 
-                self.stack_pointer
-            );
+            // let (program_counter, opcode, accumulator, x_register, y_register, status_register, stack_pointer) = (
+            //     self.program_counter, 
+            //     self.opcode, 
+            //     self.accumulator, 
+            //     self.x_register, 
+            //     self.y_register, 
+            //     self.status_register, 
+            //     self.stack_pointer
+            // );
 
             self.program_counter = self.program_counter.wrapping_add(1);
 

@@ -1,3 +1,6 @@
+#[macro_use]
+extern crate bitfield;
+
 use ggez::*;
 use rodio::Sink;
 use rodio::Source;
@@ -22,7 +25,7 @@ fn main() {
 
 fn run_game() {
     let mut bus = bus::Bus::new();
-    let cartridge = cartridge::cartridge::Cartridge::new(r"C:\Users\Christopher\Desktop\Files\NES\ROMS\Ice Climber (USA, Europe).nes");
+    let cartridge = cartridge::cartridge::Cartridge::new(r"C:\Users\cakli\Desktop\Files\NES\ROMS\Super Mario Bros. (World).nes");
     bus.load_cartridge(cartridge);
     
     bus.reset();

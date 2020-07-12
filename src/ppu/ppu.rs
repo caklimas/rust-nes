@@ -1,12 +1,17 @@
 use std::rc::Rc;
 use std::cell::RefCell;
 use ggez::graphics::Color;
+use std::{
+    io::{BufWriter, Write}
+};
+use std::fs::OpenOptions;
 
 use crate::cartridge::cartridge;
 use crate::memory_sizes;
 use crate::addresses;
 use crate::frame;
-use crate::ppu::sprites;
+use super::sprites;
+use super::flags;
 
 const CONTROL: u16 = 0x0000; // Configure ppu to render in different ways
 const MASK: u16 = 0x0001; // Decides what sprites or backgrounds are being drawn and what happens at the edges of the screen
@@ -35,7 +40,7 @@ pub struct Ppu2C02 {
     pub oam_address: u8,
     scanline: i16,
     cycle: u16,
-    status: u8,
+    status: super::flags::Status,
     control: u8,
     mask: u8,
     address_latch: bool,
@@ -56,7 +61,8 @@ pub struct Ppu2C02 {
     sprite_shifter_pattern_low: Vec<u8>,
     sprite_shifter_pattern_high: Vec<u8>,
     sprite_zero_hit_possible: bool,
-    sprite_zero_being_rendered: bool
+    sprite_zero_being_rendered: bool,
+    log: Vec<String>
 }
 
 impl Ppu2C02 {
@@ -74,7 +80,7 @@ impl Ppu2C02 {
             frame: frame::Frame::new(),
             oam: initialize_oam(),
             oam_address: 0x00,
-            status: 0,
+            status: flags::Status(0),
             control: 0,
             mask: 0,
             address_latch: false,
@@ -95,7 +101,8 @@ impl Ppu2C02 {
             sprite_shifter_pattern_low: vec![0; sprites::MAX_SPRITE_COUNT],
             sprite_shifter_pattern_high: vec![0; sprites::MAX_SPRITE_COUNT],
             sprite_zero_hit_possible: false,
-            sprite_zero_being_rendered: false
+            sprite_zero_being_rendered: false,
+            log: Vec::with_capacity(20000)
         }
     }
    
@@ -107,9 +114,9 @@ impl Ppu2C02 {
             }
 
             if self.scanline == -1 && self.cycle == 1 {
-                self.set_status(Status2C02::VerticalBlank, false);
-                self.set_status(Status2C02::SpriteOverflow, false);
-                self.set_status(Status2C02::SpriteZeroHit, false);
+                self.status.set_vertical_blank(false);
+                self.status.set_sprite_overflow(false);
+                self.status.set_sprite_zero_hit(false);
 
                 for i in 0..sprites::MAX_SPRITE_COUNT {
                     self.sprite_shifter_pattern_low[i] = 0;
@@ -127,7 +134,7 @@ impl Ppu2C02 {
 
         if self.scanline >= 241 && self.scanline < 261 {
             if self.scanline == 241 && self.cycle == 1 {
-                self.set_status(Status2C02::VerticalBlank, true);
+                self.status.set_vertical_blank(true);
                 if self.get_control(Control2C02::GenerateNmi) == 1 {
                     self.nmi = true;
                 }
@@ -155,8 +162,8 @@ impl Ppu2C02 {
             CONTROL => (), // Can't be read
             MASK => (), // Can't be read
             STATUS => {
-                data = (self.status & 0xE0) | (self.ppu_data_buffer & 0x1F);
-                self.set_status(Status2C02::VerticalBlank, false);
+                data = self.status.get() | (self.ppu_data_buffer & 0x1F);
+                self.status.set_vertical_blank(false);
                 self.address_latch = false;
             },
             OAM_ADDRESS => (),
@@ -169,7 +176,7 @@ impl Ppu2C02 {
                 data = self.ppu_data_buffer;
                 self.ppu_data_buffer = self.ppu_read(self.current_vram_address, false);
 
-                if self.current_vram_address > addresses::PALETTE_ADDRESS_LOWER {
+                if self.current_vram_address >= addresses::PALETTE_ADDRESS_LOWER {
                     data = self.ppu_data_buffer;
                 }
 
@@ -202,6 +209,7 @@ impl Ppu2C02 {
             },
             OAM_DATA => {
                 self.oam[self.oam_address as usize] = data;
+                self.oam_address += 1;
             },
             SCROLL => {
                 if !self.address_latch {
@@ -306,7 +314,7 @@ impl Ppu2C02 {
         let ppu_address = address & addresses::PPU_ADDRESS_END;
         match self.cartridge {
             Some(ref mut c) => {
-                if c.borrow_mut().ppu_write(address, data) {
+                if c.borrow_mut().ppu_write(ppu_address, data) {
                     return;
                 }
             },
@@ -450,50 +458,6 @@ impl Ppu2C02 {
                     }
                 }
 
-                // let row = if flip_vertically { 
-                //     7 - (self.scanline as u16) - (oam_entry.y as u16) 
-                // } else { 
-                //     (self.scanline as u16) - (oam_entry.y as u16) 
-                // };
-
-                // if sprite_mode == 0 {
-                //     // We're in 8x8 pixel mode and the control register determines the pattern table
-                //     sprite_pattern_address_low = 
-                //         (self.get_control(Control2C02::SpriteTableAddress) as u16) << 12 |
-                //         ((oam_entry.tile_id as u16) << 4) |
-                //         row;
-                // } else {
-                //     // We're in 8x16 pixel mode and the sprite attribute determines the pattern table
-                //     // Because the sprite is double the height it means we have half the sprites available
-                //     if flip_vertically {
-                //         let cell = if (self.scanline - (oam_entry.y as i16)) < 8 {
-                //             // Top half
-                //             (((oam_entry.tile_id as u16) & 0xFE) + 1) << 4
-                //         } else {
-                //             // Bottom half
-                //             ((oam_entry.tile_id as u16) & 0xFE) << 4
-                //         };
-
-                //         sprite_pattern_address_low = 
-                //             (((oam_entry.tile_id & 0x01) as u16) << 12) |
-                //             cell |
-                //             (row & 0x07);
-                //     } else {
-                //         let cell = if (self.scanline - (oam_entry.y as i16)) < 8 {
-                //             // Top half
-                //             ((oam_entry.tile_id as u16) & 0xFE) << 4
-                //         } else {
-                //             // Bottom half
-                //             (((oam_entry.tile_id as u16) & 0xFE) + 1) << 4
-                //         };
-
-                //         sprite_pattern_address_low = 
-                //             (((oam_entry.tile_id & 0x01) as u16) << 12) |
-                //             cell |
-                //             (row & 0x07);
-                //     }
-                // }
-
                 sprite_pattern_address_high = sprite_pattern_address_low + 8;
                 sprite_pattern_bit_low = self.ppu_read(sprite_pattern_address_low, false);
                 sprite_pattern_bit_high = self.ppu_read(sprite_pattern_address_high, false);
@@ -550,7 +514,7 @@ impl Ppu2C02 {
             current_oam_entry += 1;
         }
 
-        self.set_status(Status2C02::SpriteOverflow, self.sprite_count > 8);
+        self.status.set_sprite_overflow(self.sprite_count > 8);
     }
 
     fn render_pixel(&mut self) {
@@ -596,7 +560,7 @@ impl Ppu2C02 {
                     };
 
                     if self.cycle >= lower_cycle && self.cycle <= MAX_VISIBLE_CLOCK_CYCLE {
-                        self.set_status(Status2C02::SpriteZeroHit, true);
+                        self.status.set_sprite_zero_hit(true);
                     }
                 }
             }
@@ -786,23 +750,23 @@ impl Ppu2C02 {
                             data = self.name_table[0][address_offset];
                         } else if masked_address >= 0x0400 && masked_address <= 0x07FF {
                             data = self.name_table[1][address_offset];
-                        } else if masked_address >= 0x800 && masked_address <= 0x0BFF {
+                        } else if masked_address >= 0x0800 && masked_address <= 0x0BFF {
                             data = self.name_table[0][address_offset];
                         } else if masked_address >= 0x0C00 && masked_address <= 0x0FFF {
                             data = self.name_table[1][address_offset];
                         }
                     },
                     cartridge::Mirror::Horizontal => {
-                        if masked_address <= 0x03FF {
+                        if masked_address <= 0x07FF {
                             data = self.name_table[0][address_offset];
-                        } else if masked_address >= 0x0400 && masked_address <= 0x07FF {
-                            data = self.name_table[0][address_offset];
-                        } else if masked_address >= 0x800 && masked_address <= 0x0BFF {
+                            let x = format!("Reading Horizontal data to address {} = nametable[0][{}]", masked_address, address_offset);
+                            self.log.push(x);
+                        } else if masked_address >= 0x0800 && masked_address <= 0x0FFF {
                             data = self.name_table[1][address_offset];
-                        } else if masked_address >= 0x0C00 && masked_address <= 0x0FFF {
-                            data = self.name_table[1][address_offset];
+                            let x = format!("Reading Horizontal data to address {} = nametable[0][{}]", masked_address, address_offset);
+                            self.log.push(x);
                         }
-                    }, 
+                    },
                     _ => ()
                 };
             },
@@ -824,21 +788,21 @@ impl Ppu2C02 {
                             self.name_table[0][address_offset] = data;
                         } else if masked_address >= 0x0400 && masked_address <= 0x07FF {
                             self.name_table[1][address_offset] = data;
-                        } else if masked_address >= 0x800 && masked_address <= 0x0BFF {
+                        } else if masked_address >= 0x0800 && masked_address <= 0x0BFF {
                             self.name_table[0][address_offset] = data;
                         } else if masked_address >= 0x0C00 && masked_address <= 0x0FFF {
                             self.name_table[1][address_offset] = data;
                         }
                     },
                     cartridge::Mirror::Horizontal => {
-                        if masked_address <= 0x03FF {
+                        if masked_address <= 0x07FF {
                             self.name_table[0][address_offset] = data;
-                        } else if masked_address >= 0x0400 && masked_address <= 0x07FF {
-                            self.name_table[0][address_offset] = data;
-                        } else if masked_address >= 0x800 && masked_address <= 0x0BFF {
+                            // let x = format!("Writing Horizontal data to address {} = nametable[0][{}]", masked_address, address_offset);
+                            // self.log.push(x);
+                        } else if masked_address >= 0x0800 && masked_address <= 0x0FFF {
                             self.name_table[1][address_offset] = data;
-                        } else if masked_address >= 0x0C00 && masked_address <= 0x0FFF {
-                            self.name_table[1][address_offset] = data;
+                            // let x = format!("Writing Horizontal data to address {} = nametable[1][{}]", masked_address, address_offset);
+                            // self.log.push(x);
                         }
                     }, 
                     _ => ()
@@ -846,6 +810,33 @@ impl Ppu2C02 {
             },
             None => ()
         };
+    }
+
+    pub fn write_log(&mut self) {
+        let file = OpenOptions::new().write(true).truncate(false).append(true).open(r"C:\Users\cakli\source\repos\rust-nes\src\nametable_result_rust.txt").expect("Not found");
+        let mut _writer = BufWriter::new(&file);
+
+        let name_table_0 = &self.name_table[0];
+        let name_table_1 = &self.name_table[1];
+        for s in 0..name_table_0.len() {
+            match writeln!(
+                &mut _writer,
+                "{}", name_table_0[s]
+            ) {
+                Err(e) => println!("{:?}", e),
+                _ => ()
+            }
+        }
+
+        for s in 0..name_table_1.len() {
+            match writeln!(
+                &mut _writer,
+                "{}", name_table_0[s]
+            ) {
+                Err(e) => println!("{:?}", e),
+                _ => ()
+            }
+        }
     }
 
     fn read_palette_table_data(&mut self, address: u16) -> u8 {
@@ -910,14 +901,6 @@ impl Ppu2C02 {
 
     fn get_mask(&mut self, mask: Mask2C02) -> bool {
         self.mask & (mask as u8) > 0
-    }
-
-    fn set_status(&mut self, status: Status2C02, value: bool) {
-        if value {
-            self.status = self.status | (status as u8);
-        } else {
-            self.status = self.status & !(status as u8);
-        }
     }
 
     fn set_current_address(&mut self, scroll: ScrollAddress, value: bool) {
@@ -997,15 +980,7 @@ pub enum Mask2C02 {
     RenderSprite =         0b00010000, // Show sprites
     EmphasizeRed =       0b00100000, // Emphasize red
     EmphasizeGreen =     0b01000000, // Emphasize green
-    EMphasizeBlue =      0b10000000  // Emphasize blue
-}
-
-#[derive(Debug)]
-pub enum Status2C02 {
-    Unused = 0b00011111,
-    SpriteOverflow = (1 << 5),
-    SpriteZeroHit = (1 << 6),
-    VerticalBlank = (1 << 7),
+    EmphasizeBlue =      0b10000000  // Emphasize blue
 }
 
 #[derive(Debug)]

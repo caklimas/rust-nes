@@ -81,6 +81,16 @@ impl ggez::event::EventHandler for bus::Bus {
             },
             KeyCode::D => {
                 self.can_draw = !self.can_draw;
+                if self.can_draw {
+                    println!("Start");
+                } else {
+                    println!("Stop");
+                }
+            },
+            KeyCode::L => {
+                println!("Writing");
+                self.ppu.borrow_mut().write_log();
+                println!("Done writing");
             },
             KeyCode::Right => {
                 self.memory.borrow_mut().controllers[0].buttons[0] = true;
