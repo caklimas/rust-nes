@@ -23,3 +23,18 @@ bitfield! {
 
     pub _, set: 7, 0;
 }
+
+bitfield! {
+    pub struct Control(u8);
+    impl Debug;
+
+    pub name_table_address, _: 0, 3;
+    pub vram_address, _: 2;
+    pub sprite_table_address, _: 3;
+    pub background_table_address, _: 4;
+    pub sprite_size, _: 5;
+    pub ppu_master_slave_select, _: 6;
+    pub generate_nmi, _: 7;
+
+    pub _, set: 7, 0;
+}

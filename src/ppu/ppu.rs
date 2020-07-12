@@ -41,7 +41,7 @@ pub struct Ppu2C02 {
     scanline: i16,
     cycle: u16,
     status: super::flags::Status,
-    control: u8,
+    control: flags::Control,
     mask: super::flags::Mask,
     address_latch: bool,
     ppu_data_buffer: u8,
@@ -81,7 +81,7 @@ impl Ppu2C02 {
             oam: initialize_oam(),
             oam_address: 0x00,
             status: flags::Status(0),
-            control: 0,
+            control: flags::Control(0),
             mask: super::flags::Mask(0),
             address_latch: false,
             ppu_data_buffer: 0,
@@ -135,7 +135,7 @@ impl Ppu2C02 {
         if self.scanline >= 241 && self.scanline < 261 {
             if self.scanline == 241 && self.cycle == 1 {
                 self.status.set_vertical_blank(true);
-                if self.get_control(Control2C02::GenerateNmi) == 1 {
+                if self.control.generate_nmi() {
                     self.nmi = true;
                 }
             }
@@ -180,7 +180,7 @@ impl Ppu2C02 {
                     data = self.ppu_data_buffer;
                 }
 
-                let address_increment = if self.get_control(Control2C02::VramAddress) == 1 { 32 } else { 1 };
+                let address_increment = if self.control.vram_address() { 32 } else { 1 };
                 self.current_vram_address = self.current_vram_address.wrapping_add(address_increment);
             },
             _ => ()
@@ -193,7 +193,7 @@ impl Ppu2C02 {
     pub fn cpu_write(&mut self, address: u16, data: u8) {
         match address {
             CONTROL => {
-                self.control = data;
+                self.control.set(data);
 
                 // t: ...BA.......... = d: ......BA
                 let ba = (data & 0b11) as u16;
@@ -277,7 +277,7 @@ impl Ppu2C02 {
             PPU_DATA => {
                 self.ppu_write(self.current_vram_address, data);
 
-                let address_increment = if self.get_control(Control2C02::VramAddress) == 1 { 32 } else { 1 };
+                let address_increment = if self.control.vram_address() { 32 } else { 1 };
                 self.current_vram_address = self.current_vram_address.wrapping_add(address_increment);
             },
             _ => ()
@@ -408,7 +408,7 @@ impl Ppu2C02 {
         }
 
         if self.cycle == MAX_CLOCK_CYCLE - 1 {
-            let sprite_mode = self.get_control(Control2C02::SpriteSize);
+            let sprite_mode = self.control.sprite_size();
             for i in 0..self.sprite_count {
                 let oam_entry = sprites::get_object_attribute_entry(&self.sprite_scanline, i * sprites::OAM_ENTRY_SIZE);
                 let mut sprite_pattern_bit_low: u8;
@@ -418,15 +418,15 @@ impl Ppu2C02 {
                 let flip_vertically = oam_entry.get_oam_attribute(sprites::OamAttribute::FlipVertically) > 0;
                 let flip_horizontally = oam_entry.get_oam_attribute(sprites::OamAttribute::FlipHorizontally) > 0;
                 
-                if sprite_mode == 0 {
+                if !sprite_mode {
                     if !flip_vertically {
                         sprite_pattern_address_low =
-                            (self.get_control(Control2C02::SpriteTableAddress) as u16) << 12 |
+                            (self.control.sprite_table_address() as u16) << 12 |
                             ((oam_entry.tile_id as u16) << 4) |
                             ((self.scanline - (oam_entry.y as i16)) as u16);
                     } else {
                         sprite_pattern_address_low =
-                            (self.get_control(Control2C02::SpriteTableAddress) as u16) << 12 |
+                            (self.control.sprite_table_address() as u16) << 12 |
                             ((oam_entry.tile_id as u16) << 4) |
                             (7 - ((self.scanline - (oam_entry.y as i16)) as u16));
                     }
@@ -489,7 +489,7 @@ impl Ppu2C02 {
         }
 
         self.sprite_zero_hit_possible = false;
-        let sprite_size = if self.get_control(Control2C02::SpriteSize) > 0 { 16 } else { 8 };
+        let sprite_size = if self.control.sprite_size() { 16 } else { 8 };
         let mut current_oam_entry: usize = 0;
         // You can only have 8 sprites on the screen
         while current_oam_entry < sprites::MAX_SPRITES && self.sprite_count <= sprites::MAX_SPRITE_COUNT {
@@ -876,27 +876,12 @@ impl Ppu2C02 {
     }
 
     fn get_pattern_address(&mut self, offset: u16) -> u16 {
-        let upper = (self.get_control(Control2C02::BackgroundTableAddress) as u16) << 12;
+        let upper = (self.control.background_table_address() as u16) << 12;
         let middle = (self.bg_next_tile_id as u16) << 4;
         let lower = self.get_fine_y();
         let address = upper + middle + lower + offset;
 
         address
-    }
-
-    fn get_control(&mut self, control: Control2C02) -> u8 {
-        match control {
-            Control2C02::NameTableAddress => {
-                return self.control & 0x03;
-            },
-            _ => {
-                if self.control & (control as u8) > 0 {
-                    1
-                } else {
-                    0
-                }
-            }
-        }
     }
 
     fn set_current_address(&mut self, scroll: ScrollAddress, value: bool) {
@@ -954,17 +939,6 @@ impl Ppu2C02 {
     fn is_rendering_enabled(&mut self) -> bool {
         self.mask.render_background() || self.mask.render_sprite()
     }
-}
-
-#[derive(Debug)]
-pub enum Control2C02 {
-    NameTableAddress =       0b00000011, // Base nametable address (0 = $2000; 1 = $2400; 2 = $2800; 3 = $2C00)
-    VramAddress =            0b00000100, // VRAM address increment per CPU read/write of PPUDATA (0: add 1, going across; 1: add 32, going down)
-    SpriteTableAddress =     0b00001000, // Sprite pattern table address for 8x8 sprites (0: $0000; 1: $1000; ignored in 8x16 mode)
-    BackgroundTableAddress = 0b00010000, // Background pattern table address (0: $0000; 1: $1000)
-    SpriteSize =             0b00100000, // (0: 8x8 pixels; 1: 8x16 pixels)
-    PpuMasterSlaveSelect =   0b01000000, // PPU master/slave select (0: read backdrop from EXT pins; 1: output color on EXT pins)
-    GenerateNmi =            0b10000000  // Generate an NMI at the start of the vertical blanking interval (0: off; 1: on)
 }
 
 #[derive(Debug)]
