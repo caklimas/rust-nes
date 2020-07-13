@@ -1,108 +1,103 @@
 use std::rc::Rc;
 use std::cell::RefCell;
 
-use crate::cpu::cpu;
+use crate::addresses;
 use crate::ppu::ppu;
+use crate::ppu::sprites;
 use crate::cartridge::cartridge;
 use crate::audio;
-use crate::memory;
+use crate::controller;
+
+const RAM_SIZE: usize = 2048;
+const CPU_MIRROR: u16 = 0x07FF;
 
 pub struct Bus {
-    pub cpu: cpu::Cpu6502,
-    pub ppu: Rc<RefCell<ppu::Ppu2C02>>,
-    pub apu: Rc<RefCell<audio::apu::Apu>>,
+    pub ppu: ppu::Ppu2C02,
+    pub apu: audio::apu::Apu,
     pub cartridge: Option<Rc<RefCell<cartridge::Cartridge>>>,
-    pub memory: Rc<RefCell<memory::Memory>>,
-    pub system_clock_counter: u32,
-    pub can_draw: bool,
-    dma_dummy: bool
+    pub controllers: [controller::Controller; 2],
+    pub dma: sprites::DirectMemoryAccess,
+    pub dma_transfer: bool,
+    ram: [u8; RAM_SIZE]
 }
 
 impl Bus {
     pub fn new() -> Self {
-        let ppu = Rc::new(RefCell::new(ppu::Ppu2C02::new()));
-        let apu = Rc::new(RefCell::new(audio::apu::Apu::new()));
-        let memory = Rc::new(RefCell::new(memory::Memory::new(Rc::clone(&ppu), Rc::clone(&apu))));
-
         Bus {
-            cpu: cpu::Cpu6502::new(Rc::clone(&memory)),
-            ppu: Rc::clone(&ppu),
-            apu: Rc::clone(&apu),
+            ppu: ppu::Ppu2C02::new(),
+            apu: audio::apu::Apu::new(),
             cartridge: None,
-            memory: Rc::clone(&memory),
-            system_clock_counter: 0,
-            can_draw: false,
-            dma_dummy: false
+            controllers: Default::default(),
+            dma: Default::default(),
+            dma_transfer: false,
+            ram: [0; RAM_SIZE]
         }
     }
 
     pub fn load_cartridge(&mut self, cartridge: cartridge::Cartridge) {
         let c = Rc::new(RefCell::new(cartridge));
         self.cartridge = Some(Rc::clone(&c));
-        self.ppu.borrow_mut().cartridge = Some(Rc::clone(&c));
-        self.memory.borrow_mut().cartridge = Some(Rc::clone(&c));
+        self.ppu.cartridge = Some(Rc::clone(&c));
         self.reset();
     }
 
-    pub fn clock(&mut self) {
-        // Clocking. The heart and soul of an emulator. The running
-        // frequency is controlled by whatever calls this function.
-        // So here we "divide" the clock as necessary and call
-        // the peripheral devices clock() function at the correct
-        // times
+    pub fn read(&mut self, address: u16) -> u8 {
+        let mut data: u8 = 0;
 
-        // The fastest clock frequency the digital system cares
-        // about is equivalent to the PPU clock. So the PPU is clocked
-        // each time this function is called
-        self.ppu.borrow_mut().clock();
-        self.apu.borrow_mut().clock();
-
-        // The CPU runs 3 times slower than the PPU
-        if self.system_clock_counter % 3 == 0 {
-            // If DMA transer is happening, then the cpu is suspended
-            if self.memory.borrow().dma_transfer {
-                // The DMA is synchronized with every other clock cycle
-                // Without loss of generality, we will do it every odd cycle
-                if self.dma_dummy {
-                    if self.system_clock_counter % 2 == 1 {
-                        self.dma_dummy = false;
-                    }
-                } else {
-                    if self.system_clock_counter % 2 == 0 {
-                        // Read data from cpu space
-                        let dma = self.memory.borrow().dma;
-                        let address = ((dma.page as u16) << 8) | (dma.address as u16);
-                        let data = self.memory.borrow_mut().read(address, false);
-                        self.memory.borrow_mut().dma.data = data;
-                    } else {
-                        // Write it to the ppu's OAM and increment DMA address
-                        let dma = self.memory.borrow().dma;
-                        self.ppu.borrow_mut().oam[dma.address as usize] = dma.data;
-                        self.memory.borrow_mut().dma.address = dma.address.wrapping_add(1);
-
-                        // Since we're wrapping around, we know when it goes back to zero that it has written all 256 bytes
-                        if self.memory.borrow().dma.address == 0x00 {
-                            self.memory.borrow_mut().dma_transfer = false;
-                            self.dma_dummy = true;
-                        }
-                    }
+        match self.cartridge {
+            Some(ref mut c) => {
+                if c.borrow_mut().cpu_read(address, &mut data) {
+                    return data;
                 }
-            } else {
-                self.cpu.clock();
-            }
+            },
+            None => ()
+        };
+
+        if address <= addresses::CPU_ADDRESS_UPPER {
+            data = self.ram[(address & CPU_MIRROR) as usize];
+        } else if address >= addresses::PPU_ADDRESS_START && address <= addresses::PPU_ADDRESS_END {
+            data = self.ppu.read(address & addresses::PPU_ADDRESS_RANGE);
+        } else if address >= addresses::CONTROLLER_ONE_INPUT && address <= addresses::CONTROLLER_TWO_INPUT {
+            let masked_address = address & 0x0001;
+            data = self.controllers[masked_address as usize].get_msb();
         }
 
-        if self.ppu.borrow_mut().nmi {
-            self.ppu.borrow_mut().nmi = false;
-            self.cpu.non_mask_interrupt_request();
-        }
+        data
+    }
 
-        self.system_clock_counter += 1;
+    pub fn write(&mut self, address: u16, data: u8) {
+        match self.cartridge {
+            Some(ref mut c) => {
+                if c.borrow_mut().cpu_write(address, data) {
+                    return;
+                }
+            },
+            None => ()
+        };
+
+        if address <= addresses::CPU_ADDRESS_UPPER {
+            self.ram[(address & CPU_MIRROR) as usize] = data;
+        } else if address >= addresses::PPU_ADDRESS_START && address <= addresses::PPU_ADDRESS_END {
+            self.ppu.write(address & addresses::PPU_ADDRESS_RANGE, data);
+        } else if address == addresses::DMA_ADDRESS {
+            self.dma.page = data;
+            self.dma.address = 0x00;
+            self.dma_transfer = true;
+        } else if self.is_apu_address(address) {
+            self.apu.cpu_write(address, data);
+        } else if address >= addresses::CONTROLLER_ONE_INPUT && address <= addresses::CONTROLLER_TWO_INPUT {
+            let masked_address = address & 0x0001;
+            self.controllers[masked_address as usize].set_state();
+        }
     }
 
     pub fn reset(&mut self) {
-        self.cpu.reset();
-        self.memory.borrow_mut().reset();
-        self.system_clock_counter = 0;
+        for i in 0..self.ram.len() {
+            self.ram[i] = 0
+        }
+    }
+
+    fn is_apu_address(&mut self, address: u16) -> bool {
+        (address >= addresses::APU_PULSE_1_TIMER && address <= addresses::APU_DMC) || address == addresses::APU_STATUS || address == addresses::APU_FRAME_COUNTER
     }
 }

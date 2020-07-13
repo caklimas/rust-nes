@@ -1,11 +1,9 @@
-use std::rc::Rc;
-use std::cell::RefCell;
 use std::{
     io::{BufWriter, Write}
 };
 use std::fs::OpenOptions;
 
-use crate::memory;
+use crate::bus;
 use crate::cpu::opcode_table;
 use crate::cpu::address_modes;
 
@@ -17,6 +15,7 @@ const STACK_END_LOCATION: u8 = 0xFD;
 pub const INTERRUPT_PROGRAM_COUNTER_ADDRESS: u16 = 0xFFFE;
 
 pub struct Cpu6502 {
+    pub bus: bus::Bus,
     pub accumulator: u8,
     pub x_register: u8,
     pub y_register: u8,
@@ -27,13 +26,13 @@ pub struct Cpu6502 {
     pub addr_abs: u16,
     pub addr_rel: u16,
     pub opcode: u8,
-    pub cycles: u8,
-    pub memory: Rc<RefCell<memory::Memory>>
+    pub cycles: u8
 }
 
 impl Cpu6502 {
-    pub fn new(memory: Rc<RefCell<memory::Memory>>) -> Self {
+    pub fn new() -> Self {
         Cpu6502 {
+            bus: bus::Bus::new(),
             accumulator: 0,
             x_register: 0,
             y_register: 0,
@@ -44,14 +43,13 @@ impl Cpu6502 {
             addr_abs: 0x0000,
             addr_rel: 0x0000,
             opcode: 0x00,
-            cycles: 0,
-            memory
+            cycles: 0
         }
     }
 
     pub fn clock(&mut self) {
         if self.cycles == 0 {
-            self.opcode = self.read(self.program_counter, false);
+            self.opcode = self.read(self.program_counter);
             let record = &opcode_table::OPCODE_TABLE[self.opcode as usize];
             // let (program_counter, opcode, accumulator, x_register, y_register, status_register, stack_pointer) = (
             //     self.program_counter, 
@@ -97,13 +95,14 @@ impl Cpu6502 {
     pub fn fetch(&mut self) -> u8 {
         self.fetched_data = match opcode_table::OPCODE_TABLE[self.opcode as usize].3 {
             address_modes::AddressMode::Imp => self.fetched_data,
-            _ => self.read(self.addr_abs, false)
+            _ => self.read(self.addr_abs)
         };
         
         self.fetched_data
     }
 
     pub fn reset(&mut self) {
+        self.bus.reset();
         self.accumulator = 0;
         self.x_register = 0;
         self.y_register = 0;
@@ -118,13 +117,13 @@ impl Cpu6502 {
         self.cycles = 8;
     }
 
-    pub fn read(&mut self, address: u16, read_only: bool) -> u8 {
-        self.memory.borrow_mut().read(address, read_only)
+    pub fn read(&mut self, address: u16) -> u8 {
+        self.bus.read(address)
     }
 
     pub fn read_from_stack(&mut self) -> u8 {
         self.stack_pointer = self.stack_pointer.wrapping_add(1);
-        self.read(STACK_BASE_LOCATION + (self.stack_pointer as u16), false)
+        self.read(STACK_BASE_LOCATION + (self.stack_pointer as u16),)
     }
 
     pub fn read_counter_from_stack(&mut self) -> u16 {
@@ -134,13 +133,13 @@ impl Cpu6502 {
     }
 
     pub fn read_program_counter(&mut self, address: u16) -> u16 {
-        let low = self.read(address, false) as u16;
-        let high = self.read(address + 1, false) as u16;
+        let low = self.read(address) as u16;
+        let high = self.read(address + 1) as u16;
         high << 8 | low
     }
 
     pub fn write(&mut self, address: u16, data: u8) {
-        self.memory.borrow_mut().write(address, data);
+        self.bus.write(address, data);
     }
     
     pub fn write_to_stack(&mut self, data: u8) {

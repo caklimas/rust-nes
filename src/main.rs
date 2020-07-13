@@ -6,7 +6,7 @@ use rodio::Sink;
 use rodio::Source;
 use std::time;
 
-mod memory;
+mod nes;
 mod bus;
 mod cpu;
 mod ppu;
@@ -24,11 +24,11 @@ fn main() {
 }
 
 fn run_game() {
-    let mut bus = bus::Bus::new();
-    let cartridge = cartridge::cartridge::Cartridge::new(r"C:\Users\cakli\Desktop\Files\NES\ROMS\Super Mario Bros. (World).nes");
-    bus.load_cartridge(cartridge);
+    let mut nes = nes::Nes::new();
+    let cartridge = cartridge::cartridge::Cartridge::new(r"C:\Users\Christopher\Desktop\Files\NES\ROMS\Super Mario Bros. (World).nes");
+    nes.bus().load_cartridge(cartridge);
     
-    bus.reset();
+    nes.reset();
 
     let mut configuration = conf::Conf::new();
     configuration.window_setup = conf::WindowSetup::default().title("NES");
@@ -39,7 +39,7 @@ fn run_game() {
         .build()
         .expect("Error building context");
 
-    event::run(ctx, event_loop, &mut bus).expect("Error running loop");
+    event::run(ctx, event_loop, &mut nes).expect("Error running loop");
 }
 
 fn play_sound() {

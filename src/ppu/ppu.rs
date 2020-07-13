@@ -153,7 +153,7 @@ impl Ppu2C02 {
     }
 
     /// Read from the Main Bus
-    pub fn cpu_read(&mut self, address: u16, _read_only: bool) -> u8 {
+    pub fn read(&mut self, address: u16) -> u8 {
         let mut data: u8 = 0;
         match address {
             CONTROL => (), // Can't be read
@@ -171,7 +171,7 @@ impl Ppu2C02 {
             PPU_ADDRESS => (),
             PPU_DATA => {
                 data = self.ppu_data_buffer;
-                self.ppu_data_buffer = self.ppu_read(self.current_vram_address.get(), false);
+                self.ppu_data_buffer = self.ppu_read(self.current_vram_address.get());
 
                 if self.current_vram_address.get() >= addresses::PALETTE_ADDRESS_LOWER {
                     data = self.ppu_data_buffer;
@@ -187,7 +187,7 @@ impl Ppu2C02 {
     }
 
     /// Write to the Main Bus
-    pub fn cpu_write(&mut self, address: u16, data: u8) {
+    pub fn write(&mut self, address: u16, data: u8) {
         match address {
             CONTROL => {
                 self.control.set(data);
@@ -256,7 +256,7 @@ impl Ppu2C02 {
     }
 
     /// Read from the PPU Bus
-    pub fn ppu_read(&mut self, address: u16, _read_only: bool) -> u8 {
+    fn ppu_read(&mut self, address: u16) -> u8 {
         let mut data: u8 = 0;
         let ppu_address = address & addresses::PPU_ADDRESS_END;
 
@@ -281,7 +281,7 @@ impl Ppu2C02 {
     }
 
     /// Write to the PPU Bus
-    pub fn ppu_write(&mut self, address: u16, data: u8) {
+    fn ppu_write(&mut self, address: u16, data: u8) {
         let ppu_address = address & addresses::PPU_ADDRESS_END;
         match self.cartridge {
             Some(ref mut c) => {
@@ -309,10 +309,10 @@ impl Ppu2C02 {
             if sub_cycle == 0 {
                 self.load_shifters();
                 let name_table_address = self.current_vram_address.name_table_address();
-                self.bg_next_tile_id = self.ppu_read(name_table_address, false);
+                self.bg_next_tile_id = self.ppu_read(name_table_address);
             } else if sub_cycle == 2 {
                 let attribute_table_address = self.current_vram_address.attribute_table_address();
-                self.bg_next_tile_attribute = self.ppu_read(attribute_table_address, false);
+                self.bg_next_tile_attribute = self.ppu_read(attribute_table_address);
 
                 // Since there are only 4 palettes for the background tiles, we only need 2 bits to select a palette(2 bits range is 0-3)
                 // We get a byte of data we can split that byte up into 4 sets of 2 bits.
@@ -332,10 +332,10 @@ impl Ppu2C02 {
                 self.bg_next_tile_attribute &= 0x03;
             } else if sub_cycle == 4 {
                 let pattern_address = self.get_pattern_address(0);
-                self.bg_next_tile_lsb = self.ppu_read(pattern_address, false);
+                self.bg_next_tile_lsb = self.ppu_read(pattern_address);
             } else if sub_cycle == 6 {
                 let pattern_address = self.get_pattern_address(8);
-                self.bg_next_tile_msb = self.ppu_read(pattern_address, false);
+                self.bg_next_tile_msb = self.ppu_read(pattern_address);
             } else if sub_cycle == 7 {
                 self.increment_x();
             }
@@ -360,7 +360,7 @@ impl Ppu2C02 {
         // Useless read of the tile id at the end of the scanline
         if self.cycle == 338 || self.cycle == 340 {
             let name_table_address = self.current_vram_address.name_table_address();
-            self.bg_next_tile_id = self.ppu_read(name_table_address, false);
+            self.bg_next_tile_id = self.ppu_read(name_table_address);
         }
     }
 
@@ -422,8 +422,8 @@ impl Ppu2C02 {
                 }
 
                 sprite_pattern_address_high = sprite_pattern_address_low + 8;
-                sprite_pattern_bit_low = self.ppu_read(sprite_pattern_address_low, false);
-                sprite_pattern_bit_high = self.ppu_read(sprite_pattern_address_high, false);
+                sprite_pattern_bit_low = self.ppu_read(sprite_pattern_address_low);
+                sprite_pattern_bit_high = self.ppu_read(sprite_pattern_address_high);
 
                 if flip_horizontally {
                     sprite_pattern_bit_low = sprites::flip_byte_horizontally(sprite_pattern_bit_low);
@@ -770,7 +770,7 @@ impl Ppu2C02 {
 
     fn get_color_from_palette(&mut self, palette_id: u16, pixel_id: u16) -> Color {
         let address = addresses::PALETTE_ADDRESS_LOWER + (palette_id * 4) + pixel_id;
-        let color_index = self.ppu_read(address, false) & 0x3F; // Make sure we don't go out of bounds
+        let color_index = self.ppu_read(address) & 0x3F; // Make sure we don't go out of bounds
         self.colors[color_index as usize]
     }
 

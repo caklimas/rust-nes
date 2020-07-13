@@ -36,7 +36,7 @@ pub fn imm(cpu6502: &mut cpu::Cpu6502) -> u8 {
 /// Address mode: Zero Page
 /// Allows you to absolutely access the first 256 bytes of a location
 pub fn zp0(cpu6502: &mut cpu::Cpu6502) -> u8 {
-    let address = cpu6502.read(cpu6502.program_counter, false);
+    let address = cpu6502.read(cpu6502.program_counter);
     cpu6502.program_counter = cpu6502.program_counter.wrapping_add(1);
     cpu6502.addr_abs = (address & 0x00FF) as u16;
     0
@@ -45,7 +45,7 @@ pub fn zp0(cpu6502: &mut cpu::Cpu6502) -> u8 {
 /// Address mode: Zero Page with X Offset
 /// Same as zero page but with the X address added
 pub fn zpx(cpu6502: &mut cpu::Cpu6502) -> u8 {
-    let address = cpu6502.read(cpu6502.program_counter, false).wrapping_add(cpu6502.x_register);
+    let address = cpu6502.read(cpu6502.program_counter).wrapping_add(cpu6502.x_register);
     cpu6502.program_counter = cpu6502.program_counter.wrapping_add(1);
     cpu6502.addr_abs = (address & 0x00FF) as u16;
     0
@@ -54,7 +54,7 @@ pub fn zpx(cpu6502: &mut cpu::Cpu6502) -> u8 {
 /// Address mode: Zero Page with Y Offset
 /// Same as zero page but with Y addressadded
 pub fn zpy(cpu6502: &mut cpu::Cpu6502) -> u8 {
-    let address = cpu6502.read(cpu6502.program_counter, false).wrapping_add(cpu6502.y_register);
+    let address = cpu6502.read(cpu6502.program_counter).wrapping_add(cpu6502.y_register);
     cpu6502.program_counter = cpu6502.program_counter.wrapping_add(1);
     cpu6502.addr_abs = (address & 0x00FF) as u16;
     0
@@ -63,7 +63,7 @@ pub fn zpy(cpu6502: &mut cpu::Cpu6502) -> u8 {
 /// Address mode: Relative
 /// Branching instructions can't jump any further than 127 memory locations
 pub fn rel(cpu6502: &mut cpu::Cpu6502) -> u8 {
-    cpu6502.addr_rel = cpu6502.read(cpu6502.program_counter, false) as u16;
+    cpu6502.addr_rel = cpu6502.read(cpu6502.program_counter) as u16;
     cpu6502.program_counter = cpu6502.program_counter.wrapping_add(1);
     if cpu6502.addr_rel & 0x80 != 0 {
         cpu6502.addr_rel = cpu6502.addr_rel | 0xFF00;
@@ -115,12 +115,12 @@ pub fn ind(cpu6502: &mut cpu::Cpu6502) -> u8 {
 
     if (pointer_address & 0x00FF) == 0x00FF {
         cpu6502.addr_abs = 
-            (cpu6502.read(pointer_address & 0xFF00, false) as u16) << 8 |
-            cpu6502.read(pointer_address, false) as u16;
+            (cpu6502.read(pointer_address & 0xFF00) as u16) << 8 |
+            cpu6502.read(pointer_address) as u16;
     } else {
         cpu6502.addr_abs =
-            ((cpu6502.read(pointer_address + 1, false) as u16) << 8) |
-            cpu6502.read(pointer_address, false) as u16
+            ((cpu6502.read(pointer_address + 1) as u16) << 8) |
+            cpu6502.read(pointer_address) as u16
     }
 
     0
@@ -130,13 +130,13 @@ pub fn ind(cpu6502: &mut cpu::Cpu6502) -> u8 {
 /// The supplied address is offset by X to index a location in page 0x00
 /// The actual address is then read from this location
 pub fn izx(cpu6502: &mut cpu::Cpu6502) -> u8 {
-    let address = cpu6502.read(cpu6502.program_counter, false);
+    let address = cpu6502.read(cpu6502.program_counter);
     cpu6502.program_counter = cpu6502.program_counter.wrapping_add(1);
 
     let low_address = (address.wrapping_add(cpu6502.x_register)) & 0x00FF;
     let high_address = (address.wrapping_add(cpu6502.x_register + 1)) & 0x00FF;
-    let low = cpu6502.read(low_address as u16, false) as u16;
-    let high = cpu6502.read(high_address as u16, false) as u16;
+    let low = cpu6502.read(low_address as u16) as u16;
+    let high = cpu6502.read(high_address as u16) as u16;
 
     cpu6502.addr_abs = (high << 8) | low;
 
@@ -148,11 +148,11 @@ pub fn izx(cpu6502: &mut cpu::Cpu6502) -> u8 {
 /// The address is then read from this and then offset by Y
 /// If a page boundary occurs, an additional clock cycle is required
 pub fn izy(cpu6502: &mut cpu::Cpu6502) -> u8 {
-    let pointer_address = cpu6502.read(cpu6502.program_counter, false) as u16;
+    let pointer_address = cpu6502.read(cpu6502.program_counter) as u16;
     cpu6502.program_counter = cpu6502.program_counter.wrapping_add(1);
 
-    let low = cpu6502.read(pointer_address & 0x00FF, false) as u16;
-    let high = (cpu6502.read((pointer_address + 1) & 0x00FF, false) as u16) << 8;
+    let low = cpu6502.read(pointer_address & 0x00FF) as u16;
+    let high = (cpu6502.read((pointer_address + 1) & 0x00FF) as u16) << 8;
     cpu6502.addr_abs = (high | low).wrapping_add(cpu6502.y_register.into());
     if cpu6502.addr_abs & 0xFF00 != high {
         return 1;
@@ -162,9 +162,9 @@ pub fn izy(cpu6502: &mut cpu::Cpu6502) -> u8 {
 }
 
 fn get_absolute_address(cpu6502: &mut cpu::Cpu6502) -> u16 {
-    let low = cpu6502.read(cpu6502.program_counter, false) as u16;
+    let low = cpu6502.read(cpu6502.program_counter) as u16;
     cpu6502.program_counter = cpu6502.program_counter.wrapping_add(1);
-    let high = cpu6502.read(cpu6502.program_counter, false) as u16;
+    let high = cpu6502.read(cpu6502.program_counter) as u16;
     cpu6502.program_counter = cpu6502.program_counter.wrapping_add(1);
 
     let address = (high << 8) | low;

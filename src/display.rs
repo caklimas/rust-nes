@@ -4,7 +4,7 @@ use ggez::event::{
     KeyMods
 };
 
-use crate::bus;
+use crate::nes;
 
 const PIXEL_SIZE: i32 = 3;
 pub const SCREEN_WIDTH: u16 = 256;
@@ -12,7 +12,7 @@ pub const SCREEN_HEIGHT: u16 = 240;
 pub const WINDOW_WIDTH: f32 = SCREEN_WIDTH as f32 * PIXEL_SIZE as f32;
 pub const WINDOW_HEIGHT: f32 = SCREEN_HEIGHT as f32 * PIXEL_SIZE as f32;
 
-impl ggez::event::EventHandler for bus::Bus {
+impl ggez::event::EventHandler for nes::Nes {
     fn update(&mut self, _ctx: &mut Context) -> GameResult {
         if !self.can_draw {
             return Ok(());
@@ -20,7 +20,7 @@ impl ggez::event::EventHandler for bus::Bus {
 
         loop {
             self.clock();
-            if self.ppu.borrow().frame_complete {
+            if self.ppu().frame_complete {
                 break;
             }
         }
@@ -32,7 +32,7 @@ impl ggez::event::EventHandler for bus::Bus {
             }
         }
 
-        self.ppu.borrow_mut().frame_complete = false;
+        self.ppu().frame_complete = false;
         Ok(())
     }
 
@@ -88,28 +88,28 @@ impl ggez::event::EventHandler for bus::Bus {
                 }
             },
             KeyCode::Right => {
-                self.memory.borrow_mut().controllers[0].buttons[0] = true;
+                self.bus().controllers[0].buttons[0] = true;
             },
             KeyCode::Left => {
-                self.memory.borrow_mut().controllers[0].buttons[1] = true;
+                self.bus().controllers[0].buttons[1] = true;
             },
             KeyCode::Down => {
-                self.memory.borrow_mut().controllers[0].buttons[2] = true;
+                self.bus().controllers[0].buttons[2] = true;
             },
             KeyCode::Up => {
-                self.memory.borrow_mut().controllers[0].buttons[3] = true;
+                self.bus().controllers[0].buttons[3] = true;
             },
             KeyCode::Return => {
-                self.memory.borrow_mut().controllers[0].buttons[4] = true;
+                self.bus().controllers[0].buttons[4] = true;
             },
             KeyCode::RShift => {
-                self.memory.borrow_mut().controllers[0].buttons[5] = true;
+                self.bus().controllers[0].buttons[5] = true;
             },
             KeyCode::Z => {
-                self.memory.borrow_mut().controllers[0].buttons[6] = true;
+                self.bus().controllers[0].buttons[6] = true;
             },
             KeyCode::X => {
-                self.memory.borrow_mut().controllers[0].buttons[7] = true;
+                self.bus().controllers[0].buttons[7] = true;
             }
             _ => ()
         };
@@ -118,40 +118,40 @@ impl ggez::event::EventHandler for bus::Bus {
     fn key_up_event(&mut self, _ctx: &mut Context, keycode: KeyCode, _keymods: KeyMods) {
         match keycode {
             KeyCode::Right => {
-                self.memory.borrow_mut().controllers[0].buttons[0] = false;
+                self.bus().controllers[0].buttons[0] = false;
             },
             KeyCode::Left => {
-                self.memory.borrow_mut().controllers[0].buttons[1] = false;
+                self.bus().controllers[0].buttons[1] = false;
             },
             KeyCode::Down => {
-                self.memory.borrow_mut().controllers[0].buttons[2] = false;
+                self.bus().controllers[0].buttons[2] = false;
             },
             KeyCode::Up => {
-                self.memory.borrow_mut().controllers[0].buttons[3] = false;
+                self.bus().controllers[0].buttons[3] = false;
             },
             KeyCode::Return => {
-                self.memory.borrow_mut().controllers[0].buttons[4] = false;
+                self.bus().controllers[0].buttons[4] = false;
             },
             KeyCode::RShift => {
-                self.memory.borrow_mut().controllers[0].buttons[5] = false;
+                self.bus().controllers[0].buttons[5] = false;
             },
             KeyCode::Z => {
-                self.memory.borrow_mut().controllers[0].buttons[6] = false;
+                self.bus().controllers[0].buttons[6] = false;
             },
             KeyCode::X => {
-                self.memory.borrow_mut().controllers[0].buttons[7] = false;
+                self.bus().controllers[0].buttons[7] = false;
             }
             _ => ()
         };
     }
 }
 
-impl bus::Bus {
+impl nes::Nes {
     pub fn draw_frame(&mut self, ctx: &mut Context) {
         let mut mesh_builder = graphics::MeshBuilder::new();
         for i in 0..SCREEN_WIDTH {
             for j in 0..SCREEN_HEIGHT {
-                let color = self.ppu.borrow_mut().frame.get_pixel(i as i32, j as i32);
+                let color = self.ppu().frame.get_pixel(i as i32, j as i32);
                 let rect = graphics::Rect::new_i32(
                     i as i32 * PIXEL_SIZE, 
                     j as i32 * PIXEL_SIZE, 
