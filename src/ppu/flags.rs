@@ -60,7 +60,7 @@ bitfield! {
     pub u8, fine_y, set_fine_y: 14, 12;
     pub u8, low_byte, set_low_byte: 7, 0;
     pub u8, high_byte, set_high_byte: 13, 8;
-    pub u16, get, _: 14, 0;
+    pub u16, get, set: 14, 0;
 }
 
 impl ScrollAddress {
@@ -109,7 +109,7 @@ impl ScrollAddress {
     }
 
     pub fn attribute_table_address(&mut self) -> u16 {
-        addresses::NAME_TABLE_ADDRESS_LOWER |
+        addresses::ATTRIBUTE_TABLE_ADDRESS_LOWER |
         ((self.name_table() as u16) << 10) |
         ((self.coarse_y() >> 2) << 3) as u16 |
         (self.coarse_x() >> 2) as u16

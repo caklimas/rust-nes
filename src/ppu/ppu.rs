@@ -1,10 +1,6 @@
 use std::rc::Rc;
 use std::cell::RefCell;
 use ggez::graphics::Color;
-use std::{
-    io::{BufWriter, Write}
-};
-use std::fs::OpenOptions;
 
 use crate::cartridge::cartridge;
 use crate::memory_sizes;
@@ -46,7 +42,7 @@ pub struct Ppu2C02 {
     mask: super::flags::Mask,
     address_latch: bool,
     ppu_data_buffer: u8,
-    current_vram_address: u16,
+    current_vram_address: flags::ScrollAddress,
     temp_vram_address: flags::ScrollAddress,
     fine_x_scroll: u8,
     bg_next_tile_id: u8,
@@ -86,7 +82,7 @@ impl Ppu2C02 {
             mask: super::flags::Mask(0),
             address_latch: false,
             ppu_data_buffer: 0,
-            current_vram_address: 0,
+            current_vram_address: flags::ScrollAddress(0),
             temp_vram_address: flags::ScrollAddress(0),
             fine_x_scroll: 0,
             bg_next_tile_id: 0x00,
@@ -175,14 +171,14 @@ impl Ppu2C02 {
             PPU_ADDRESS => (),
             PPU_DATA => {
                 data = self.ppu_data_buffer;
-                self.ppu_data_buffer = self.ppu_read(self.current_vram_address, false);
+                self.ppu_data_buffer = self.ppu_read(self.current_vram_address.get(), false);
 
-                if self.current_vram_address >= addresses::PALETTE_ADDRESS_LOWER {
+                if self.current_vram_address.get() >= addresses::PALETTE_ADDRESS_LOWER {
                     data = self.ppu_data_buffer;
                 }
 
                 let address_increment = if self.control.vram_address() { 32 } else { 1 };
-                self.current_vram_address = self.current_vram_address.wrapping_add(address_increment);
+                self.current_vram_address.increment(address_increment);
             },
             _ => ()
         };
@@ -245,15 +241,15 @@ impl Ppu2C02 {
                     // w:                  = 0
                     self.temp_vram_address.set_low_byte(data);
 
-                    self.current_vram_address = self.temp_vram_address.get();
+                    self.current_vram_address.set(self.temp_vram_address.get());
                     self.address_latch = false;
                 }
             },
             PPU_DATA => {
-                self.ppu_write(self.current_vram_address, data);
+                self.ppu_write(self.current_vram_address.get(), data);
 
                 let address_increment = if self.control.vram_address() { 32 } else { 1 };
-                self.current_vram_address = self.current_vram_address.wrapping_add(address_increment);
+                self.current_vram_address.increment(address_increment);
             },
             _ => ()
         };
@@ -312,19 +308,10 @@ impl Ppu2C02 {
             let sub_cycle = (self.cycle - 1) % 8;
             if sub_cycle == 0 {
                 self.load_shifters();
-                let name_table_address = addresses::NAME_TABLE_ADDRESS_LOWER | (self.current_vram_address & 0x0FFF);
+                let name_table_address = self.current_vram_address.name_table_address();
                 self.bg_next_tile_id = self.ppu_read(name_table_address, false);
             } else if sub_cycle == 2 {
-                let coarse_x = self.get_coarse_x();
-                let coarse_y = self.get_coarse_y();
-                let name_table_x = self.get_current_address(ScrollAddress::NameTableSelectX) << 10;
-                let name_table_y = self.get_current_address(ScrollAddress::NameTableSelectY) << 11;
-                let attribute_table_address = 
-                    addresses::ATTRIBUTE_TABLE_ADDRESS_LOWER |
-                    name_table_y |
-                    name_table_x |
-                    (coarse_y >> 2) << 3 |
-                    coarse_x >> 2;
+                let attribute_table_address = self.current_vram_address.attribute_table_address();
                 self.bg_next_tile_attribute = self.ppu_read(attribute_table_address, false);
 
                 // Since there are only 4 palettes for the background tiles, we only need 2 bits to select a palette(2 bits range is 0-3)
@@ -334,11 +321,11 @@ impl Ppu2C02 {
                 // If coarse y % 4 < 2 then it is in the top half
                 // If coarse x % 4 < 2 then it is in the left half
                 // Knowing this and that we want the last two bits to be the palette selected so we shift accordingly.
-                if coarse_y & 0x02 > 0 {
+                if self.current_vram_address.coarse_y() & 0x02 > 0 {
                     self.bg_next_tile_attribute >>= 4; // Use bits 7,6 or 5,4
                 }
 
-                if coarse_x & 0x02 > 0 {
+                if self.current_vram_address.coarse_x() & 0x02 > 0 {
                     self.bg_next_tile_attribute >>= 2; // USe bits 7,6 or 3,2
                 }
 
@@ -372,7 +359,8 @@ impl Ppu2C02 {
 
         // Useless read of the tile id at the end of the scanline
         if self.cycle == 338 || self.cycle == 340 {
-            self.bg_next_tile_id = self.ppu_read(addresses::NAME_TABLE_ADDRESS_LOWER | (self.current_vram_address & 0x0FFF), false);
+            let name_table_address = self.current_vram_address.name_table_address();
+            self.bg_next_tile_id = self.ppu_read(name_table_address, false);
         }
     }
 
@@ -605,36 +593,14 @@ impl Ppu2C02 {
     }
 
     fn increment_x(&mut self) {
-        if self.is_rendering_enabled() {
-            if (self.current_vram_address & 0x001F) == 31 {
-                self.current_vram_address &= !0x001F; // Set coarse x = 0
-                self.current_vram_address ^= 0x0400; // Switch horizontal table
-            } else {
-                self.current_vram_address += 1; // Increment coarse x
-            }
+        if self.mask.is_rendering_enabled() {
+            self.current_vram_address.increment_x();
         }
     }
 
     fn increment_y(&mut self) {
-        if self.is_rendering_enabled() {
-            // See https://wiki.nesdev.com/w/index.php/PPU_scrolling#Wrapping_around
-            if (self.current_vram_address & 0x7000) != 0x7000 {
-                self.current_vram_address += 0x1000; // If fine Y < 7 then increment fine Y
-            } else {
-                self.current_vram_address &= !(0x7000); // Set fine Y to 0
-                let mut y = (self.current_vram_address & 0x03E0) >> 5; // Set y to coarse y
-                if y == 29 { // 29 is the last row of tiles in the name table
-                    y = 0; // Set coarse Y to 0
-                    self.current_vram_address ^= 0x8000; // Switch vertical nametable
-                } else if y == 31 { // Coarse Y can be set out of bounds and will wrap to 0
-                    y = 0; // Coarse Y is 0 and the nametable is not switched
-                } else {
-                    y += 1; // Increment Coarse Y
-                }
-
-                self.current_vram_address = 
-                    (self.current_vram_address & !0x03E0) | (y << 5); // Put coarse Y back into address
-            }
+        if self.mask.is_rendering_enabled() {
+            self.current_vram_address.increment_y();
         }
     }
 
@@ -671,34 +637,19 @@ impl Ppu2C02 {
     }
 
     fn transfer_x_address(&mut self) {
-        if self.is_rendering_enabled() {
+        if self.mask.is_rendering_enabled() {
             // If rendering is enabled, the PPU copies all bits related to horizontal position from t to v:
             // v: ....F.. ...EDCBA = t: ....F.....EDCBA
-            let fedcba = self.temp_vram_address.get() & 0x41F;
-            self.set_current_address(ScrollAddress::CoarseX0, ((fedcba >> 0) & 0x01) > 0);
-            self.set_current_address(ScrollAddress::CoarseX1, ((fedcba >> 1) & 0x01) > 0);
-            self.set_current_address(ScrollAddress::CoarseX2, ((fedcba >> 2) & 0x01) > 0);
-            self.set_current_address(ScrollAddress::CoarseX3, ((fedcba >> 3) & 0x01) > 0);
-            self.set_current_address(ScrollAddress::CoarseX4, ((fedcba >> 4) & 0x01) > 0);
-            self.set_current_address(ScrollAddress::NameTableSelectX, ((fedcba >> 10) & 0x01) > 0);
+            self.current_vram_address.transfer_x_address(self.temp_vram_address);
         }
     }
 
     fn transfer_y_address(&mut self) {
-        if self.is_rendering_enabled() {
+        if self.mask.is_rendering_enabled() {
             // If rendering is enabled, at the end of vblank, shortly after the horizontal bits are copied from t to v at dot 257, 
             // the PPU will repeatedly copy the vertical bits from t to v from dots 280 to 304, completing the full initialization of v from t:
             // v: IHGF.EDCBA..... = t: IHGF.ED CBA.....
-            let ihgfedcba = self.temp_vram_address.get() & 0x7BE0;
-            self.set_current_address(ScrollAddress::CoarseY0, ((ihgfedcba >> 5) & 0x01) > 0);
-            self.set_current_address(ScrollAddress::CoarseY1, ((ihgfedcba >> 6) & 0x01) > 0);
-            self.set_current_address(ScrollAddress::CoarseY2, ((ihgfedcba >> 7) & 0x01) > 0);
-            self.set_current_address(ScrollAddress::CoarseY3, ((ihgfedcba >> 8) & 0x01) > 0);
-            self.set_current_address(ScrollAddress::CoarseY4, ((ihgfedcba >> 9) & 0x01) > 0);
-            self.set_current_address(ScrollAddress::NameTableSelectY, ((ihgfedcba >> 11) & 0x01) > 0);
-            self.set_current_address(ScrollAddress::FineYScroll0, ((ihgfedcba >> 12) & 0x01) > 0);
-            self.set_current_address(ScrollAddress::FineYScroll1, ((ihgfedcba >> 13) & 0x01) > 0);
-            self.set_current_address(ScrollAddress::FineYScroll2, ((ihgfedcba >> 14) & 0x01) > 0);
+            self.current_vram_address.transfer_y_address(self.temp_vram_address);
         }
     }
 
@@ -787,33 +738,6 @@ impl Ppu2C02 {
         };
     }
 
-    pub fn write_log(&mut self) {
-        let file = OpenOptions::new().write(true).truncate(false).append(true).open(r"C:\Users\cakli\source\repos\rust-nes\src\nametable_result_rust.txt").expect("Not found");
-        let mut _writer = BufWriter::new(&file);
-
-        let name_table_0 = &self.name_table[0];
-        let name_table_1 = &self.name_table[1];
-        for s in 0..name_table_0.len() {
-            match writeln!(
-                &mut _writer,
-                "{}", name_table_0[s]
-            ) {
-                Err(e) => println!("{:?}", e),
-                _ => ()
-            }
-        }
-
-        for s in 0..name_table_1.len() {
-            match writeln!(
-                &mut _writer,
-                "{}", name_table_0[s]
-            ) {
-                Err(e) => println!("{:?}", e),
-                _ => ()
-            }
-        }
-    }
-
     fn read_palette_table_data(&mut self, address: u16) -> u8 {
         let mut masked_address = address & 0x001F;
         if masked_address == 0x0010 {
@@ -853,78 +777,11 @@ impl Ppu2C02 {
     fn get_pattern_address(&mut self, offset: u16) -> u16 {
         let upper = (self.control.background_table_address() as u16) << 12;
         let middle = (self.bg_next_tile_id as u16) << 4;
-        let lower = self.get_fine_y();
+        let lower = self.current_vram_address.fine_y() as u16;
         let address = upper + middle + lower + offset;
 
         address
     }
-
-    fn set_current_address(&mut self, scroll: ScrollAddress, value: bool) {
-        if value {
-            self.current_vram_address |= scroll as u16;
-        } else {
-            self.current_vram_address &= !(scroll as u16);
-        }
-    }
-
-    fn get_current_address(&mut self, scroll: ScrollAddress) -> u16 {
-        if self.current_vram_address & (scroll as u16) > 0 {
-            1
-        } else {
-            0
-        }
-    }
-
-    fn get_coarse_x(&mut self) -> u16 {
-        let coarse_x_0 = self.get_current_address(ScrollAddress::CoarseX0) << 0;
-        let coarse_x_1 = self.get_current_address(ScrollAddress::CoarseX1) << 1;
-        let coarse_x_2 = self.get_current_address(ScrollAddress::CoarseX2) << 2;
-        let coarse_x_3 = self.get_current_address(ScrollAddress::CoarseX3) << 3;
-        let coarse_x_4 = self.get_current_address(ScrollAddress::CoarseX4) << 4;
-
-        coarse_x_0 + coarse_x_1 + coarse_x_2 + coarse_x_3 + coarse_x_4
-    }
-
-    fn get_coarse_y(&mut self) -> u16 {
-        let coarse_y_0 = self.get_current_address(ScrollAddress::CoarseY0) << 0;
-        let coarse_y_1 = self.get_current_address(ScrollAddress::CoarseY1) << 1;
-        let coarse_y_2 = self.get_current_address(ScrollAddress::CoarseY2) << 2;
-        let coarse_y_3 = self.get_current_address(ScrollAddress::CoarseY3) << 3;
-        let coarse_y_4 = self.get_current_address(ScrollAddress::CoarseY4) << 4;
-
-        coarse_y_0 + coarse_y_1 + coarse_y_2 + coarse_y_3 + coarse_y_4
-    }
-
-    fn get_fine_y(&mut self) -> u16 {
-        let fine_y_0 = self.get_current_address(ScrollAddress::FineYScroll0) << 0;
-        let fine_y_1 = self.get_current_address(ScrollAddress::FineYScroll1) << 1;
-        let fine_y_2 = self.get_current_address(ScrollAddress::FineYScroll2) << 2;
-
-        fine_y_0 + fine_y_1 + fine_y_2
-    }
-
-    fn is_rendering_enabled(&mut self) -> bool {
-        self.mask.render_background() || self.mask.render_sprite()
-    }
-}
-
-#[derive(Debug)]
-pub enum ScrollAddress {
-    CoarseX0 = (1 << 0),
-    CoarseX1 = (1 << 1),
-    CoarseX2 = (1 << 2),
-    CoarseX3 = (1 << 3),
-    CoarseX4 = (1 << 4),
-    CoarseY0 = (1 << 5),
-    CoarseY1 = (1 << 6),
-    CoarseY2 = (1 << 7),
-    CoarseY3 = (1 << 8),
-    CoarseY4 = (1 << 9),
-    NameTableSelectX = (1 << 10),
-    NameTableSelectY = (1 << 11),
-    FineYScroll0 = (1 << 12),
-    FineYScroll1 = (1 << 13),
-    FineYScroll2 = (1 << 14)
 }
 
 fn initialize_oam() -> Vec<u8> {
