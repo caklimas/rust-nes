@@ -462,7 +462,7 @@ impl Ppu2C02 {
 
     fn render_pixel(&mut self) {
         let (bg_palette, bg_pixel) = self.get_background_pixel();
-        let (fg_palette, fg_pixel, fg_priority_over_bg) = self.get_foreground_pixels();
+        let (fg_palette, fg_pixel, fg_priority_over_bg) = self.get_foreground_pixel();
 
         let mut pixel = 0x00;
         let mut palette = 0x00;
@@ -517,57 +517,19 @@ impl Ppu2C02 {
     }
 
     fn get_background_pixel(&mut self) -> (u8, u8) {
-        let mut bg_palette = 0x00;
-        let mut bg_pixel = 0x00;
-        if self.mask.render_background() {
-            let shift_register_bit = 0x8000 >> self.fine_x_scroll;
-            let pixel_plane_0 = if (self.background.shifter_pattern_low & shift_register_bit) > 0 { 1 } else { 0 };
-            let pixel_plane_1 = if (self.background.shifter_pattern_high & shift_register_bit) > 0 { 1 } else { 0 };
-
-            bg_pixel = (pixel_plane_1 << 1) | pixel_plane_0;
-
-            let bg_palette_0 = if (self.background.shifter_attribute_low & shift_register_bit) > 0 { 1 } else { 0 };
-            let bg_palette_1 = if (self.background.shifter_attribute_high & shift_register_bit) > 0 { 1 } else { 0 };
-
-            bg_palette = (bg_palette_1 << 1) | bg_palette_0;
+        if !self.mask.render_background() {
+            return (0, 0);
         }
 
-        (bg_palette, bg_pixel)
+        self.background.get_pixel(self.fine_x_scroll)
     }
 
-    fn get_foreground_pixels(&mut self) -> (u8, u8, bool) {
-        let mut fg_pixel = 0x00;
-        let mut fg_palette = 0x00;
-        let mut fg_priority_over_background = false;
-
-        if self.mask.render_sprite() {
-            self.sprite.zero_being_rendered = false;
-
-            for i in 0..self.sprite.count {
-                let oam_entry = sprites::get_object_attribute_entry(&self.sprite.scanline, i * sprites::OAM_ENTRY_SIZE);
-                if oam_entry.x == 0 {
-                    let pixel_plane_0 = if (self.sprite.shifter_pattern_low[i] & 0x80) > 0 { 1 } else { 0 };
-                    let pixel_plane_1 = if (self.sprite.shifter_pattern_high[i] & 0x80) > 0 { 1 } else { 0 };
-                    fg_pixel = (pixel_plane_1 << 1) | pixel_plane_0;
-
-                    fg_palette = oam_entry.attribute.palette() + 4; // The foreground palettes were the last 4 (4-7)
-                    fg_priority_over_background = !oam_entry.attribute.priority();
-
-                    // We know the sprites are in priority order(earliest address is higher priority)
-                    // We also know that if a pixel is 0 it is transparent
-                    // Therefore the first pixel that's not transparent is the highest priority pixel so break out
-                    if fg_pixel != 0 {
-                        if i == 0 { // If it's in 0 of our sprite scanline then it's a candidate for sprite 0
-                            self.sprite.zero_being_rendered = true;
-                        }
-
-                        break;
-                    }
-                }
-            }
+    fn get_foreground_pixel(&mut self) -> (u8, u8, bool) {
+        if !self.mask.render_sprite() {
+            return (0, 0, false);
         }
 
-        (fg_palette, fg_pixel, fg_priority_over_background)
+        self.sprite.get_pixel()
     }
 
     fn increment_x(&mut self) {

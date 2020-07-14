@@ -45,6 +45,38 @@ impl Sprite {
             }
         }
     }
+
+    pub fn get_pixel(&mut self) -> (u8, u8, bool) {
+        let mut pixel = 0x00;
+        let mut palette = 0x00;
+        let mut priority_over_background = false;
+        self.zero_being_rendered = false;
+
+        for i in 0..self.count {
+            let oam_entry = get_object_attribute_entry(&self.scanline, i * OAM_ENTRY_SIZE);
+            if oam_entry.x == 0 {
+                let pixel_plane_0 = if (self.shifter_pattern_low[i] & 0x80) > 0 { 1 } else { 0 };
+                let pixel_plane_1 = if (self.shifter_pattern_high[i] & 0x80) > 0 { 1 } else { 0 };
+                pixel = (pixel_plane_1 << 1) | pixel_plane_0;
+
+                palette = oam_entry.attribute.palette() + 4; // The foreground palettes were the last 4 (4-7)
+                priority_over_background = !oam_entry.attribute.priority();
+
+                // We know the sprites are in priority order(earliest address is higher priority)
+                // We also know that if a pixel is 0 it is transparent
+                // Therefore the first pixel that's not transparent is the highest priority pixel so break out
+                if pixel != 0 {
+                    if i == 0 { // If it's in 0 of our sprite scanline then it's a candidate for sprite 0
+                        self.zero_being_rendered = true;
+                    }
+
+                    break;
+                }
+            }
+        }
+
+        (palette, pixel, priority_over_background)
+    }
 }
 
 #[derive(Copy, Clone, Debug, Default)]

@@ -27,4 +27,18 @@ impl Background {
         self.shifter_attribute_low <<= 1;
         self.shifter_attribute_high <<= 1;
     }
+
+    pub fn get_pixel(&mut self, fine_x_scroll: u8) -> (u8, u8) {
+        let shift_register_bit = 0x8000 >> fine_x_scroll;
+
+        let pixel_plane_0 = if (self.shifter_pattern_low & shift_register_bit) > 0 { 1 } else { 0 };
+        let pixel_plane_1 = if (self.shifter_pattern_high & shift_register_bit) > 0 { 1 } else { 0 };
+        let pixel = (pixel_plane_1 << 1) | pixel_plane_0;
+
+        let palette_0 = if (self.shifter_attribute_low & shift_register_bit) > 0 { 1 } else { 0 };
+        let palette_1 = if (self.shifter_attribute_high & shift_register_bit) > 0 { 1 } else { 0 };
+        let palette = (palette_1 << 1) | palette_0;
+
+        (palette, pixel)
+    }
 }

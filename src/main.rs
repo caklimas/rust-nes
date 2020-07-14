@@ -4,6 +4,7 @@ extern crate bitfield;
 use ggez::*;
 use rodio::Sink;
 use rodio::Source;
+use std::env;
 use std::time;
 
 mod nes;
@@ -25,8 +26,9 @@ fn main() {
 }
 
 fn run_game() {
+    let args: Vec<String> = env::args().collect();
     let mut nes = nes::Nes::new();
-    let cartridge = cartridge::cartridge::Cartridge::new(r"C:\Users\Christopher\Desktop\Files\NES\ROMS\Super Mario Bros. (World).nes");
+    let cartridge = cartridge::cartridge::Cartridge::new(&args[1]);
     nes.bus().load_cartridge(cartridge);
     
     nes.reset();
