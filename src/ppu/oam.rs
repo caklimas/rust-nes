@@ -1,6 +1,21 @@
 use super::sprites;
 
 #[derive(Debug)]
+pub struct ObjectAttributeMemory {
+    pub memory: Vec<u8>,
+    pub address: u8
+}
+
+impl ObjectAttributeMemory {
+    pub fn new() -> Self {
+        ObjectAttributeMemory {
+            memory: initialize_oam(),
+            address: 0
+        }
+    }
+}
+
+#[derive(Debug)]
 pub struct ObjectAttributeEntry {
     pub y: u8,
     pub tile_id: u8,
@@ -23,7 +38,7 @@ bitfield! {
     pub flip_vertically, _: 7; // Flip sprite vertically
 }
 
-pub fn initialize_oam() -> Vec<u8> {
+fn initialize_oam() -> Vec<u8> {
     let capacity = sprites::OAM_ENTRY_SIZE * sprites::MAX_SPRITES;
     let mut vec: Vec<u8> = Vec::with_capacity(capacity as usize);
 

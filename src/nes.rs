@@ -76,7 +76,7 @@ impl Nes {
             } else {
                 // Write it to the ppu's OAM and increment DMA address
                 let dma = self.cpu.bus.dma;
-                self.ppu().oam[dma.address as usize] = dma.data;
+                self.ppu().oam.memory[dma.address as usize] = dma.data;
                 self.bus().dma.address = dma.address.wrapping_add(1);
 
                 // Since we're wrapping around, we know when it goes back to zero that it has written all 256 bytes
