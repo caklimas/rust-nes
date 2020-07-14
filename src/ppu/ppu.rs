@@ -47,13 +47,7 @@ pub struct Ppu2C02 {
     temp_vram_address: flags::ScrollAddress,
     fine_x_scroll: u8,
     background: background::Background,
-    sprite_scanline: Vec<u8>,
-    sprite_count: usize,
-    sprite_shifter_pattern_low: Vec<u8>,
-    sprite_shifter_pattern_high: Vec<u8>,
-    sprite_zero_hit_possible: bool,
-    sprite_zero_being_rendered: bool,
-    log: Vec<String>
+    sprite: sprites::Sprite
 }
 
 impl Ppu2C02 {
@@ -80,13 +74,7 @@ impl Ppu2C02 {
             temp_vram_address: flags::ScrollAddress(0),
             fine_x_scroll: 0,
             background: Default::default(),
-            sprite_scanline: vec![0; sprites::MAX_SPRITE_COUNT * sprites::OAM_ENTRY_SIZE], // 8 sprites times size of an entry
-            sprite_count: 0,
-            sprite_shifter_pattern_low: vec![0; sprites::MAX_SPRITE_COUNT],
-            sprite_shifter_pattern_high: vec![0; sprites::MAX_SPRITE_COUNT],
-            sprite_zero_hit_possible: false,
-            sprite_zero_being_rendered: false,
-            log: Vec::with_capacity(20000)
+            sprite: sprites::Sprite::new()
         }
     }
    
@@ -102,10 +90,7 @@ impl Ppu2C02 {
                 self.status.set_sprite_overflow(false);
                 self.status.set_sprite_zero_hit(false);
 
-                for i in 0..sprites::MAX_SPRITE_COUNT {
-                    self.sprite_shifter_pattern_low[i] = 0;
-                    self.sprite_shifter_pattern_high[i] = 0;
-                }
+                self.sprite.reset();
             }
 
             self.render_background();
@@ -359,8 +344,8 @@ impl Ppu2C02 {
 
         if self.cycle == MAX_CLOCK_CYCLE - 1 {
             let sprite_mode = self.control.sprite_size();
-            for i in 0..self.sprite_count {
-                let oam_entry = sprites::get_object_attribute_entry(&self.sprite_scanline, i * sprites::OAM_ENTRY_SIZE);
+            for i in 0..self.sprite.count {
+                let oam_entry = sprites::get_object_attribute_entry(&self.sprite.scanline, i * sprites::OAM_ENTRY_SIZE);
                 let mut sprite_pattern_bit_low: u8;
                 let mut sprite_pattern_bit_high: u8;
                 let sprite_pattern_address_low: u16;
@@ -417,8 +402,8 @@ impl Ppu2C02 {
                     sprite_pattern_bit_high = sprites::flip_byte_horizontally(sprite_pattern_bit_high);
                 }
 
-                self.sprite_shifter_pattern_low[i] = sprite_pattern_bit_low;
-                self.sprite_shifter_pattern_high[i] = sprite_pattern_bit_high;
+                self.sprite.shifter_pattern_low[i] = sprite_pattern_bit_low;
+                self.sprite.shifter_pattern_high[i] = sprite_pattern_bit_high;
             }
         }
     }
@@ -428,43 +413,43 @@ impl Ppu2C02 {
     /// If it's greater
     fn evaluate_sprites(&mut self) {
         // Clear sprite scanline
-        self.sprite_count = 0;
-        for i in 0..self.sprite_scanline.len() {
-            self.sprite_scanline[i] = 0xFF;
+        self.sprite.count = 0;
+        for i in 0..self.sprite.scanline.len() {
+            self.sprite.scanline[i] = 0xFF;
         }
 
         for i in 0..sprites::MAX_SPRITE_COUNT {
-            self.sprite_shifter_pattern_low[i] = 0;
-            self.sprite_shifter_pattern_high[i] = 0;
+            self.sprite.shifter_pattern_low[i] = 0;
+            self.sprite.shifter_pattern_high[i] = 0;
         }
 
-        self.sprite_zero_hit_possible = false;
+        self.sprite.zero_hit_possible = false;
         let sprite_size = if self.control.sprite_size() { 16 } else { 8 };
         let mut current_oam_entry: usize = 0;
         // You can only have 8 sprites on the screen
-        while current_oam_entry < sprites::MAX_SPRITES && self.sprite_count <= sprites::MAX_SPRITE_COUNT {
+        while current_oam_entry < sprites::MAX_SPRITES && self.sprite.count <= sprites::MAX_SPRITE_COUNT {
             let asd = current_oam_entry * sprites::OAM_ENTRY_SIZE;
             let diff = (self.scanline as i16) - (self.oam[asd] as i16);
             if diff >= 0 && diff < sprite_size {
-                if self.sprite_count < sprites::MAX_SPRITE_COUNT {
+                if self.sprite.count < sprites::MAX_SPRITE_COUNT {
                     if current_oam_entry == 0 {
-                        self.sprite_zero_hit_possible = true;
+                        self.sprite.zero_hit_possible = true;
                     }
 
                     for i in 0..sprites::OAM_ENTRY_SIZE {
-                        let sprite_index = (self.sprite_count * sprites::OAM_ENTRY_SIZE) + i;
+                        let sprite_index = (self.sprite.count * sprites::OAM_ENTRY_SIZE) + i;
                         let oam_index = asd + i;
-                        self.sprite_scanline[sprite_index] = self.oam[oam_index];
+                        self.sprite.scanline[sprite_index] = self.oam[oam_index];
                     }
 
-                    self.sprite_count += 1;
+                    self.sprite.count += 1;
                 }
             }
 
             current_oam_entry += 1;
         }
 
-        self.status.set_sprite_overflow(self.sprite_count > 8);
+        self.status.set_sprite_overflow(self.sprite.count > 8);
     }
 
     fn render_pixel(&mut self) {
@@ -498,7 +483,7 @@ impl Ppu2C02 {
             }
 
             // If both background and foreground aren't transparent we then check sprite zero hit
-            if self.sprite_zero_hit_possible && self.sprite_zero_being_rendered {
+            if self.sprite.zero_hit_possible && self.sprite.zero_being_rendered {
                 if self.mask.render_background() && self.mask.render_sprite() {
                     // The left edge of the screen has specific switches to control
                     // its appearance. This is used to smooth inconsistencies when
@@ -548,13 +533,13 @@ impl Ppu2C02 {
         let mut fg_priority_over_background = false;
 
         if self.mask.render_sprite() {
-            self.sprite_zero_being_rendered = false;
+            self.sprite.zero_being_rendered = false;
 
-            for i in 0..self.sprite_count {
-                let oam_entry = sprites::get_object_attribute_entry(&self.sprite_scanline, i * sprites::OAM_ENTRY_SIZE);
+            for i in 0..self.sprite.count {
+                let oam_entry = sprites::get_object_attribute_entry(&self.sprite.scanline, i * sprites::OAM_ENTRY_SIZE);
                 if oam_entry.x == 0 {
-                    let pixel_plane_0 = if (self.sprite_shifter_pattern_low[i] & 0x80) > 0 { 1 } else { 0 };
-                    let pixel_plane_1 = if (self.sprite_shifter_pattern_high[i] & 0x80) > 0 { 1 } else { 0 };
+                    let pixel_plane_0 = if (self.sprite.shifter_pattern_low[i] & 0x80) > 0 { 1 } else { 0 };
+                    let pixel_plane_1 = if (self.sprite.shifter_pattern_high[i] & 0x80) > 0 { 1 } else { 0 };
                     fg_pixel = (pixel_plane_1 << 1) | pixel_plane_0;
 
                     let palette_plane_0 = oam_entry.get_oam_attribute(sprites::OamAttribute::Palette0) << 0;
@@ -567,7 +552,7 @@ impl Ppu2C02 {
                     // Therefore the first pixel that's not transparent is the highest priority pixel so break out
                     if fg_pixel != 0 {
                         if i == 0 { // If it's in 0 of our sprite scanline then it's a candidate for sprite 0
-                            self.sprite_zero_being_rendered = true;
+                            self.sprite.zero_being_rendered = true;
                         }
 
                         break;
@@ -597,16 +582,7 @@ impl Ppu2C02 {
         }
 
         if self.mask.render_sprite() && self.cycle >= 1 && self.cycle <= MAX_VISIBLE_CLOCK_CYCLE {
-            for i in 0..self.sprite_count {
-                // First thing that needs to be done is decrement the x coordinate or else we'll shift everything off the screen
-                let x_index = (i * sprites::OAM_ENTRY_SIZE) + 3;
-                if self.sprite_scanline[x_index] > 0 {
-                    self.sprite_scanline[x_index] -= 1;
-                } else {
-                    self.sprite_shifter_pattern_low[i] <<= 1;
-                    self.sprite_shifter_pattern_high[i] <<= 1;
-                }
-            }
+            self.sprite.update_shifters();
         }
     }
 
@@ -659,12 +635,8 @@ impl Ppu2C02 {
                     cartridge::Mirror::Horizontal => {
                         if masked_address <= 0x07FF {
                             data = self.name_table[0][address_offset];
-                            let x = format!("Reading Horizontal data to address {} = nametable[0][{}]", masked_address, address_offset);
-                            self.log.push(x);
                         } else if masked_address >= 0x0800 && masked_address <= 0x0FFF {
                             data = self.name_table[1][address_offset];
-                            let x = format!("Reading Horizontal data to address {} = nametable[0][{}]", masked_address, address_offset);
-                            self.log.push(x);
                         }
                     },
                     _ => ()
