@@ -9,6 +9,7 @@ use crate::frame;
 use super::colors;
 use super::background;
 use super::flags;
+use super::oam;
 use super::sprites;
 
 const CONTROL: u16 = 0x0000; // Configure ppu to render in different ways
@@ -350,45 +351,52 @@ impl Ppu2C02 {
                 let mut sprite_pattern_bit_high: u8;
                 let sprite_pattern_address_low: u16;
                 let sprite_pattern_address_high: u16;
-                let flip_vertically = oam_entry.get_oam_attribute(sprites::OamAttribute::FlipVertically) > 0;
-                let flip_horizontally = oam_entry.get_oam_attribute(sprites::OamAttribute::FlipHorizontally) > 0;
+
+                let pattern_table = if !sprite_mode { 
+                    (self.control.sprite_table_address() as u16) << 12 
+                } else { 
+                    ((oam_entry.tile_id & 0x01) as u16) << 12
+                };
                 
                 if !sprite_mode {
-                    if !flip_vertically {
-                        sprite_pattern_address_low =
-                            (self.control.sprite_table_address() as u16) << 12 |
-                            ((oam_entry.tile_id as u16) << 4) |
-                            ((self.scanline - (oam_entry.y as i16)) as u16);
-                    } else {
-                        sprite_pattern_address_low =
-                            (self.control.sprite_table_address() as u16) << 12 |
-                            ((oam_entry.tile_id as u16) << 4) |
-                            (7 - ((self.scanline - (oam_entry.y as i16)) as u16));
-                    }
+                    let cell = (oam_entry.tile_id as u16) << 4;
+                    let row = if !oam_entry.attribute.flip_vertically() { 
+                        (self.scanline - (oam_entry.y as i16)) as u16
+                    } else { 
+                        7 - ((self.scanline - (oam_entry.y as i16)) as u16)
+                    };
+
+                    sprite_pattern_address_low = pattern_table | cell | row;
                 } else {
-                    if !flip_vertically {
+                    let row = if !oam_entry.attribute.flip_vertically() {
+                        ((self.scanline - (oam_entry.y as i16)) as u16 ) & 0x07
+                    } else {
+                        (7 - (self.scanline - (oam_entry.y as i16)) as u16 ) & 0x07
+                    };
+
+                    if !oam_entry.attribute.flip_vertically() {
                         if self.scanline - (oam_entry.y as i16) < 8 {
                             sprite_pattern_address_low =
-                                (((oam_entry.tile_id & 0x01) as u16) << 12) |
+                                pattern_table |
                                 (((oam_entry.tile_id & 0xFE) as u16) << 4) |
-                                (((self.scanline - (oam_entry.y as i16)) as u16 ) & 0x07);
+                                row;
                         } else {
                             sprite_pattern_address_low =
-                                (((oam_entry.tile_id & 0x01) as u16) << 12) |
+                                pattern_table |
                                 ((((oam_entry.tile_id & 0xFE) + 1) as u16) << 4) |
-                                (((self.scanline - (oam_entry.y as i16)) as u16 ) & 0x07);
+                                row;
                         }
                     } else {
                         if self.scanline - (oam_entry.y as i16) < 8 {
                             sprite_pattern_address_low =
-                                (((oam_entry.tile_id & 0x01) as u16) << 12) |
+                                pattern_table |
                                 ((((oam_entry.tile_id & 0xFE) + 1) as u16) << 4) |
-                                (((self.scanline - (oam_entry.y as i16)) as u16 ) & 0x07);
+                                row;
                         } else {
                             sprite_pattern_address_low =
-                                (((oam_entry.tile_id & 0x01) as u16) << 12) |
+                                pattern_table |
                                 (((oam_entry.tile_id & 0xFE) as u16) << 4) |
-                                (((self.scanline - (oam_entry.y as i16)) as u16 ) & 0x07);
+                                row;
                         }
                     }
                 }
@@ -397,7 +405,7 @@ impl Ppu2C02 {
                 sprite_pattern_bit_low = self.ppu_read(sprite_pattern_address_low);
                 sprite_pattern_bit_high = self.ppu_read(sprite_pattern_address_high);
 
-                if flip_horizontally {
+                if oam_entry.attribute.flip_horizontally() {
                     sprite_pattern_bit_low = sprites::flip_byte_horizontally(sprite_pattern_bit_low);
                     sprite_pattern_bit_high = sprites::flip_byte_horizontally(sprite_pattern_bit_high);
                 }
@@ -542,10 +550,8 @@ impl Ppu2C02 {
                     let pixel_plane_1 = if (self.sprite.shifter_pattern_high[i] & 0x80) > 0 { 1 } else { 0 };
                     fg_pixel = (pixel_plane_1 << 1) | pixel_plane_0;
 
-                    let palette_plane_0 = oam_entry.get_oam_attribute(sprites::OamAttribute::Palette0) << 0;
-                    let palette_plane_1 = oam_entry.get_oam_attribute(sprites::OamAttribute::Palette1) << 1;
-                    fg_palette = (palette_plane_1 | palette_plane_0) + 4; // The foreground palettes were the last 4 (4-7)
-                    fg_priority_over_background = oam_entry.get_oam_attribute(sprites::OamAttribute::Priority) == 0;
+                    fg_palette = oam_entry.attribute.palette() + 4; // The foreground palettes were the last 4 (4-7)
+                    fg_priority_over_background = !oam_entry.attribute.priority();
 
                     // We know the sprites are in priority order(earliest address is higher priority)
                     // We also know that if a pixel is 0 it is transparent
