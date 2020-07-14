@@ -92,6 +92,7 @@ impl Bus {
     }
 
     pub fn reset(&mut self) {
+        self.apu.reset();
         for i in 0..self.ram.len() {
             self.ram[i] = 0
         }

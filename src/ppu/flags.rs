@@ -105,7 +105,7 @@ impl ScrollAddress {
     }
 
     pub fn name_table_address(&mut self) -> u16 {
-        addresses::NAME_TABLE_ADDRESS_LOWER | self.get() & 0x0FFF
+        addresses::NAME_TABLE_ADDRESS_LOWER | (self.get() & 0x0FFF)
     }
 
     pub fn attribute_table_address(&mut self) -> u16 {

@@ -24,11 +24,9 @@ impl Frame {
     }
 
     pub fn set_pixel(&mut self, x: i32, y: i32, color: Color) {
-        if (x < 0 || x > (FRAME_WIDTH - 1) as i32) || (y < 0 || y > (FRAME_HEIGHT - 1) as i32) {
-            return;
+        if x >= 0 && x < (FRAME_WIDTH as i32) && y >= 0 && y < (FRAME_HEIGHT as i32) {
+            self.pixels[y as usize][x as usize] = color;
         }
-
-        self.pixels[y as usize][x as usize] = color;
     }
 
     fn initialize_frame() -> Vec<[Color; 256]> {

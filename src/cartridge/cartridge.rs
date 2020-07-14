@@ -1,5 +1,5 @@
 use std::fs;
-use crate::cartridge::mappers;
+use crate::mappers;
 
 pub struct Cartridge {
     prg_memory: Vec<u8>,
@@ -7,7 +7,7 @@ pub struct Cartridge {
     mapper_id: u8,
     prg_banks: u8,
     chr_banks: u8,
-    mapper: Option<Box<dyn mappers::Mapper>>,
+    mapper: Option<Box<dyn mappers::mappers::Mapper>>,
     pub mirror: Mirror
 }
 
@@ -123,10 +123,10 @@ impl Cartridge {
         false
     }
 
-    fn get_mapper(mapper_id: u8, prg_banks: u8, chr_banks: u8) -> Option<Box<dyn mappers::Mapper>> {
-        let mut mapper: Option<Box<dyn mappers::Mapper>> = None;
+    fn get_mapper(mapper_id: u8, prg_banks: u8, chr_banks: u8) -> Option<Box<dyn mappers::mappers::Mapper>> {
+        let mut mapper: Option<Box<dyn mappers::mappers::Mapper>> = None;
         match mapper_id {
-            0 => mapper = Some(Box::new(mappers::Mapper000 { prg_banks, chr_banks })),
+            0 => mapper = Some(Box::new(mappers::mapper000::Mapper000 { prg_banks, chr_banks })),
             _ => ()
         };
 

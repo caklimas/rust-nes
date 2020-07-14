@@ -73,6 +73,10 @@ impl ggez::event::EventHandler for nes::Nes {
 
     fn key_down_event(&mut self, _ctx: &mut Context, keycode: KeyCode, _keymods: KeyMods, _repeat: bool) {
         match keycode {
+            KeyCode::L => {
+                println!("Writing");
+                println!("Done writing");
+            },
             KeyCode::C => {
                 self.clock();
                 while self.cpu.cycles != 0 {

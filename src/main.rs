@@ -11,6 +11,7 @@ mod bus;
 mod cpu;
 mod ppu;
 mod cartridge;
+mod mappers;
 mod memory_sizes;
 mod display;
 mod frame;
