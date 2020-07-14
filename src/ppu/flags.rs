@@ -47,6 +47,12 @@ bitfield! {
     pub _, set: 7, 0;
 }
 
+impl Control {
+    pub fn get_sprite_size(&mut self) -> u8 {
+        if self.sprite_size() { 16 } else { 8 }
+    }
+}
+
 bitfield! {
     #[derive(Copy, Clone)]
     pub struct ScrollAddress(u16);

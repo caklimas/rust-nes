@@ -371,45 +371,10 @@ impl Ppu2C02 {
 
     /// Check to see if each sprite should be rendered on the current scanline
     /// This is done checking the y coordinates of each sprite to the current visible scanline
-    /// If it's greater
+    /// If it's greater than 8, then set sprite overflow
     fn evaluate_sprites(&mut self) {
-        // Clear sprite scanline
-        self.sprite.count = 0;
-        for i in 0..self.sprite.sprite_scanline.len() {
-            self.sprite.sprite_scanline[i] = 0xFF;
-        }
-
-        for i in 0..sprites::MAX_SPRITE_COUNT {
-            self.sprite.shifter_pattern_low[i] = 0;
-            self.sprite.shifter_pattern_high[i] = 0;
-        }
-
-        self.sprite.zero_hit_possible = false;
-        let sprite_size = if self.control.sprite_size() { 16 } else { 8 };
-        let mut current_oam_entry: usize = 0;
-        // You can only have 8 sprites on the screen
-        while current_oam_entry < sprites::MAX_SPRITES && self.sprite.count <= sprites::MAX_SPRITE_COUNT {
-            let index = current_oam_entry * sprites::OAM_ENTRY_SIZE;
-            let diff = (self.scanline as i16) - (self.oam.memory[index] as i16);
-            if diff >= 0 && diff < sprite_size {
-                if self.sprite.count < sprites::MAX_SPRITE_COUNT {
-                    if current_oam_entry == 0 {
-                        self.sprite.zero_hit_possible = true;
-                    }
-
-                    for i in 0..sprites::OAM_ENTRY_SIZE {
-                        let sprite_index = (self.sprite.count * sprites::OAM_ENTRY_SIZE) + i;
-                        let oam_index = index + i;
-                        self.sprite.sprite_scanline[sprite_index] = self.oam.memory[oam_index];
-                    }
-
-                    self.sprite.count += 1;
-                }
-            }
-
-            current_oam_entry += 1;
-        }
-
+        let sprite_size = self.control.get_sprite_size();
+        self.sprite.evaluate_sprites(self.scanline, sprite_size.into(), &self.oam);
         self.status.set_sprite_overflow(self.sprite.count > 8);
     }
 

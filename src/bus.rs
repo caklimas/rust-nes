@@ -84,7 +84,7 @@ impl Bus {
             self.dma.address = 0x00;
             self.dma_transfer = true;
         } else if self.is_apu_address(address) {
-            self.apu.cpu_write(address, data);
+            self.apu.write(address, data);
         } else if address >= addresses::CONTROLLER_ONE_INPUT && address <= addresses::CONTROLLER_TWO_INPUT {
             let masked_address = address & 0x0001;
             self.controllers[masked_address as usize].set_state();

@@ -46,6 +46,44 @@ impl Sprite {
         }
     }
 
+    pub fn evaluate_sprites(&mut self, scanline: i16, sprite_size: i16, oam: &oam::ObjectAttributeMemory) {
+        // Clear sprite scanline
+        self.count = 0;
+        for i in 0..self.sprite_scanline.len() {
+            self.sprite_scanline[i] = 0xFF;
+        }
+
+        for i in 0..MAX_SPRITE_COUNT {
+            self.shifter_pattern_low[i] = 0;
+            self.shifter_pattern_high[i] = 0;
+        }
+
+        self.zero_hit_possible = false;
+        let mut current_oam_entry: usize = 0;
+        // You can only have 8 sprites on the screen
+        while current_oam_entry < MAX_SPRITES && self.count <= MAX_SPRITE_COUNT {
+            let index = current_oam_entry * OAM_ENTRY_SIZE;
+            let diff = (scanline as i16) - (oam.memory[index] as i16);
+            if diff >= 0 && diff < sprite_size {
+                if self.count < MAX_SPRITE_COUNT {
+                    if current_oam_entry == 0 {
+                        self.zero_hit_possible = true;
+                    }
+
+                    for i in 0..OAM_ENTRY_SIZE {
+                        let sprite_index = (self.count * OAM_ENTRY_SIZE) + i;
+                        let oam_index = index + i;
+                        self.sprite_scanline[sprite_index] = oam.memory[oam_index];
+                    }
+
+                    self.count += 1;
+                }
+            }
+
+            current_oam_entry += 1;
+        }
+    }
+
     pub fn get_pixel(&mut self) -> (u8, u8, bool) {
         let mut pixel = 0x00;
         let mut palette = 0x00;

@@ -19,13 +19,13 @@ impl Apu {
 
     }
 
-    pub fn cpu_read(&mut self, address: u16) -> u8 {
+    pub fn read(&mut self, address: u16) -> u8 {
         let data = 0;
 
         data
     }
 
-    pub fn cpu_write(&mut self, address: u16, data: u8) {
+    pub fn write(&mut self, address: u16, data: u8) {
         match address {
             addresses::APU_PULSE_1_TIMER => {
 
