@@ -6,9 +6,10 @@ use crate::cartridge::cartridge;
 use crate::memory_sizes;
 use crate::addresses;
 use crate::frame;
-use super::sprites;
-use super::flags;
 use super::colors;
+use super::background;
+use super::flags;
+use super::sprites;
 
 const CONTROL: u16 = 0x0000; // Configure ppu to render in different ways
 const MASK: u16 = 0x0001; // Decides what sprites or backgrounds are being drawn and what happens at the edges of the screen
@@ -45,14 +46,7 @@ pub struct Ppu2C02 {
     current_vram_address: flags::ScrollAddress,
     temp_vram_address: flags::ScrollAddress,
     fine_x_scroll: u8,
-    bg_next_tile_id: u8,
-    bg_next_tile_attribute: u8,
-    bg_next_tile_lsb: u8,
-    bg_next_tile_msb: u8,
-    bg_shifter_pattern_low: u16,
-    bg_shifter_pattern_high: u16,
-    bg_shifter_attribute_low: u16,
-    bg_shifter_attribute_high: u16,
+    background: background::Background,
     sprite_scanline: Vec<u8>,
     sprite_count: usize,
     sprite_shifter_pattern_low: Vec<u8>,
@@ -85,14 +79,7 @@ impl Ppu2C02 {
             current_vram_address: flags::ScrollAddress(0),
             temp_vram_address: flags::ScrollAddress(0),
             fine_x_scroll: 0,
-            bg_next_tile_id: 0x00,
-            bg_next_tile_attribute: 0x00,
-            bg_next_tile_lsb: 0x00,
-            bg_next_tile_msb: 0x00,
-            bg_shifter_pattern_low: 0x0000,
-            bg_shifter_pattern_high: 0x0000,
-            bg_shifter_attribute_low: 0x0000,
-            bg_shifter_attribute_high: 0x0000,
+            background: Default::default(),
             sprite_scanline: vec![0; sprites::MAX_SPRITE_COUNT * sprites::OAM_ENTRY_SIZE], // 8 sprites times size of an entry
             sprite_count: 0,
             sprite_shifter_pattern_low: vec![0; sprites::MAX_SPRITE_COUNT],
@@ -309,10 +296,10 @@ impl Ppu2C02 {
             if sub_cycle == 0 {
                 self.load_shifters();
                 let name_table_address = self.current_vram_address.name_table_address();
-                self.bg_next_tile_id = self.ppu_read(name_table_address);
+                self.background.next_tile_id = self.ppu_read(name_table_address);
             } else if sub_cycle == 2 {
                 let attribute_table_address = self.current_vram_address.attribute_table_address();
-                self.bg_next_tile_attribute = self.ppu_read(attribute_table_address);
+                self.background.next_tile_attribute = self.ppu_read(attribute_table_address);
 
                 // Since there are only 4 palettes for the background tiles, we only need 2 bits to select a palette(2 bits range is 0-3)
                 // We get a byte of data we can split that byte up into 4 sets of 2 bits.
@@ -322,20 +309,20 @@ impl Ppu2C02 {
                 // If coarse x % 4 < 2 then it is in the left half
                 // Knowing this and that we want the last two bits to be the palette selected so we shift accordingly.
                 if self.current_vram_address.coarse_y() & 0x02 > 0 {
-                    self.bg_next_tile_attribute >>= 4; // Use bits 7,6 or 5,4
+                    self.background.next_tile_attribute >>= 4; // Use bits 7,6 or 5,4
                 }
 
                 if self.current_vram_address.coarse_x() & 0x02 > 0 {
-                    self.bg_next_tile_attribute >>= 2; // USe bits 7,6 or 3,2
+                    self.background.next_tile_attribute >>= 2; // USe bits 7,6 or 3,2
                 }
 
-                self.bg_next_tile_attribute &= 0x03;
+                self.background.next_tile_attribute &= 0x03;
             } else if sub_cycle == 4 {
                 let pattern_address = self.get_pattern_address(0);
-                self.bg_next_tile_lsb = self.ppu_read(pattern_address);
+                self.background.next_tile_lsb = self.ppu_read(pattern_address);
             } else if sub_cycle == 6 {
                 let pattern_address = self.get_pattern_address(8);
-                self.bg_next_tile_msb = self.ppu_read(pattern_address);
+                self.background.next_tile_msb = self.ppu_read(pattern_address);
             } else if sub_cycle == 7 {
                 self.increment_x();
             }
@@ -360,7 +347,7 @@ impl Ppu2C02 {
         // Useless read of the tile id at the end of the scanline
         if self.cycle == 338 || self.cycle == 340 {
             let name_table_address = self.current_vram_address.name_table_address();
-            self.bg_next_tile_id = self.ppu_read(name_table_address);
+            self.background.next_tile_id = self.ppu_read(name_table_address);
         }
     }
 
@@ -541,13 +528,13 @@ impl Ppu2C02 {
         let mut bg_pixel = 0x00;
         if self.mask.render_background() {
             let shift_register_bit = 0x8000 >> self.fine_x_scroll;
-            let pixel_plane_0 = if (self.bg_shifter_pattern_low & shift_register_bit) > 0 { 1 } else { 0 };
-            let pixel_plane_1 = if (self.bg_shifter_pattern_high & shift_register_bit) > 0 { 1 } else { 0 };
+            let pixel_plane_0 = if (self.background.shifter_pattern_low & shift_register_bit) > 0 { 1 } else { 0 };
+            let pixel_plane_1 = if (self.background.shifter_pattern_high & shift_register_bit) > 0 { 1 } else { 0 };
 
             bg_pixel = (pixel_plane_1 << 1) | pixel_plane_0;
 
-            let bg_palette_0 = if (self.bg_shifter_attribute_low & shift_register_bit) > 0 { 1 } else { 0 };
-            let bg_palette_1 = if (self.bg_shifter_attribute_high & shift_register_bit) > 0 { 1 } else { 0 };
+            let bg_palette_0 = if (self.background.shifter_attribute_low & shift_register_bit) > 0 { 1 } else { 0 };
+            let bg_palette_1 = if (self.background.shifter_attribute_high & shift_register_bit) > 0 { 1 } else { 0 };
 
             bg_palette = (bg_palette_1 << 1) | bg_palette_0;
         }
@@ -605,21 +592,21 @@ impl Ppu2C02 {
     }
 
     fn load_shifters(&mut self) {
-        self.bg_shifter_pattern_low = (self.bg_shifter_pattern_low & 0xFF00) | (self.bg_next_tile_lsb as u16);
-        self.bg_shifter_pattern_high = (self.bg_shifter_pattern_high & 0xFF00) | (self.bg_next_tile_msb as u16);
+        self.background.shifter_pattern_low = (self.background.shifter_pattern_low & 0xFF00) | (self.background.next_tile_lsb as u16);
+        self.background.shifter_pattern_high = (self.background.shifter_pattern_high & 0xFF00) | (self.background.next_tile_msb as u16);
 
         // Attribute bits don't change per pixel, but for every tile(8 pixels)
         // We then inflate the bottom and top bit to 8 bits
-        self.bg_shifter_attribute_low = (self.bg_shifter_attribute_low & 0xFF00) | (if (self.bg_next_tile_attribute & 0b01) > 0 { 0xFF } else { 0x00 });
-        self.bg_shifter_attribute_high = (self.bg_shifter_attribute_high & 0xFF00) | (if (self.bg_next_tile_attribute & 0b10) > 0 { 0xFF } else { 0x00 });
+        self.background.shifter_attribute_low = (self.background.shifter_attribute_low & 0xFF00) | (if (self.background.next_tile_attribute & 0b01) > 0 { 0xFF } else { 0x00 });
+        self.background.shifter_attribute_high = (self.background.shifter_attribute_high & 0xFF00) | (if (self.background.next_tile_attribute & 0b10) > 0 { 0xFF } else { 0x00 });
     }
 
     fn update_shifters(&mut self) {
         if self.mask.render_background() {
-            self.bg_shifter_pattern_low <<= 1;
-            self.bg_shifter_pattern_high <<= 1;
-            self.bg_shifter_attribute_low <<= 1;
-            self.bg_shifter_attribute_high <<= 1;
+            self.background.shifter_pattern_low <<= 1;
+            self.background.shifter_pattern_high <<= 1;
+            self.background.shifter_attribute_low <<= 1;
+            self.background.shifter_attribute_high <<= 1;
         }
 
         if self.mask.render_sprite() && self.cycle >= 1 && self.cycle <= MAX_VISIBLE_CLOCK_CYCLE {
@@ -776,7 +763,7 @@ impl Ppu2C02 {
 
     fn get_pattern_address(&mut self, offset: u16) -> u16 {
         let upper = (self.control.background_table_address() as u16) << 12;
-        let middle = (self.bg_next_tile_id as u16) << 4;
+        let middle = (self.background.next_tile_id as u16) << 4;
         let lower = self.current_vram_address.fine_y() as u16;
         let address = upper + middle + lower + offset;
 
