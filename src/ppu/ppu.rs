@@ -294,7 +294,7 @@ impl Ppu2C02 {
 
             let sub_cycle = (self.cycle - 1) % 8;
             if sub_cycle == 0 {
-                self.load_shifters();
+                self.background.load_shifters();
                 let name_table_address = self.current_vram_address.name_table_address();
                 self.background.next_tile_id = self.ppu_read(name_table_address);
             } else if sub_cycle == 2 {
@@ -336,7 +336,7 @@ impl Ppu2C02 {
         }
         
         if self.cycle == MAX_VISIBLE_CLOCK_CYCLE {
-            self.load_shifters();
+            self.background.load_shifters();
             self.transfer_x_address();
         }
 
@@ -591,22 +591,9 @@ impl Ppu2C02 {
         }
     }
 
-    fn load_shifters(&mut self) {
-        self.background.shifter_pattern_low = (self.background.shifter_pattern_low & 0xFF00) | (self.background.next_tile_lsb as u16);
-        self.background.shifter_pattern_high = (self.background.shifter_pattern_high & 0xFF00) | (self.background.next_tile_msb as u16);
-
-        // Attribute bits don't change per pixel, but for every tile(8 pixels)
-        // We then inflate the bottom and top bit to 8 bits
-        self.background.shifter_attribute_low = (self.background.shifter_attribute_low & 0xFF00) | (if (self.background.next_tile_attribute & 0b01) > 0 { 0xFF } else { 0x00 });
-        self.background.shifter_attribute_high = (self.background.shifter_attribute_high & 0xFF00) | (if (self.background.next_tile_attribute & 0b10) > 0 { 0xFF } else { 0x00 });
-    }
-
     fn update_shifters(&mut self) {
         if self.mask.render_background() {
-            self.background.shifter_pattern_low <<= 1;
-            self.background.shifter_pattern_high <<= 1;
-            self.background.shifter_attribute_low <<= 1;
-            self.background.shifter_attribute_high <<= 1;
+            self.background.update_shifters();
         }
 
         if self.mask.render_sprite() && self.cycle >= 1 && self.cycle <= MAX_VISIBLE_CLOCK_CYCLE {
