@@ -64,7 +64,7 @@ impl Ppu2C02 {
             frame_complete: false,
             colors: colors::get_colors(),
             frame: frame::Frame::new(),
-            oam: initialize_oam(),
+            oam: oam::initialize_oam(),
             oam_address: 0x00,
             status: flags::Status(0),
             control: flags::Control(0),
@@ -310,7 +310,9 @@ impl Ppu2C02 {
                 let pattern_address = self.get_pattern_address(8);
                 self.background.next_tile_msb = self.ppu_read(pattern_address);
             } else if sub_cycle == 7 {
-                self.increment_x();
+                if self.mask.is_rendering_enabled() {
+                    self.current_vram_address.increment_x();
+                }
             }
         }
 
@@ -318,7 +320,9 @@ impl Ppu2C02 {
             // If rendering is enabled, the PPU increments the vertical position in v.
             // The effective Y scroll coordinate is incremented, which is a complex operation that will correctly skip the attribute table memory regions,
             // and wrap to the next nametable appropriately.
-            self.increment_y();
+            if self.mask.is_rendering_enabled() {
+                self.current_vram_address.increment_y();
+            }
         }
         
         if self.cycle == MAX_VISIBLE_CLOCK_CYCLE {
@@ -344,68 +348,19 @@ impl Ppu2C02 {
         }
 
         if self.cycle == MAX_CLOCK_CYCLE - 1 {
-            let sprite_mode = self.control.sprite_size();
             for i in 0..self.sprite.count {
-                let oam_entry = sprites::get_object_attribute_entry(&self.sprite.scanline, i * sprites::OAM_ENTRY_SIZE);
-                let mut sprite_pattern_bit_low: u8;
-                let mut sprite_pattern_bit_high: u8;
-                let sprite_pattern_address_low: u16;
-                let sprite_pattern_address_high: u16;
+                let (sprite_pattern_address_low, flip_horizontally) = self.sprite.get_pattern_address(
+                    i,
+                    self.control.sprite_size(), 
+                    self.control.sprite_table_address() as u16,
+                    self.scanline
+                );
 
-                let pattern_table = if !sprite_mode { 
-                    (self.control.sprite_table_address() as u16) << 12 
-                } else { 
-                    ((oam_entry.tile_id & 0x01) as u16) << 12
-                };
-                
-                if !sprite_mode {
-                    let cell = (oam_entry.tile_id as u16) << 4;
-                    let row = if !oam_entry.attribute.flip_vertically() { 
-                        (self.scanline - (oam_entry.y as i16)) as u16
-                    } else { 
-                        7 - ((self.scanline - (oam_entry.y as i16)) as u16)
-                    };
+                let sprite_pattern_address_high = sprite_pattern_address_low + 8;
+                let mut sprite_pattern_bit_low = self.ppu_read(sprite_pattern_address_low);
+                let mut sprite_pattern_bit_high = self.ppu_read(sprite_pattern_address_high);
 
-                    sprite_pattern_address_low = pattern_table | cell | row;
-                } else {
-                    let row = if !oam_entry.attribute.flip_vertically() {
-                        ((self.scanline - (oam_entry.y as i16)) as u16 ) & 0x07
-                    } else {
-                        (7 - (self.scanline - (oam_entry.y as i16)) as u16 ) & 0x07
-                    };
-
-                    if !oam_entry.attribute.flip_vertically() {
-                        if self.scanline - (oam_entry.y as i16) < 8 {
-                            sprite_pattern_address_low =
-                                pattern_table |
-                                (((oam_entry.tile_id & 0xFE) as u16) << 4) |
-                                row;
-                        } else {
-                            sprite_pattern_address_low =
-                                pattern_table |
-                                ((((oam_entry.tile_id & 0xFE) + 1) as u16) << 4) |
-                                row;
-                        }
-                    } else {
-                        if self.scanline - (oam_entry.y as i16) < 8 {
-                            sprite_pattern_address_low =
-                                pattern_table |
-                                ((((oam_entry.tile_id & 0xFE) + 1) as u16) << 4) |
-                                row;
-                        } else {
-                            sprite_pattern_address_low =
-                                pattern_table |
-                                (((oam_entry.tile_id & 0xFE) as u16) << 4) |
-                                row;
-                        }
-                    }
-                }
-
-                sprite_pattern_address_high = sprite_pattern_address_low + 8;
-                sprite_pattern_bit_low = self.ppu_read(sprite_pattern_address_low);
-                sprite_pattern_bit_high = self.ppu_read(sprite_pattern_address_high);
-
-                if oam_entry.attribute.flip_horizontally() {
+                if flip_horizontally {
                     sprite_pattern_bit_low = sprites::flip_byte_horizontally(sprite_pattern_bit_low);
                     sprite_pattern_bit_high = sprites::flip_byte_horizontally(sprite_pattern_bit_high);
                 }
@@ -422,8 +377,8 @@ impl Ppu2C02 {
     fn evaluate_sprites(&mut self) {
         // Clear sprite scanline
         self.sprite.count = 0;
-        for i in 0..self.sprite.scanline.len() {
-            self.sprite.scanline[i] = 0xFF;
+        for i in 0..self.sprite.sprite_scanline.len() {
+            self.sprite.sprite_scanline[i] = 0xFF;
         }
 
         for i in 0..sprites::MAX_SPRITE_COUNT {
@@ -447,7 +402,7 @@ impl Ppu2C02 {
                     for i in 0..sprites::OAM_ENTRY_SIZE {
                         let sprite_index = (self.sprite.count * sprites::OAM_ENTRY_SIZE) + i;
                         let oam_index = asd + i;
-                        self.sprite.scanline[sprite_index] = self.oam[oam_index];
+                        self.sprite.sprite_scanline[sprite_index] = self.oam[oam_index];
                     }
 
                     self.sprite.count += 1;
@@ -530,18 +485,6 @@ impl Ppu2C02 {
         }
 
         self.sprite.get_pixel()
-    }
-
-    fn increment_x(&mut self) {
-        if self.mask.is_rendering_enabled() {
-            self.current_vram_address.increment_x();
-        }
-    }
-
-    fn increment_y(&mut self) {
-        if self.mask.is_rendering_enabled() {
-            self.current_vram_address.increment_y();
-        }
     }
 
     fn update_shifters(&mut self) {
@@ -637,12 +580,8 @@ impl Ppu2C02 {
                     cartridge::Mirror::Horizontal => {
                         if masked_address <= 0x07FF {
                             self.name_table[0][address_offset] = data;
-                            // let x = format!("Writing Horizontal data to address {} = nametable[0][{}]", masked_address, address_offset);
-                            // self.log.push(x);
                         } else if masked_address >= 0x0800 && masked_address <= 0x0FFF {
                             self.name_table[1][address_offset] = data;
-                            // let x = format!("Writing Horizontal data to address {} = nametable[1][{}]", masked_address, address_offset);
-                            // self.log.push(x);
                         }
                     }, 
                     _ => ()
@@ -696,15 +635,4 @@ impl Ppu2C02 {
 
         address
     }
-}
-
-fn initialize_oam() -> Vec<u8> {
-    let capacity = sprites::OAM_ENTRY_SIZE * sprites::MAX_SPRITES;
-    let mut vec: Vec<u8> = Vec::with_capacity(capacity as usize);
-
-    for _ in 0..capacity {
-        vec.push(0);
-    }
-
-    vec
 }

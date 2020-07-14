@@ -1,3 +1,5 @@
+use super::sprites;
+
 #[derive(Debug)]
 pub struct ObjectAttributeEntry {
     pub y: u8,
@@ -19,4 +21,15 @@ bitfield! {
     pub priority, _: 5; // Priority (0: in front of background; 1: behind background)
     pub flip_horizontally, _: 6; // Flip sprite horizontally
     pub flip_vertically, _: 7; // Flip sprite vertically
+}
+
+pub fn initialize_oam() -> Vec<u8> {
+    let capacity = sprites::OAM_ENTRY_SIZE * sprites::MAX_SPRITES;
+    let mut vec: Vec<u8> = Vec::with_capacity(capacity as usize);
+
+    for _ in 0..capacity {
+        vec.push(0);
+    }
+
+    vec
 }
