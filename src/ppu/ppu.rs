@@ -148,8 +148,7 @@ impl Ppu2C02 {
                     data = self.ppu_data_buffer;
                 }
 
-                let address_increment = if self.control.vram_address() { 32 } else { 1 };
-                self.current_vram_address.increment(address_increment);
+                self.current_vram_address.increment(self.control.get_increment_amount());
             },
             _ => ()
         };
@@ -218,9 +217,7 @@ impl Ppu2C02 {
             },
             PPU_DATA => {
                 self.ppu_write(self.current_vram_address.get(), data);
-
-                let address_increment = if self.control.vram_address() { 32 } else { 1 };
-                self.current_vram_address.increment(address_increment);
+                self.current_vram_address.increment(self.control.get_increment_amount());
             },
             _ => ()
         };
@@ -591,11 +588,9 @@ impl Ppu2C02 {
     }
 
     fn get_pattern_address(&mut self, offset: u16) -> u16 {
-        let upper = (self.control.background_table_address() as u16) << 12;
-        let middle = (self.background.next_tile_id as u16) << 4;
-        let lower = self.current_vram_address.fine_y() as u16;
-        let address = upper + middle + lower + offset;
-
-        address
+        ((self.control.background_table_address() as u16) << 12) +
+        ((self.background.next_tile_id as u16) << 4) +
+        (self.current_vram_address.fine_y() as u16) +
+        offset
     }
 }

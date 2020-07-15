@@ -48,6 +48,10 @@ bitfield! {
 }
 
 impl Control {
+    pub fn get_increment_amount(&mut self) -> u16 {
+        if self.vram_address() { 32 } else { 1 }
+    }
+
     pub fn get_sprite_size(&mut self) -> u8 {
         if self.sprite_size() { 16 } else { 8 }
     }
