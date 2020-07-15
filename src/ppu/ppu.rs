@@ -176,7 +176,7 @@ impl Ppu2C02 {
             },
             OAM_DATA => {
                 self.oam.memory[self.oam.address as usize] = data;
-                self.oam.address.wrapping_add(1);
+                self.oam.address = self.oam.address.wrapping_add(1);
             },
             SCROLL => {
                 if !self.address_latch {

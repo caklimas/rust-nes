@@ -77,7 +77,7 @@ impl ScrollAddress {
     pub fn increment_x(&mut self) {
         if self.coarse_x() == 31 {
             self.set_coarse_x(0);
-            self.0 ^= 0x0400; // Switch horizontal table
+            self.set_name_table_x(!self.name_table_x()); // Switch horizontal table
         } else {
             self.set_coarse_x(self.coarse_x() + 1);
         }
@@ -91,7 +91,7 @@ impl ScrollAddress {
             let mut y = self.coarse_y();
             if y == 29 { // 29 is the last row of tiles in the name table
                 y = 0;
-                self.0 ^= 0x8000;
+                self.set_name_table_y(!self.name_table_y()); // Switch vertical table
             } else if y == 31 { // Coarse Y can be set out of bounds and will wrap to 0
                 y = 0;
             } else {
@@ -103,11 +103,14 @@ impl ScrollAddress {
     }
 
     pub fn transfer_x_address(&mut self, source: ScrollAddress) {
-        self.0 = (self.0 & !0x041F) | (source.0 & 0x041F);
+        self.set_name_table_x(source.name_table_x());
+        self.set_coarse_x(source.coarse_x());
     }
 
     pub fn transfer_y_address(&mut self, source: ScrollAddress) {
-        self.0 = (self.0 & !0x7BE0) | (source.0 & 0x7BE0);
+        self.set_fine_y(source.fine_y());
+        self.set_name_table_y(source.name_table_y());
+        self.set_coarse_y(source.coarse_y());
     }
 
     pub fn name_table_address(&mut self) -> u16 {
