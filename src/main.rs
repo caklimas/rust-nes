@@ -2,10 +2,7 @@
 extern crate bitfield;
 
 use ggez::*;
-use rodio::Sink;
-use rodio::Source;
 use std::env;
-use std::time;
 
 mod nes;
 mod bus;
@@ -21,8 +18,8 @@ mod controller;
 mod audio;
 
 fn main() {
-    // play_sound();
-    run_game();
+    audio::sine::play_sound();
+    // run_game();
 }
 
 fn run_game() {
@@ -43,24 +40,4 @@ fn run_game() {
         .expect("Error building context");
 
     event::run(ctx, event_loop, &mut nes).expect("Error running loop");
-}
-
-fn play_sound() {
-    std::thread::spawn(move || {
-        let device = rodio::default_output_device().expect("Error loading audio device");
-        let sink = Sink::new(&device);
-        let source1 = rodio::source::SineWave::new(300).take_duration(time::Duration::from_millis(500));
-        println!("{}", source1.channels());
-        let source2 = rodio::source::SineWave::new(400).take_duration(time::Duration::from_millis(500));
-        sink.append(source1);
-        sink.append(source2);
-        sink.play();
-
-        let now = time::Instant::now();
-        loop {
-            if now.elapsed().as_millis() > 1000 {
-                break;
-            }
-        }
-    });
 }

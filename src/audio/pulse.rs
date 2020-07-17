@@ -1,32 +1,37 @@
-pub enum PulseTimer {
-    VolumeEnvelope0 = (1 << 0),
-    VolumeEnvelope1 = (1 << 1),
-    VolumeEnvelope2 = (1 << 2),
-    VolumeEnvelope3 = (1 << 3),
-    ConstantVolume = (1 << 4),
-    LengthCounterHalt = (1 << 5),
-    Duty0 = (1 << 6), 
-    Duty1 = (1 << 7)
+bitfield! {
+    pub struct PulseDuty(u8);
+    impl Debug;
+
+    pub u8, envelope_period_volume, _: 3, 0;
+    pub u8, constant_volume, _: 4;
+    pub u8, loop_envelope, _: 5;
+    pub u8, duty, _: 7, 6;
+    pub u8, get, set: 7, 0;
 }
 
-pub enum PusleSweepUnit {
-    Shift0 = (1 << 0),
-    Shift1 = (1 << 1),
-    Shift2 = (1 << 2),
-    Negate = (1 << 3),
-    Period0 = (1 << 4),
-    Period1 = (1 << 5),
-    Period2 = (1 << 6),
-    Enabled = (1 << 7),
+bitfield! {
+    pub struct PulseSweep(u8);
+    impl Debug;
+
+    pub u8, shift_count, _: 2, 0;
+    pub u8, negative, _: 3;
+    pub u8, period, _: 6, 4;
+    pub u8, enabled, _: 7;
+    pub u8, get, set: 7, 0;
 }
 
-pub enum PulseLengthCounterLoad {
-    TimerHigh0 = (1 << 0),
-    TimerHigh1 = (1 << 1),
-    TimerHigh2 = (1 << 2),
-    LengthCounterLoad0 = (1 << 3),
-    LengthCounterLoad1 = (1 << 4),
-    LengthCounterLoad2 = (1 << 5),
-    LengthCounterLoad3 = (1 << 6),
-    LengthCounterLoad4 = (1 << 7)
+bitfield! {
+    pub struct PulseTimerLow(u8);
+    impl Debug;
+
+    pub u8, get, set: 7, 0;
+}
+
+bitfield! {
+    pub struct PulseTimerHigh(u8);
+    impl Debug;
+
+    pub u8, timer_high, _: 2, 0;
+    pub u8, length_counter_load, _: 7, 3;
+    pub u8, get, set: 7, 0;
 }

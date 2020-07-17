@@ -55,7 +55,7 @@ impl Nes {
         &mut self.cpu.bus.ppu
     }
 
-    pub fn apu(&mut self) -> &mut audio::apu::Apu {
+    pub fn apu(&mut self) -> &mut audio::apu::Apu2A03 {
         &mut self.cpu.bus.apu
     }
 

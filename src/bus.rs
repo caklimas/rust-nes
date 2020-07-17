@@ -13,11 +13,12 @@ const CPU_MIRROR: u16 = 0x07FF;
 
 pub struct Bus {
     pub ppu: ppu::Ppu2C02,
-    pub apu: audio::apu::Apu,
+    pub apu: audio::apu::Apu2A03,
     pub cartridge: Option<Rc<RefCell<cartridge::Cartridge>>>,
     pub controllers: [controller::Controller; 2],
     pub dma: sprites::DirectMemoryAccess,
     pub dma_transfer: bool,
+    pub audio_sample: f64,
     ram: [u8; RAM_SIZE]
 }
 
@@ -25,11 +26,12 @@ impl Bus {
     pub fn new() -> Self {
         Bus {
             ppu: ppu::Ppu2C02::new(),
-            apu: audio::apu::Apu::new(),
+            apu: Default::default(),
             cartridge: None,
             controllers: Default::default(),
             dma: Default::default(),
             dma_transfer: false,
+            audio_sample: 0.0,
             ram: [0; RAM_SIZE]
         }
     }
@@ -99,6 +101,6 @@ impl Bus {
     }
 
     fn is_apu_address(&mut self, address: u16) -> bool {
-        (address >= addresses::APU_PULSE_1_TIMER && address <= addresses::APU_DMC) || address == addresses::APU_STATUS || address == addresses::APU_FRAME_COUNTER
+        (address >= addresses::APU_PULSE_1_DUTY && address <= addresses::APU_DMC) || address == addresses::APU_STATUS || address == addresses::APU_FRAME_COUNTER
     }
 }
