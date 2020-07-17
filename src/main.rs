@@ -3,6 +3,7 @@ extern crate bitfield;
 
 use ggez::*;
 use std::env;
+use std::sync::{Arc, Mutex};
 
 mod nes;
 mod bus;
@@ -18,7 +19,12 @@ mod controller;
 mod audio;
 
 fn main() {
-    audio::sine::play_sound();
+    let buffer = Arc::new(Mutex::new(Vec::<f32>::new()));
+    let device = audio::device::AudioDevice {
+        buffer: Arc::clone(&buffer)
+    };
+
+    audio::square::play_sound(440.0);
     // run_game();
 }
 

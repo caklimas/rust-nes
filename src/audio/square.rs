@@ -1,7 +1,7 @@
 use sdl2::audio::{AudioCallback, AudioSpecDesired};
 use std::time::Duration;
 
-pub fn play_sound() {
+pub fn play_sound(frequency: f32) {
     let sdl_context = sdl2::init().unwrap();
     let audio_subsystem = sdl_context.audio().unwrap();
 
@@ -12,12 +12,11 @@ pub fn play_sound() {
     };
 
     let device = audio_subsystem.open_playback(None, &desired_spec, |spec| {
-        println!("{:?}", spec);
-
         // initialize the audio callback
         SquareWave {
-            phase_inc: 440.0 / spec.freq as f32,
-            phase: 0.0,
+            frequency,
+            sample: 0,
+            sample_rate: 44100,
             volume: 0.05
         }
     }).unwrap();
@@ -30,8 +29,9 @@ pub fn play_sound() {
 }
 
 struct SquareWave {
-    phase_inc: f32,
-    phase: f32,
+    frequency: f32,
+    sample: usize,
+    sample_rate: i32,
     volume: f32
 }
 
@@ -41,12 +41,13 @@ impl AudioCallback for SquareWave {
     fn callback(&mut self, out: &mut [f32]) {
         // Generate a square wave
         for x in out.iter_mut() {
-            *x = if self.phase >= 0.0 && self.phase <= 0.5 {
+            self.sample = self.sample.wrapping_add(1);
+            let value = super::get_angular_frequency(self.frequency) * self.sample as f32 / self.sample_rate as f32;
+            *x = if value.sin() > 0.0 {
                 self.volume
             } else {
                 -self.volume
             };
-            self.phase = (self.phase + self.phase_inc) % 1.0;
         }
     }
 }
