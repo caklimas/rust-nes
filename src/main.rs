@@ -20,12 +20,12 @@ mod audio;
 
 fn main() {
     let buffer = Arc::new(Mutex::new(Vec::<f32>::new()));
-    let device = audio::device::AudioDevice {
-        buffer: Arc::clone(&buffer)
-    };
-
-    audio::square::play_sound(440.0);
-    // run_game();
+    std::thread::spawn(move || {
+        let sdl_context = sdl2::init().unwrap();
+        let audio_device = audio::device::AudioDevice::new(&sdl_context, Arc::clone(&buffer));
+        audio_device.resume();
+    });
+    run_game();
 }
 
 fn run_game() {
