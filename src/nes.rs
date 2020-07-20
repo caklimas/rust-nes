@@ -1,3 +1,5 @@
+use std::sync::{Arc, Mutex};
+
 use crate::cpu;
 use crate::bus;
 use crate::ppu;
@@ -11,9 +13,9 @@ pub struct Nes {
 }
 
 impl Nes {
-    pub fn new() -> Self {
+    pub fn new(buffer: Arc<Mutex<Vec<f32>>>) -> Self {
         Nes {
-            cpu: cpu::cpu::Cpu6502::new(),
+            cpu: cpu::cpu::Cpu6502::new(buffer),
             system_clock_counter: 0,
             dma_dummy: false,
             can_draw: false
@@ -21,7 +23,7 @@ impl Nes {
     }
 
     pub fn clock(&mut self) {
-        self.ppu().clock();
+        let frame_complete = self.ppu().clock();
         self.apu().clock();
 
         // The CPU runs 3 times slower than the PPU
@@ -38,6 +40,11 @@ impl Nes {
             self.ppu().nmi = false;
             self.cpu.non_mask_interrupt_request();
         }
+
+        // if frame_complete {
+        //     let buffer_lock = self.apu().buffer.lock().expect("Error locking buffer");
+        //     println!("Audio count: {}", buffer_lock.len());
+        // }
 
         self.system_clock_counter += 1;
     }

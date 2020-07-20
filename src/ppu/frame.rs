@@ -1,23 +1,22 @@
-use ggez::graphics;
-use ggez::graphics::Color;
+use super::Color;
 
-pub const FRAME_WIDTH: u16 = 256;
-pub const FRAME_HEIGHT: u16 = 240;
+pub const FRAME_WIDTH: usize = 256;
+pub const FRAME_HEIGHT: usize = 240;
 
 pub struct Frame {
-    pixels: Vec<[Color; FRAME_WIDTH as usize]>
+    pixels: [[Color; FRAME_WIDTH]; FRAME_HEIGHT]
 }
 
 impl Frame {
     pub fn new() -> Self {
         Frame {
-            pixels: Frame::initialize_frame()
+            pixels: [[(0, 0, 0); FRAME_WIDTH]; FRAME_HEIGHT]
         }
     }
 
     pub fn get_pixel(&mut self, x: i32, y: i32) -> Color {
         if (x < 0 || x > (FRAME_WIDTH - 1) as i32) || (y < 0 || y > (FRAME_HEIGHT - 1) as i32) {
-            return graphics::BLACK;
+            return (0, 0, 0);
         }
 
         self.pixels[y as usize][x as usize]
@@ -27,14 +26,5 @@ impl Frame {
         if x >= 0 && x < (FRAME_WIDTH as i32) && y >= 0 && y < (FRAME_HEIGHT as i32) {
             self.pixels[y as usize][x as usize] = color;
         }
-    }
-
-    fn initialize_frame() -> Vec<[Color; 256]> {
-        let mut frame: Vec<[Color; FRAME_WIDTH as usize]> = Vec::new();
-        for _y in 0..FRAME_HEIGHT {
-            frame.push([graphics::BLACK; FRAME_WIDTH as usize]);
-        }
-    
-        frame
     }
 }

@@ -28,11 +28,29 @@ pub fn play_sound(volume: f32, frequency: f32, sample_rate: i32) {
     std::thread::sleep(Duration::from_millis(1000));
 }
 
-struct SineWave {
+pub struct SineWave {
     frequency: f32,
     sample: usize,
     sample_rate: i32,
     volume: f32
+}
+
+impl SineWave {
+    pub fn new(frequency: f32, volume: f32) -> Self {
+        SineWave {
+            frequency,
+            sample: 0,
+            sample_rate: 44100,
+            volume
+        }
+    }
+
+    pub fn get_next(&mut self) -> f32 {
+        self.sample = self.sample.wrapping_add(1);
+        self.sample = self.sample.wrapping_add(1);
+        let value = super::get_angular_frequency(self.frequency) * self.sample as f32 / self.sample_rate as f32;
+        self.volume * value.sin()
+    }
 }
 
 impl AudioCallback for SineWave {
@@ -40,9 +58,7 @@ impl AudioCallback for SineWave {
 
     fn callback(&mut self, out: &mut [f32]) {
         for x in out.iter_mut() {
-            self.sample = self.sample.wrapping_add(1);
-            let value = super::get_angular_frequency(self.frequency) * self.sample as f32 / self.sample_rate as f32;
-            *x = self.volume * value.sin();
+            *x = self.get_next();
         }
     }
 }

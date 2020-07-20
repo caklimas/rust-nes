@@ -1,3 +1,5 @@
+use std::sync::{Arc, Mutex};
+
 use crate::addresses;
 use super::sequencer;
 
@@ -5,6 +7,7 @@ const APU_CLOCK_RATE: u8 = 6;
 
 #[derive(Debug, Default)]
 pub struct Apu2A03 {
+    buffer: Vec<f32>,
     pulse_1_enable: bool,
     pulse_1_sample: f32,
     pulse_1_sequence: sequencer::Sequencer,
@@ -13,6 +16,17 @@ pub struct Apu2A03 {
 }
 
 impl Apu2A03 {
+    pub fn initialize() -> Self {
+        Apu2A03 {
+            buffer: Vec::<f32>::new(),
+            pulse_1_enable: false,
+            pulse_1_sample: 0.0,
+            pulse_1_sequence: Default::default(),
+            clock_counter: 0,
+            frame_clock_counter: 0
+        }
+    }
+
     pub fn reset(&mut self) {
 
     }
@@ -37,6 +51,7 @@ impl Apu2A03 {
                 *sequence = ((*sequence & 0x0001) << 7) | ((*sequence & 0x00FE) >> 1)
             });
             self.pulse_1_sample = self.pulse_1_sequence.output.into();
+            self.buffer.push(self.pulse_1_sample);
         }
 
         self.clock_counter += 1;

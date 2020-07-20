@@ -1,3 +1,4 @@
+use std::sync::{Arc, Mutex};
 use std::rc::Rc;
 use std::cell::RefCell;
 
@@ -23,10 +24,10 @@ pub struct Bus {
 }
 
 impl Bus {
-    pub fn new() -> Self {
+    pub fn new(buffer: Arc<Mutex<Vec<f32>>>) -> Self {
         Bus {
             ppu: ppu::Ppu2C02::new(),
-            apu: Default::default(),
+            apu: audio::apu::Apu2A03::initialize(),
             cartridge: None,
             controllers: Default::default(),
             dma: Default::default(),

@@ -10,5 +10,7 @@ edition = "2018"
 bitfield = "0.13.2"
 ggez = "0.5.1"
 rand = "0.7.3"
-rodio = "0.11.0"
 sdl2 = { version = "*", features = ["bundled", "static-link"] }
+
+[profile.release]
+debug = true

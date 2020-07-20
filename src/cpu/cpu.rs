@@ -1,6 +1,4 @@
-use std::{
-    io::{BufWriter, Write}
-};
+use std::sync::{Arc, Mutex};
 use std::fs::OpenOptions;
 
 use crate::bus;
@@ -30,9 +28,9 @@ pub struct Cpu6502 {
 }
 
 impl Cpu6502 {
-    pub fn new() -> Self {
+    pub fn new(buffer: Arc<Mutex<Vec<f32>>>) -> Self {
         Cpu6502 {
-            bus: bus::Bus::new(),
+            bus: bus::Bus::new(buffer),
             accumulator: 0,
             x_register: 0,
             y_register: 0,
@@ -213,12 +211,12 @@ impl Cpu6502 {
         stack_pointer: u8,
         counter: u32) {
             if log {
-                let file = OpenOptions::new().write(true).truncate(false).append(true).open(r"H:\Repos\rust-nes\src\result.txt").expect("Not found");
-                let mut _writer = BufWriter::new(&file);
-                let address = match address_mode {
-                    address_modes::AddressMode::Rel => addr_rel,
-                    _ => addr_abs
-                };
+                // let file = OpenOptions::new().write(true).truncate(false).append(true).open(r"H:\Repos\rust-nes\src\result.txt").expect("Not found");
+                // let mut _writer = BufWriter::new(&file);
+                // let address = match address_mode {
+                //     address_modes::AddressMode::Rel => addr_rel,
+                //     _ => addr_abs
+                // };
                 
                 // println!("{:#06x} {:#04x} {:#06x} {} A: {:#04x} X: {:#04x} Y: {:#04x} P: {:#04x} SP: {:#04x} PPU: {} CYC: {}", 
                 // program_counter,
@@ -230,22 +228,22 @@ impl Cpu6502 {
                 // y_register, 
                 // status_register, 
                 // stack_pointer, counter % 341, counter + 7);
-                match writeln!(
-                    &mut _writer,
-                    "{:#06x} {:#04x} {:#06x} {} A: {:#04x} X: {:#04x} Y: {:#04x} P: {:#04x} SP: {:#04x} PPU: {} CYC: {}", 
-                    program_counter,
-                    opcode, 
-                    address, 
-                    op_name, 
-                    accumulator, 
-                    x_register, 
-                    y_register, 
-                    status_register, 
-                    stack_pointer, counter % 341, counter + 7
-                ) {
-                    Err(e) => println!("{:?}", e),
-                    _ => ()
-                }
+                // match writeln!(
+                //     &mut _writer,
+                //     "{:#06x} {:#04x} {:#06x} {} A: {:#04x} X: {:#04x} Y: {:#04x} P: {:#04x} SP: {:#04x} PPU: {} CYC: {}", 
+                //     program_counter,
+                //     opcode, 
+                //     address, 
+                //     op_name, 
+                //     accumulator, 
+                //     x_register, 
+                //     y_register, 
+                //     status_register, 
+                //     stack_pointer, counter % 341, counter + 7
+                // ) {
+                //     Err(e) => println!("{:?}", e),
+                //     _ => ()
+                // }
             }
             // println!("{:#06x} {} A: {:#04x} X: {:#04x} Y: {:#04x} P: {:#04x} SP: {:#04x} PPU: {} CYC: {}", self.program_counter, record.0, self.accumulator, self.x_register, self.y_register, self.status_register, self.stack_pointer, counter, counter + 7);
     }

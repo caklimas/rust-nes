@@ -1,14 +1,12 @@
 use std::rc::Rc;
 use std::cell::RefCell;
-use ggez::graphics::Color;
 
 use crate::cartridge::cartridge;
 use crate::memory_sizes;
 use crate::addresses;
-use crate::frame;
-use super::colors;
 use super::background;
 use super::flags;
+use super::frame;
 use super::oam;
 use super::sprites;
 
@@ -33,7 +31,6 @@ pub struct Ppu2C02 {
     pub cartridge: Option<Rc<RefCell<cartridge::Cartridge>>>,
     pub nmi: bool,
     pub frame_complete: bool,
-    pub colors: Vec<Color>,
     pub frame: frame::Frame,
     pub oam: oam::ObjectAttributeMemory,
     scanline: i16,
@@ -61,7 +58,6 @@ impl Ppu2C02 {
             scanline: 0,
             cycle: 0,
             frame_complete: false,
-            colors: colors::get_colors(),
             frame: frame::Frame::new(),
             oam: oam::ObjectAttributeMemory::new(),
             status: flags::Status(0),
@@ -77,7 +73,7 @@ impl Ppu2C02 {
         }
     }
    
-    pub fn clock(&mut self) {
+    pub fn clock(&mut self) -> bool {
         if self.scanline >= -1 && self.scanline <= MAX_VISIBLE_SCANLINE {
             // Skipped on BG+odd
             if self.scanline == 0 && self.cycle == 0 {
@@ -118,9 +114,10 @@ impl Ppu2C02 {
             self.scanline += 1;
             if self.scanline >= MAX_SCANLINE {
                 self.scanline = -1;
-                self.frame_complete = true;
             }
         }
+
+        self.cycle == MAX_VISIBLE_CLOCK_CYCLE && self.scanline == 240
     }
 
     /// Read from the Main Bus
@@ -581,10 +578,10 @@ impl Ppu2C02 {
         self.pallete_table[masked_address as usize] = data;
     }
 
-    fn get_color_from_palette(&mut self, palette_id: u16, pixel_id: u16) -> Color {
+    fn get_color_from_palette(&mut self, palette_id: u16, pixel_id: u16) -> super::Color {
         let address = addresses::PALETTE_ADDRESS_LOWER + (palette_id * 4) + pixel_id;
         let color_index = self.ppu_read(address) & 0x3F; // Make sure we don't go out of bounds
-        self.colors[color_index as usize]
+        super::COLOR_RAM[color_index as usize]
     }
 
     fn get_pattern_address(&mut self, offset: u16) -> u16 {

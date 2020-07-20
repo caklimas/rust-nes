@@ -35,9 +35,13 @@ impl AudioCallback for AudioDevice {
         for (i, x) in out.iter_mut().enumerate() {
             if i < b.len() {
                 *x = b[i];
+            } else {
+                *x = 0.0;
             }
         }
 
-        b.clear();
+        if b.len() > out.len() {
+            *b = b.split_off(out.len());
+        }
     }
 }

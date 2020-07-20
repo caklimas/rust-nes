@@ -41,7 +41,6 @@ impl ggez::event::EventHandler for nes::Nes {
             return Ok(());
         }
 
-        graphics::clear(ctx, graphics::BLACK);
         self.draw_frame(ctx);
         // let mut mesh_builder = graphics::MeshBuilder::new();
         // let mut draw = false;
