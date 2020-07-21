@@ -1,28 +1,29 @@
 use std::sync::{Arc, Mutex};
+use sdl2::render::{Canvas, Texture};
+use sdl2::video::{Window};
 
 use crate::cpu;
 use crate::bus;
 use crate::ppu;
 use crate::audio;
+use crate::display;
 
 pub struct Nes {
     pub cpu: cpu::cpu::Cpu6502,
     system_clock_counter: u32,
-    dma_dummy: bool,
-    pub can_draw: bool
+    dma_dummy: bool
 }
 
 impl Nes {
     pub fn new(buffer: Arc<Mutex<Vec<f32>>>) -> Self {
         Nes {
-            cpu: cpu::cpu::Cpu6502::new(buffer),
+            cpu: cpu::cpu::Cpu6502::new(),
             system_clock_counter: 0,
-            dma_dummy: false,
-            can_draw: false
+            dma_dummy: false
         }
     }
 
-    pub fn clock(&mut self) {
+    pub fn clock(&mut self, texture: &mut Texture, canvas: &mut Canvas<Window>) {
         let frame_complete = self.ppu().clock();
         self.apu().clock();
 
@@ -41,10 +42,10 @@ impl Nes {
             self.cpu.non_mask_interrupt_request();
         }
 
-        // if frame_complete {
-        //     let buffer_lock = self.apu().buffer.lock().expect("Error locking buffer");
-        //     println!("Audio count: {}", buffer_lock.len());
-        // }
+        if frame_complete {
+            let pixels = self.ppu().frame.get_pixels();
+            display::draw_frame(texture, canvas, &pixels);
+        }
 
         self.system_clock_counter += 1;
     }

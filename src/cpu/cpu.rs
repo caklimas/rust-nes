@@ -1,6 +1,3 @@
-use std::sync::{Arc, Mutex};
-use std::fs::OpenOptions;
-
 use crate::bus;
 use crate::cpu::opcode_table;
 use crate::cpu::address_modes;
@@ -28,9 +25,9 @@ pub struct Cpu6502 {
 }
 
 impl Cpu6502 {
-    pub fn new(buffer: Arc<Mutex<Vec<f32>>>) -> Self {
+    pub fn new() -> Self {
         Cpu6502 {
-            bus: bus::Bus::new(buffer),
+            bus: bus::Bus::new(),
             accumulator: 0,
             x_register: 0,
             y_register: 0,
@@ -49,38 +46,12 @@ impl Cpu6502 {
         if self.cycles == 0 {
             self.opcode = self.read(self.program_counter);
             let record = &opcode_table::OPCODE_TABLE[self.opcode as usize];
-            // let (program_counter, opcode, accumulator, x_register, y_register, status_register, stack_pointer) = (
-            //     self.program_counter, 
-            //     self.opcode, 
-            //     self.accumulator, 
-            //     self.x_register, 
-            //     self.y_register, 
-            //     self.status_register, 
-            //     self.stack_pointer
-            // );
-
             self.program_counter = self.program_counter.wrapping_add(1);
 
             self.cycles = record.4;
             
             let additional_cycle_1 = record.2(self);
             let additional_cycle_2 = record.1(self);
-
-            // self.write_to_file(
-            //     true,
-            //     program_counter, 
-            //     opcode,
-            //     &record.3,
-            //     self.addr_abs,
-            //     self.addr_rel, 
-            //     record.0, 
-            //     accumulator, 
-            //     x_register, 
-            //     y_register, 
-            //     status_register, 
-            //     stack_pointer, 
-            //     counter
-            // );
 
             self.cycles += additional_cycle_1 & additional_cycle_2;
         }
@@ -175,10 +146,6 @@ impl Cpu6502 {
         self.cycles = 8;
     }
 
-    pub fn is_complete(&mut self) -> bool {
-        return self.cycles == 0;
-    }
-
     /// Sets or clears a specific bit of the status register
     pub fn set_flag(&mut self, flag: Flags6502, value: bool) {
         if value {
@@ -195,67 +162,15 @@ impl Cpu6502 {
             0 
         }
     }
-
-    fn write_to_file(&mut self,
-        log: bool,
-        program_counter: u16, 
-        opcode: u8, 
-        address_mode: &address_modes::AddressMode,
-        addr_abs: u16,
-        addr_rel: u16,
-        op_name: &str, 
-        accumulator: u8,
-        x_register: u8,
-        y_register: u8,
-        status_register: u8,
-        stack_pointer: u8,
-        counter: u32) {
-            if log {
-                // let file = OpenOptions::new().write(true).truncate(false).append(true).open(r"H:\Repos\rust-nes\src\result.txt").expect("Not found");
-                // let mut _writer = BufWriter::new(&file);
-                // let address = match address_mode {
-                //     address_modes::AddressMode::Rel => addr_rel,
-                //     _ => addr_abs
-                // };
-                
-                // println!("{:#06x} {:#04x} {:#06x} {} A: {:#04x} X: {:#04x} Y: {:#04x} P: {:#04x} SP: {:#04x} PPU: {} CYC: {}", 
-                // program_counter,
-                // opcode, 
-                // address, 
-                // op_name, 
-                // accumulator, 
-                // x_register, 
-                // y_register, 
-                // status_register, 
-                // stack_pointer, counter % 341, counter + 7);
-                // match writeln!(
-                //     &mut _writer,
-                //     "{:#06x} {:#04x} {:#06x} {} A: {:#04x} X: {:#04x} Y: {:#04x} P: {:#04x} SP: {:#04x} PPU: {} CYC: {}", 
-                //     program_counter,
-                //     opcode, 
-                //     address, 
-                //     op_name, 
-                //     accumulator, 
-                //     x_register, 
-                //     y_register, 
-                //     status_register, 
-                //     stack_pointer, counter % 341, counter + 7
-                // ) {
-                //     Err(e) => println!("{:?}", e),
-                //     _ => ()
-                // }
-            }
-            // println!("{:#06x} {} A: {:#04x} X: {:#04x} Y: {:#04x} P: {:#04x} SP: {:#04x} PPU: {} CYC: {}", self.program_counter, record.0, self.accumulator, self.x_register, self.y_register, self.status_register, self.stack_pointer, counter, counter + 7);
-    }
 }
 
 pub enum Flags6502 {
-    CarryBit = (1 << 0),
-    Zero = (1 << 1),
-    DisableInterrupts = (1 << 2),
-    DecimalMode = (1 << 3),
-    Break = (1 << 4),
-    Unused = (1 << 5),
-    Overflow = (1 << 6),
-    Negative = (1 << 7)
+    CarryBit = 1 << 0,
+    Zero = 1 << 1,
+    DisableInterrupts = 1 << 2,
+    DecimalMode = 1 << 3,
+    Break = 1 << 4,
+    Unused = 1 << 5,
+    Overflow = 1 << 6,
+    Negative = 1 << 7
 }

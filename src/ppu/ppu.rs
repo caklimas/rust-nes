@@ -423,8 +423,7 @@ impl Ppu2C02 {
 
         let color = self.get_color_from_palette(palette as u16, pixel as u16);
         if self.cycle > 0 {
-            let x = self.cycle - 1;
-            self.frame.set_pixel((x) as i32, self.scanline as i32, color);
+            self.frame.set_pixel((self.cycle - 1) as usize, self.scanline as usize, color);
         }
     }
 

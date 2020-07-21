@@ -1,30 +1,43 @@
+use crate::display;
 use super::Color;
 
-pub const FRAME_WIDTH: usize = 256;
-pub const FRAME_HEIGHT: usize = 240;
+const BYTES_PER_COLUMN: usize = display::PIXEL_SIZE * display::BYTES_PER_COLOR;
+const BYTES_PER_ROW: usize = BYTES_PER_COLUMN * display::SCREEN_WIDTH;
+const BYTE_WIDTH: usize = BYTES_PER_COLUMN * display::SCREEN_WIDTH;
+const BYTE_HEIGHT: usize = display::SCREEN_HEIGHT * display::PIXEL_SIZE;
 
 pub struct Frame {
-    pixels: [[Color; FRAME_WIDTH]; FRAME_HEIGHT]
+    pixels: Vec<u8>
 }
 
 impl Frame {
     pub fn new() -> Self {
         Frame {
-            pixels: [[(0, 0, 0); FRAME_WIDTH]; FRAME_HEIGHT]
+            pixels: vec![0; BYTE_WIDTH * BYTE_HEIGHT]
         }
     }
 
-    pub fn get_pixel(&mut self, x: i32, y: i32) -> Color {
-        if (x < 0 || x > (FRAME_WIDTH - 1) as i32) || (y < 0 || y > (FRAME_HEIGHT - 1) as i32) {
-            return (0, 0, 0);
+    pub fn set_pixel(&mut self, x: usize, y: usize, color: Color) {
+        if x >= display::SCREEN_WIDTH || y >= display::SCREEN_HEIGHT {
+            return;
         }
 
-        self.pixels[y as usize][x as usize]
+        let (r, g, b) = color;
+        let y_offset = y * BYTES_PER_ROW * display::PIXEL_SIZE;
+        for sdl_row_num in 0..display::PIXEL_SIZE {
+            let row_offset = y_offset + (sdl_row_num * BYTES_PER_ROW);
+            let x_offset = x * BYTES_PER_COLUMN;
+            for sdl_col_num in 0..display::PIXEL_SIZE {
+                let col_offset = x_offset + (sdl_col_num * 3);
+                let offset = row_offset + col_offset;
+                self.pixels[offset + 0] = r;
+                self.pixels[offset + 1] = g;
+                self.pixels[offset + 2] = b;
+            }
+        }
     }
 
-    pub fn set_pixel(&mut self, x: i32, y: i32, color: Color) {
-        if x >= 0 && x < (FRAME_WIDTH as i32) && y >= 0 && y < (FRAME_HEIGHT as i32) {
-            self.pixels[y as usize][x as usize] = color;
-        }
+    pub fn get_pixels(&mut self) -> &[u8] {
+        &self.pixels
     }
 }

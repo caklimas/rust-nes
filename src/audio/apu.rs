@@ -103,10 +103,6 @@ impl Apu2A03 {
         }
     }
 
-    pub fn get_output_sample(&mut self) -> f32 {
-        self.pulse_1_sample
-    }
-
     fn get_4_step_sequence_flags(&mut self) -> (bool, bool) {
         let mut quarter_frame_clock = false;
         let mut half_frame_clock = false;

@@ -11,7 +11,7 @@ impl AudioDevice {
     pub fn new(sdl_context: &sdl2::Sdl, buffer: Arc<Mutex<Vec<f32>>>) -> sdl2::audio::AudioDevice<AudioDevice> {
         let audio_subsystem = sdl_context.audio().expect("Error loading audio subsystem");
         let desired_spec = AudioSpecDesired {
-            freq: Some(44100),
+            freq: Some(SAMPLE_RATE),
             channels: Some(1),  // mono
             samples: None       // default sample size
         };
