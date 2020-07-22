@@ -14,7 +14,8 @@ pub struct Nes {
     fps_limiter: ppu::fps_limiter::FpsLimiter,
     timer: Instant,
     system_clock_counter: u32,
-    dma_dummy: bool
+    dma_dummy: bool,
+    buffer: Arc<Mutex<Vec<f32>>>
 }
 
 impl Nes {
@@ -24,7 +25,9 @@ impl Nes {
             fps_limiter: ppu::fps_limiter::FpsLimiter::new(60),
             timer: Instant::now(),
             system_clock_counter: 0,
-            dma_dummy: false
+            dma_dummy: false,
+            buffer,
+            dummy: false
         }
     }
 
@@ -52,6 +55,8 @@ impl Nes {
             display::draw_frame(texture, canvas, &pixels);
             self.fps_limiter.limit(self.timer);
             self.timer = Instant::now();
+            let mut lock = self.buffer.lock().expect("Error getting a lock for the buffer");
+            lock.append(&mut self.cpu.bus.apu.buffer);
         }
 
         self.fps_limiter.calculate_fps();

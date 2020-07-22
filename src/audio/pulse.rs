@@ -1,37 +1,57 @@
-bitfield! {
-    pub struct PulseDuty(u8);
-    impl Debug;
+const DUTY_CYCLE_SEQUENCES: [[u8; 8]; 4] = [
+    [0, 1, 0, 0, 0, 0, 0, 0],
+    [0, 1, 1, 0, 0, 0, 0, 0],
+    [0, 1, 1, 1, 1, 0, 0, 0],
+    [1, 0, 0, 1, 1, 1, 1, 1],
+];
 
-    pub u8, envelope_period_volume, _: 3, 0;
-    pub u8, constant_volume, _: 4;
-    pub u8, loop_envelope, _: 5;
-    pub u8, duty, _: 7, 6;
-    pub u8, get, set: 7, 0;
+#[derive(Debug)]
+pub struct Pulse {
+    pub enabled: bool,
+    pub length_counter: u8,
+    pub sample: u16,
+    duty_cycle: [u8; 8],
+    duty_counter: usize,
+    timer: u16,
+    reload: u16
 }
 
-bitfield! {
-    pub struct PulseSweep(u8);
-    impl Debug;
+impl Pulse {
+    pub fn new() -> Self {
+        Pulse {
+            enabled: false,
+            length_counter: 0,
+            sample: 0,
+            duty_cycle: DUTY_CYCLE_SEQUENCES[0],
+            duty_counter: 0,
+            timer: 0,
+            reload: 0
+        }
+    }
 
-    pub u8, shift_count, _: 2, 0;
-    pub u8, negative, _: 3;
-    pub u8, period, _: 6, 4;
-    pub u8, enabled, _: 7;
-    pub u8, get, set: 7, 0;
-}
+    pub fn clock(&mut self) -> u16 {
+        if self.timer == 0 {
+            self.timer = self.reload;
+            self.duty_counter = (self.duty_counter + 1) % 8;
+        } else {
+            self.timer -= 1;
+        }
 
-bitfield! {
-    pub struct PulseTimerLow(u8);
-    impl Debug;
+        let sample = self.duty_cycle[self.duty_counter] as u16;
+        sample
+    }
 
-    pub u8, get, set: 7, 0;
-}
+    pub fn set_duty_cycle(&mut self, duty: u8) {
+        self.duty_cycle = DUTY_CYCLE_SEQUENCES[duty as usize];
+    }
 
-bitfield! {
-    pub struct PulseTimerHigh(u8);
-    impl Debug;
+    pub fn set_reload_low(&mut self, data: u8) {
+        self.reload = (self.reload & 0xFF00) | (data as u16);
+    }
 
-    pub u8, timer_high, _: 2, 0;
-    pub u8, length_counter_load, _: 7, 3;
-    pub u8, get, set: 7, 0;
+    pub fn set_reload_high(&mut self, data: u8) {
+        let reload_high = ((data & 0b111) as u16) << 8;
+        self.reload = reload_high | self.reload & 0x00FF;
+        self.timer = self.reload;
+    }
 }

@@ -20,24 +20,6 @@ impl Sequencer {
         }
     }
 
-    pub fn set_sequence(&mut self, duty: u8) {
-        match duty {
-            0 => {
-                self.sequence = 0b00000001; // 12.5% waveform
-            },
-            1 => {
-                self.sequence = 0b00000011; // 25% waveform
-            },
-            2 => {
-                self.sequence = 0b00001111; // 50% waveform
-            },
-            3 => {
-                self.sequence = 0b11111100; // 25% negated waveform
-            },
-            _ => panic!("Invalid duty")
-        }
-    }
-
     pub fn set_reload_low(&mut self, data: u8) {
         self.reload = (self.reload & 0xFF00) | (data as u16);
     }

@@ -1,16 +1,14 @@
-use std::sync::{Arc, Mutex};
-
 use crate::addresses;
+use super::pulse;
 use super::sequencer;
 
 const APU_CLOCK_RATE: u8 = 6;
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct Apu2A03 {
-    buffer: Vec<f32>,
-    pulse_1_enable: bool,
-    pulse_1_sample: f32,
-    pulse_1_sequence: sequencer::Sequencer,
+    pub buffer: Vec<f32>,
+    square_table: Vec<f32>,
+    pulse1: pulse::Pulse,
     clock_counter: u32,
     frame_clock_counter: u32 // Maintains musical timing of the apu
 }
@@ -19,9 +17,8 @@ impl Apu2A03 {
     pub fn initialize() -> Self {
         Apu2A03 {
             buffer: Vec::<f32>::new(),
-            pulse_1_enable: false,
-            pulse_1_sample: 0.0,
-            pulse_1_sequence: Default::default(),
+            square_table: (0..31).map(|x| 95.52/((8128.0 / x as f32) + 100.0)).collect(),
+            pulse1: pulse::Pulse::new(),
             clock_counter: 0,
             frame_clock_counter: 0
         }
@@ -46,12 +43,8 @@ impl Apu2A03 {
                 self.adjust_frequency_sweepers();
             }
 
-            // This will rotate the sequence bits
-            self.pulse_1_sequence.clock(self.pulse_1_enable, |sequence| {
-                *sequence = ((*sequence & 0x0001) << 7) | ((*sequence & 0x00FE) >> 1)
-            });
-            self.pulse_1_sample = self.pulse_1_sequence.output.into();
-            self.buffer.push(self.pulse_1_sample);
+            let sample = self.mix_samples();
+            self.buffer.push(sample);
         }
 
         self.clock_counter += 1;
@@ -66,17 +59,15 @@ impl Apu2A03 {
     pub fn write(&mut self, address: u16, data: u8) {
         match address {
             addresses::APU_PULSE_1_DUTY => {
-                self.pulse_1_sequence.set_sequence((data & 0b11000000) >> 6)
-                
+                self.pulse1.set_duty_cycle((data & 0b11000000) >> 6);
             },
             addresses::APU_PULSE_1_SWEEP => {
             },
             addresses::APU_PULSE_1_TIMER_LOW => {
-                self.pulse_1_sequence.set_reload_low(data);
+                self.pulse1.set_reload_low(data);
             },
             addresses::APU_PULSE_1_TIMER_HIGH => {  
-                self.pulse_1_sequence.set_reload_high(data);
-                self.pulse_1_sequence.timer = self.pulse_1_sequence.reload;
+                self.pulse1.set_reload_high(data);
             },
             addresses::APU_PULSE_2_DUTY => {
 
@@ -97,7 +88,12 @@ impl Apu2A03 {
                 
             },
             addresses::APU_STATUS => {
-                self.pulse_1_enable = (data & 0x01) > 0;
+                if (data & 0x01) > 0 {
+                    self.pulse1.enabled = true;
+                } else {
+                    self.pulse1.enabled = false;
+                    self.pulse1.length_counter = 0;
+                }
             },
             _ => ()
         }
@@ -139,5 +135,11 @@ impl Apu2A03 {
 
     fn adjust_frequency_sweepers(&mut self) {
 
+    }
+
+    fn mix_samples(&mut self) -> f32 {
+        let square1 = self.pulse1.clock();
+
+        self.square_table[square1 as usize]
     }
 }
