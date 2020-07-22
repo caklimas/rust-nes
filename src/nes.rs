@@ -1,4 +1,5 @@
 use std::sync::{Arc, Mutex};
+use std::time::Instant;
 use sdl2::render::{Canvas, Texture};
 use sdl2::video::{Window};
 
@@ -10,6 +11,8 @@ use crate::display;
 
 pub struct Nes {
     pub cpu: cpu::cpu::Cpu6502,
+    fps_limiter: ppu::fps_limiter::FpsLimiter,
+    timer: Instant,
     system_clock_counter: u32,
     dma_dummy: bool
 }
@@ -18,6 +21,8 @@ impl Nes {
     pub fn new(buffer: Arc<Mutex<Vec<f32>>>) -> Self {
         Nes {
             cpu: cpu::cpu::Cpu6502::new(),
+            fps_limiter: ppu::fps_limiter::FpsLimiter::new(60),
+            timer: Instant::now(),
             system_clock_counter: 0,
             dma_dummy: false
         }
@@ -45,8 +50,11 @@ impl Nes {
         if frame_complete {
             let pixels = self.ppu().frame.get_pixels();
             display::draw_frame(texture, canvas, &pixels);
+            self.fps_limiter.limit(self.timer);
+            self.timer = Instant::now();
         }
 
+        self.fps_limiter.calculate_fps();
         self.system_clock_counter += 1;
     }
 

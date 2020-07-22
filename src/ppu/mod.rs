@@ -1,6 +1,7 @@
 pub mod background;
 pub mod flags;
 pub mod frame;
+pub mod fps_limiter;
 pub mod oam;
 pub mod ppu;
 pub mod sprites;

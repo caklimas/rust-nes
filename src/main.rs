@@ -45,27 +45,12 @@ fn run_game(sdl_context: &Sdl, buffer: Arc<Mutex<Vec<f32>>>) {
 
     let args: Vec<String> = env::args().collect();
     let mut nes = nes::Nes::new(buffer);
-    let cartridge = cartridge::cartridge::Cartridge::new(&args[1]);
+    let cartridge = cartridge::cartridge::Cartridge::new(r"C:\Users\cakli\Desktop\Files\NES\ROMS\Super Mario Bros. (World).nes");
     nes.bus().load_cartridge(cartridge);
     
     nes.reset();
 
-    // let mut configuration = conf::Conf::new();
-    // configuration.window_setup = conf::WindowSetup::default().title("NES");
-    // configuration.window_mode = conf::WindowMode::default().dimensions(display::WINDOW_WIDTH as f32, display::WINDOW_HEIGHT as f32);
-
-    // let (ref mut ctx, ref mut event_loop) = ContextBuilder::new("NES", "caklimas@gmail.com") 
-    //     .conf(configuration)
-    //     .build()
-    //     .expect("Error building context");
-
-    // event::run(ctx, event_loop, &mut nes).expect("Error running loop");
-
     loop {
         nes.clock(&mut texture, &mut canvas);
     }
-}
-
-fn render_sdl2() {
-    
 }
