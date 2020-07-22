@@ -26,8 +26,7 @@ impl Nes {
             timer: Instant::now(),
             system_clock_counter: 0,
             dma_dummy: false,
-            buffer,
-            dummy: false
+            buffer
         }
     }
 
