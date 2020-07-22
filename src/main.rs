@@ -1,13 +1,13 @@
 #[macro_use]
 extern crate bitfield;
 
+use std::collections::HashSet;
 use std::env;
 use std::sync::{Arc, Mutex};
-use std::time::Duration;
 use sdl2::Sdl;
-use sdl2::pixels::PixelFormatEnum;
 use sdl2::event::Event;
-use sdl2::keyboard::Keycode;
+use sdl2::keyboard::{Keycode, Scancode};
+use sdl2::pixels::PixelFormatEnum;
 
 mod nes;
 mod bus;
@@ -65,6 +65,16 @@ fn run_game(sdl_context: &Sdl, buffer: Arc<Mutex<Vec<f32>>>) {
                     _ => {}
                 }
             }
+
+            let pressed_keys: HashSet<Scancode> = event_pump.keyboard_state().pressed_scancodes().collect();
+            nes.bus().controllers[0].buttons[0] = pressed_keys.contains(&Scancode::Right);
+            nes.bus().controllers[0].buttons[1] = pressed_keys.contains(&Scancode::Left);
+            nes.bus().controllers[0].buttons[2] = pressed_keys.contains(&Scancode::Down);
+            nes.bus().controllers[0].buttons[3] = pressed_keys.contains(&Scancode::Up);
+            nes.bus().controllers[0].buttons[4] = pressed_keys.contains(&Scancode::Return);
+            nes.bus().controllers[0].buttons[5] = pressed_keys.contains(&Scancode::RShift);
+            nes.bus().controllers[0].buttons[6] = pressed_keys.contains(&Scancode::Z);
+            nes.bus().controllers[0].buttons[7] = pressed_keys.contains(&Scancode::X);
         }
     }
 }
