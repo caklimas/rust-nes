@@ -3,8 +3,11 @@ extern crate bitfield;
 
 use std::env;
 use std::sync::{Arc, Mutex};
+use std::time::Duration;
 use sdl2::Sdl;
 use sdl2::pixels::PixelFormatEnum;
+use sdl2::event::Event;
+use sdl2::keyboard::Keycode;
 
 mod nes;
 mod bus;
@@ -45,12 +48,23 @@ fn run_game(sdl_context: &Sdl, buffer: Arc<Mutex<Vec<f32>>>) {
 
     let args: Vec<String> = env::args().collect();
     let mut nes = nes::Nes::new(buffer);
-    let cartridge = cartridge::cartridge::Cartridge::new(r"C:\Users\cakli\Desktop\Files\NES\ROMS\Super Mario Bros. (World).nes");
+    let cartridge = cartridge::cartridge::Cartridge::new(&args[1]);
     nes.bus().load_cartridge(cartridge);
     
     nes.reset();
 
-    loop {
-        nes.clock(&mut texture, &mut canvas);
+    let mut event_pump = sdl_context.event_pump().expect("Error loading event pump");
+    'running: loop {
+        let frame_complete = nes.clock(&mut texture, &mut canvas);
+        if frame_complete {
+            for event in event_pump.poll_iter() {
+                match event {
+                    Event::Quit {..} | Event::KeyDown { keycode: Some(Keycode::Escape), .. } => {
+                        break 'running
+                    },
+                    _ => {}
+                }
+            }
+        }
     }
 }

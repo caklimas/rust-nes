@@ -28,7 +28,7 @@ impl Nes {
         }
     }
 
-    pub fn clock(&mut self, texture: &mut Texture, canvas: &mut Canvas<Window>) {
+    pub fn clock(&mut self, texture: &mut Texture, canvas: &mut Canvas<Window>) -> bool {
         let frame_complete = self.ppu().clock();
         self.apu().clock();
 
@@ -56,6 +56,8 @@ impl Nes {
 
         self.fps_limiter.calculate_fps();
         self.system_clock_counter += 1;
+        
+        frame_complete
     }
 
     pub fn reset(&mut self) {
