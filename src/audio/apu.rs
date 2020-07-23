@@ -1,6 +1,5 @@
 use crate::addresses;
 use super::pulse;
-use super::sequencer;
 
 const APU_CLOCK_RATE: u8 = 6;
 
@@ -8,7 +7,8 @@ const APU_CLOCK_RATE: u8 = 6;
 pub struct Apu2A03 {
     pub buffer: Vec<f32>,
     square_table: Vec<f32>,
-    pulse1: pulse::Pulse,
+    pulse_1: pulse::Pulse,
+    pulse_2: pulse::Pulse,
     clock_counter: u32,
     frame_clock_counter: u32 // Maintains musical timing of the apu
 }
@@ -18,7 +18,8 @@ impl Apu2A03 {
         Apu2A03 {
             buffer: Vec::<f32>::new(),
             square_table: (0..31).map(|x| 95.52/((8128.0 / x as f32) + 100.0)).collect(),
-            pulse1: pulse::Pulse::new(),
+            pulse_1: pulse::Pulse::new(),
+            pulse_2: pulse::Pulse::new(),
             clock_counter: 0,
             frame_clock_counter: 0
         }
@@ -59,27 +60,27 @@ impl Apu2A03 {
     pub fn write(&mut self, address: u16, data: u8) {
         match address {
             addresses::APU_PULSE_1_DUTY => {
-                self.pulse1.set_duty_cycle((data & 0b11000000) >> 6);
+                self.pulse_1.set_duty_cycle((data & 0b11000000) >> 6);
             },
             addresses::APU_PULSE_1_SWEEP => {
             },
             addresses::APU_PULSE_1_TIMER_LOW => {
-                self.pulse1.set_reload_low(data);
+                self.pulse_1.set_reload_low(data);
             },
             addresses::APU_PULSE_1_TIMER_HIGH => {  
-                self.pulse1.set_reload_high(data);
+                self.pulse_1.set_reload_high(data);
             },
             addresses::APU_PULSE_2_DUTY => {
-
+                self.pulse_2.set_duty_cycle((data & 0b11000000) >> 6);
             },
             addresses::APU_PULSE_2_SWEEP => {
 
             },
             addresses::APU_PULSE_2_TIMER_LOW => {
-
+                self.pulse_2.set_reload_low(data);
             },
             addresses::APU_PULSE_2_TIMER_HIGH => {
-
+                self.pulse_2.set_reload_high(data);
             },
             addresses::APU_NOISE_1 => {
 
@@ -89,10 +90,10 @@ impl Apu2A03 {
             },
             addresses::APU_STATUS => {
                 if (data & 0x01) > 0 {
-                    self.pulse1.enabled = true;
+                    self.pulse_1.enabled = true;
                 } else {
-                    self.pulse1.enabled = false;
-                    self.pulse1.length_counter = 0;
+                    self.pulse_1.enabled = false;
+                    self.pulse_1.length_counter = 0;
                 }
             },
             _ => ()
@@ -138,8 +139,9 @@ impl Apu2A03 {
     }
 
     fn mix_samples(&mut self) -> f32 {
-        let square1 = self.pulse1.clock();
+        let square_1 = self.pulse_1.clock();
+        let square_2 = self.pulse_2.clock();
 
-        self.square_table[square1 as usize]
+        self.square_table[(square_1 + square_2) as usize]
     }
 }

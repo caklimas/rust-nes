@@ -1,7 +1,6 @@
 pub mod apu;
 pub mod device;
 pub mod pulse;
-pub mod sequencer;
 pub mod sine;
 pub mod square;
 
