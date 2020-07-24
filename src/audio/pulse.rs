@@ -53,8 +53,10 @@ impl Pulse {
         let sample = ((self.duty_cycle >> (7 - self.duty_shifter)) & 0b01) as u16;
         return if self.is_silenced(sample) {
             0
+        } else if self.constant_volume {
+            self.envelope.decay_counter_period
         } else {
-            sample
+            self.envelope.decay_counter
         }
     }
 
@@ -66,7 +68,7 @@ impl Pulse {
         self.constant_volume = (data & 0b10000) > 0;
 
         let volume = data & 0b1111;
-        self.envelope.decay_counter_period = volume;
+        self.envelope.decay_counter_period = volume as u16;
     }
 
     pub fn clock_sweep(&mut self) {
@@ -84,6 +86,12 @@ impl Pulse {
         }
     }
 
+    pub fn clock_length_counter(&mut self) {
+        if self.length_counter > 0 && !self.envelope.loop_flag {
+            self.length_counter -= 1;
+        }
+    }
+
     pub fn set_sweep(&mut self, data: u8) {
         self.sweep.enabled = (data & 0b10000000) > 0;
         self.sweep.period = ((data & 0b1110000) >> 4) as u16;
@@ -97,13 +105,19 @@ impl Pulse {
     }
 
     pub fn set_reload_high(&mut self, data: u8) {
+        if self.enabled {
+            let index = (data & 0b11111000) >> 3;
+            self.length_counter = super::LENGTH_COUNTER_TABLE[index as usize];
+        }
+
         let reload_high = ((data & 0b111) as u16) << 8;
         self.timer_period = reload_high | self.timer_period & 0x00FF;
         self.timer = self.timer_period;
+        self.envelope.start = true;
     }
 
     fn is_silenced(&mut self, sample: u16) -> bool {
-        sample == 0 || self.is_muting_channel()
+        sample == 0 || self.length_counter == 0 || self.is_muting_channel()
     }
 
     fn is_muting_channel(&mut self) -> bool {
@@ -116,7 +130,7 @@ impl Pulse {
         if self.sweep.negate {
             self.target_period = self.timer_period - period_change;
 
-            if self.is_first {
+            if self.is_first && self.target_period >= 1 {
                 self.target_period -= 1;
             }
         } else {

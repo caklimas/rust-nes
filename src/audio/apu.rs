@@ -38,10 +38,14 @@ impl Apu2A03 {
 
     pub fn clock(&mut self) {
         if self.clock_counter % (APU_CLOCK_RATE as u32) == 0 {
-            self.frame_clock_counter += 1;
-
+            
             if FRAME_COUNTER_STEPS.contains(&self.frame_clock_counter) {
                 self.clock_frame_counter();
+            }
+            
+            self.frame_clock_counter += 1;
+            if self.is_max_step_counter() {
+                self.frame_clock_counter = 0;
             }
 
             let sample = self.mix_samples();
@@ -144,6 +148,7 @@ impl Apu2A03 {
             7456 => {
                 self.clock_envelopes();
                 self.clock_sweeps();
+                self.clock_length_counters();
             },
             11185 => {
                 self.clock_envelopes();
@@ -151,6 +156,7 @@ impl Apu2A03 {
             14914 => {
                 self.clock_envelopes();
                 self.clock_sweeps();
+                self.clock_length_counters();
 
                 if !self.interrupt_inhibit {
                     self.trigger_interrupt = true;
@@ -168,6 +174,7 @@ impl Apu2A03 {
             7456 => {
                 self.clock_envelopes();
                 self.clock_sweeps();
+                self.clock_length_counters();
             },
             11185 => {
                 self.clock_envelopes();
@@ -177,6 +184,7 @@ impl Apu2A03 {
             18640 => {
                 self.clock_envelopes();
                 self.clock_sweeps();
+                self.clock_length_counters();
             },
             _ => ()
         }
@@ -190,5 +198,18 @@ impl Apu2A03 {
     fn clock_sweeps(&mut self) {
         self.pulse_1.clock_sweep();
         self.pulse_2.clock_sweep();
+    }
+
+    fn clock_length_counters(&mut self) {
+        self.pulse_1.clock_length_counter();
+        self.pulse_2.clock_length_counter();
+    }
+
+    fn is_max_step_counter(&mut self) -> bool {
+        if self.step_mode == 4 {
+            self.frame_clock_counter == 14915
+        } else {
+            self.frame_clock_counter == 18641
+        }
     }
 }

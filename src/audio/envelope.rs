@@ -1,10 +1,10 @@
 #[derive(Debug, Default)]
 pub struct Envelope {
-    pub start: bool,
-    pub decay_counter_period: u8,
+    pub decay_counter: u16,
+    pub decay_counter_period: u16,
     pub loop_flag: bool,
-    pub divider: u8,
-    decay_counter: u8,
+    pub start: bool,
+    divider: u16,
 }
 
 impl Envelope {
@@ -20,6 +20,7 @@ impl Envelope {
 
     fn clock_divider(&mut self) {
         if self.divider == 0 {
+            self.divider = self.decay_counter_period;
             self.clock_delay_counter();
         } else {
             self.divider -= 1;
@@ -27,8 +28,6 @@ impl Envelope {
     }
 
     fn clock_delay_counter(&mut self) {
-        self.divider = self.decay_counter_period;
-
         if self.decay_counter != 0 {
             self.decay_counter -= 1;
         } else if self.loop_flag {
