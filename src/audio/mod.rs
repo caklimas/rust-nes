@@ -2,8 +2,6 @@ pub mod apu;
 pub mod device;
 pub mod envelope;
 pub mod pulse;
-pub mod sine;
-pub mod square;
 pub mod sweep;
 
 const LENGTH_COUNTER_TABLE: [u8; 32] = [
