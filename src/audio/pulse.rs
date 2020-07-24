@@ -40,7 +40,7 @@ impl Pulse {
         }
     }
 
-    pub fn clock(&mut self) -> u16 {
+    pub fn clock(&mut self) -> u8 {
         if self.timer == 0 {
             self.timer = self.timer_period;
             self.duty_shifter = (self.duty_shifter + 1) % 8;
@@ -49,24 +49,13 @@ impl Pulse {
         }
 
         let sample = ((self.duty_cycle >> (7 - self.duty_shifter)) & 0b01) as u16;
-        return if self.is_silenced(sample) {
+        if self.is_silenced(sample) {
             0
         } else if self.constant_volume {
             self.envelope.decay_counter_period
         } else {
             self.envelope.decay_counter
         }
-    }
-
-    pub fn set_duty_cycle(&mut self, data: u8) {
-        let duty = (data & 0b11000000) >> 6;
-        self.duty_cycle = DUTY_CYCLE_WAVEFORMS[duty as usize];
-
-        self.envelope.loop_flag = (data & 0b100000) > 0;
-        self.constant_volume = (data & 0b10000) > 0;
-
-        let volume = data & 0b1111;
-        self.envelope.decay_counter_period = volume as u16;
     }
 
     pub fn clock_sweep(&mut self) {
@@ -88,6 +77,17 @@ impl Pulse {
         if self.length_counter > 0 && !self.envelope.loop_flag {
             self.length_counter -= 1;
         }
+    }
+
+    pub fn set_duty_cycle(&mut self, data: u8) {
+        let duty = (data & 0b11000000) >> 6;
+        self.duty_cycle = DUTY_CYCLE_WAVEFORMS[duty as usize];
+
+        self.envelope.loop_flag = (data & 0b100000) > 0;
+        self.constant_volume = (data & 0b10000) > 0;
+
+        let volume = data & 0b1111;
+        self.envelope.decay_counter_period = volume;
     }
 
     pub fn set_sweep(&mut self, data: u8) {

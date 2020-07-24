@@ -1,10 +1,10 @@
 #[derive(Debug, Default)]
 pub struct Envelope {
-    pub decay_counter: u16,
-    pub decay_counter_period: u16,
+    pub decay_counter: u8,
+    pub decay_counter_period: u8,
     pub loop_flag: bool,
     pub start: bool,
-    divider: u16,
+    divider: u8,
 }
 
 impl Envelope {

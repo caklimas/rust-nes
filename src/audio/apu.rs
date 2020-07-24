@@ -82,12 +82,9 @@ impl Apu2A03 {
             addresses::APU_TRIANGLE_COUNTER_RELOAD => self.triangle.set_counter_reload(data),
             addresses::APU_TRIANGLE_TIMER_LOW => self.triangle.set_timer_low(data),
             addresses::APU_TRIANGLE_TIMER_HIGH => self.triangle.set_timer_high(data),
-            addresses::APU_NOISE_1 => {
-
-            },
-            addresses::APU_NOISE_2 => {
-                
-            },
+            addresses::APU_NOISE_VOLUME => self.noise.set_volume(data),
+            addresses::APU_NOISE_PERIOD => self.noise.set_period(data),
+            addresses::APU_NOISE_COUNTER_LOAD => self.noise.set_length_counter(data),
             addresses::APU_STATUS => self.write_status(data),
             addresses::APU_FRAME_COUNTER => self.write_frame_counter(data),
             _ => ()
@@ -110,6 +107,7 @@ impl Apu2A03 {
         self.pulse_1.set_enabled((data & 0b01) > 0);
         self.pulse_2.set_enabled((data & 0b10) > 0);
         self.triangle.set_enabled((data & 0b100) > 0);
+        self.noise.set_enabled((data & 0b1000) > 0);
     }
 
     fn write_frame_counter(&mut self, data: u8) {
@@ -144,10 +142,11 @@ impl Apu2A03 {
         let pulse_1 = self.pulse_1.clock();
         let pulse_2 = self.pulse_2.clock();
         let triangle = self.triangle.clock();
+        let noise = self.noise.clock();
 
         let pulse_index = pulse_1 + pulse_2;
         let pulse_out = self.square_table[pulse_index as usize];
-        let tnd_index = 3 * triangle;
+        let tnd_index = (3 * triangle) + (2 * noise);
         let tnd_out = self.tnd_table[tnd_index as usize];
 
         pulse_out   
@@ -214,6 +213,7 @@ impl Apu2A03 {
     fn clock_envelopes(&mut self) {
         self.pulse_1.envelope.clock();
         self.pulse_2.envelope.clock();
+        self.noise.envelope.clock();
     }
 
     fn clock_sweeps(&mut self) {
