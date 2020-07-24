@@ -22,8 +22,8 @@ impl Apu2A03 {
         Apu2A03 {
             buffer: Vec::<f32>::new(),
             square_table: (0..31).map(|x| 95.52/((8128.0 / x as f32) + 100.0)).collect(),
-            pulse_1: pulse::Pulse::new(),
-            pulse_2: pulse::Pulse::new(),
+            pulse_1: pulse::Pulse::new(true),
+            pulse_2: pulse::Pulse::new(false),
             clock_counter: 0,
             frame_clock_counter: 0,
             step_mode: 0,
@@ -91,52 +91,6 @@ impl Apu2A03 {
         }
     }
 
-    fn clock_4_step_frame_counter(&mut self) {
-        match self.frame_clock_counter {
-            3728 => {
-                self.pulse_1.envelope.clock();
-                self.pulse_2.envelope.clock();
-            },
-            7456 => {
-                self.pulse_1.envelope.clock();
-                self.pulse_2.envelope.clock();
-            },
-            11185 => {
-                self.pulse_1.envelope.clock();
-                self.pulse_2.envelope.clock();
-            },
-            14914 => {
-                self.pulse_1.envelope.clock();
-                self.pulse_2.envelope.clock();
-            },
-            _ => ()
-        }
-    }
-
-    fn clock_5_step_frame_counter(&mut self) {
-        match self.frame_clock_counter {
-            3728 => {
-                self.pulse_1.envelope.clock();
-                self.pulse_2.envelope.clock();
-            },
-            7456 => {
-                self.pulse_1.envelope.clock();
-                self.pulse_2.envelope.clock();
-            },
-            11185 => {
-                self.pulse_1.envelope.clock();
-                self.pulse_2.envelope.clock();
-            },
-            14914 => {
-            },
-            18640 => {
-                self.pulse_1.envelope.clock();
-                self.pulse_2.envelope.clock();
-            },
-            _ => ()
-        }
-    }
-
     fn write_status(&mut self, data: u8) {
         if (data & 0b01) > 0 {
             self.pulse_1.enabled = true;
@@ -180,5 +134,61 @@ impl Apu2A03 {
         let square_2 = self.pulse_2.clock();
 
         self.square_table[(square_1 + square_2) as usize]
+    }
+
+    fn clock_4_step_frame_counter(&mut self) {
+        match self.frame_clock_counter {
+            3728 => {
+                self.clock_envelopes();
+            },
+            7456 => {
+                self.clock_envelopes();
+                self.clock_sweeps();
+            },
+            11185 => {
+                self.clock_envelopes();
+            },
+            14914 => {
+                self.clock_envelopes();
+                self.clock_sweeps();
+
+                if !self.interrupt_inhibit {
+                    self.trigger_interrupt = true;
+                } 
+            },
+            _ => ()
+        }
+    }
+
+    fn clock_5_step_frame_counter(&mut self) {
+        match self.frame_clock_counter {
+            3728 => {
+                self.clock_envelopes();
+            },
+            7456 => {
+                self.clock_envelopes();
+                self.clock_sweeps();
+            },
+            11185 => {
+                self.clock_envelopes();
+            },
+            14914 => {
+            },
+            18640 => {
+                self.clock_envelopes();
+                self.clock_sweeps();
+            },
+            _ => ()
+        }
+    }
+
+    fn clock_envelopes(&mut self) {
+        self.pulse_1.envelope.clock();
+        self.pulse_2.envelope.clock();
+    }
+
+    fn clock_sweeps(&mut self) {
+        self.pulse_1.clock_sweep();
+        self.pulse_2.clock_sweep();
     }
 }

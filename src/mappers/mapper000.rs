@@ -1,6 +1,5 @@
 use super::mappers;
 use crate::memory_sizes;
-use crate::addresses;
 
 const CPU_MIN_ADDRESS: u16 = 0x8000;
 const PPU_MAX_ADDRESS: u16 = 0x1FFF;
