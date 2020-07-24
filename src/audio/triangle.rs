@@ -6,14 +6,13 @@ const SEQUENCER: [u8; SEQUENCER_LENGTH] = [
 
 #[derive(Debug, Default)]
 pub struct Triangle {
-    pub counter_reload: u8,
-    pub enabled: bool,
-    pub length_counter: u8,
-    pub length_counter_halt: bool,
-    pub linear_counter: u8,
-    pub linear_counter_reload: bool,
-    pub sample: u16,
-    pub reload: u16,
+    counter_reload: u8,
+    enabled: bool,
+    length_counter: u8,
+    length_counter_halt: bool,
+    linear_counter: u8,
+    linear_counter_reload: bool,
+    reload: u16,
     sequencer_counter: usize,
     timer: u16
 }
@@ -61,6 +60,13 @@ impl Triangle {
         if self.enabled {
             let index = ((data & 0b11111000) >> 3) as usize;
             self.length_counter = super::LENGTH_COUNTER_TABLE[index];
+        }
+    }
+
+    pub fn set_enabled(&mut self, enabled: bool) {
+        self.enabled = enabled;
+        if !enabled {
+            self.length_counter = 0;
         }
     }
 

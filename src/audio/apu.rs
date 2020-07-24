@@ -1,4 +1,5 @@
 use crate::addresses;
+use super::noise;
 use super::pulse;
 use super::triangle;
 
@@ -13,6 +14,7 @@ pub struct Apu2A03 {
     pulse_1: pulse::Pulse,
     pulse_2: pulse::Pulse,
     triangle: triangle::Triangle,
+    noise: noise::Noise,
     clock_counter: u32,
     frame_clock_counter: usize, // Maintains musical timing of the apu
     step_mode: u8,
@@ -29,6 +31,7 @@ impl Apu2A03 {
             pulse_1: pulse::Pulse::new(true),
             pulse_2: pulse::Pulse::new(false),
             triangle: Default::default(),
+            noise: Default::default(),
             clock_counter: 0,
             frame_clock_counter: 0,
             step_mode: 0,
@@ -104,26 +107,9 @@ impl Apu2A03 {
     }
 
     fn write_status(&mut self, data: u8) {
-        if (data & 0b01) > 0 {
-            self.pulse_1.enabled = true;
-        } else {
-            self.pulse_1.enabled = false;
-            self.pulse_1.length_counter = 0;
-        }
-
-        if (data & 0b10) > 0 {
-            self.pulse_2.enabled = true;
-        } else {
-            self.pulse_2.enabled = false;
-            self.pulse_2.length_counter = 0;
-        }
-
-        if (data & 0b100) > 0 {
-            self.triangle.enabled = true;
-        } else {
-            self.triangle.enabled = false;
-            self.triangle.length_counter = 0;
-        }
+        self.pulse_1.set_enabled((data & 0b01) > 0);
+        self.pulse_2.set_enabled((data & 0b10) > 0);
+        self.triangle.set_enabled((data & 0b100) > 0);
     }
 
     fn write_frame_counter(&mut self, data: u8) {

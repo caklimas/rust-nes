@@ -1,6 +1,7 @@
 pub mod apu;
 pub mod device;
 pub mod envelope;
+pub mod noise;
 pub mod pulse;
 pub mod sweep;
 pub mod triangle;

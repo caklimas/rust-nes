@@ -10,18 +10,17 @@ const DUTY_CYCLE_WAVEFORMS: [u8; 4] = [
 
 #[derive(Debug)]
 pub struct Pulse {
-    pub is_first: bool,
-    pub enabled: bool,
     pub envelope: envelope::Envelope,
-    pub constant_volume: bool,
-    pub length_counter: u8,
-    pub sample: u16,
-    pub sweep: sweep::Sweep,
+    constant_volume: bool,
     duty_cycle: u8,
     duty_shifter: u8,
+    enabled: bool,
+    is_first: bool,
+    length_counter: u8,
+    sweep: sweep::Sweep,
+    target_period: u16,
     timer: u16,
-    timer_period: u16,
-    target_period: u16
+    timer_period: u16
 }
 
 impl Pulse {
@@ -32,7 +31,6 @@ impl Pulse {
             envelope: Default::default(),
             constant_volume: false,
             length_counter: 0,
-            sample: 0,
             sweep: Default::default(),
             duty_cycle: DUTY_CYCLE_WAVEFORMS[0],
             duty_shifter: 0,
@@ -114,6 +112,13 @@ impl Pulse {
         self.timer_period = reload_high | self.timer_period & 0x00FF;
         self.timer = self.timer_period;
         self.envelope.start = true;
+    }
+
+    pub fn set_enabled(&mut self, enabled: bool) {
+        self.enabled = enabled;
+        if !enabled {
+            self.length_counter = 0;
+        }
     }
 
     fn is_silenced(&mut self, sample: u16) -> bool {
