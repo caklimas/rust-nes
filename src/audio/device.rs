@@ -3,9 +3,8 @@ use sdl2::audio::{AudioCallback, AudioSpecDesired};
 
 const CPU_SAMPLE_RATE: f32 = 1_789_773.0;
 const APU_SAMPLE_RATE: f32 = CPU_SAMPLE_RATE / 2.0;
-const SAMPLE_RATE: i32 = 44_100;
-const SAMPLES: u16 = (SAMPLE_RATE as u16) / 60;
-const SAMPLE_RATIO: f32 = APU_SAMPLE_RATE / (SAMPLE_RATE as f32);
+const SAMPLES: u16 = (super::SAMPLE_RATE as u16) / 60;
+const SAMPLE_RATIO: f32 = APU_SAMPLE_RATE / (super::SAMPLE_RATE as f32);
 
 pub struct AudioDevice {
     pub buffer: Arc<Mutex<Vec<f32>>>
@@ -15,7 +14,7 @@ impl AudioDevice {
     pub fn new(sdl_context: &sdl2::Sdl, buffer: Arc<Mutex<Vec<f32>>>) -> sdl2::audio::AudioDevice<AudioDevice> {
         let audio_subsystem = sdl_context.audio().expect("Error loading audio subsystem");
         let desired_spec = AudioSpecDesired {
-            freq: Some(SAMPLE_RATE),
+            freq: Some(super::SAMPLE_RATE),
             channels: Some(1),  // mono
             samples: Some(SAMPLES)
         };
