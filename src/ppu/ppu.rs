@@ -122,8 +122,9 @@ impl Ppu2C02 {
 
     /// Read from the Main Bus
     pub fn read(&mut self, address: u16) -> u8 {
+        let masked_address = address & addresses::PPU_ADDRESS_RANGE;
         let mut data: u8 = 0;
-        match address {
+        match masked_address {
             CONTROL => (), // Can't be read
             MASK => (), // Can't be read
             STATUS => {
@@ -155,7 +156,8 @@ impl Ppu2C02 {
 
     /// Write to the Main Bus
     pub fn write(&mut self, address: u16, data: u8) {
-        match address {
+        let masked_address = address & addresses::PPU_ADDRESS_RANGE; 
+        match masked_address {
             CONTROL => {
                 self.control.set(data);
 

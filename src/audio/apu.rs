@@ -227,7 +227,7 @@ impl Apu2A03 {
         self.triangle.clock_length_counter();
     }
 
-    fn is_max_step_counter(&mut self) -> bool {
+    fn is_max_step_counter(&self) -> bool {
         if self.step_mode == 4 {
             self.frame_clock_counter == 14915
         } else {

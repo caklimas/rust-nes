@@ -121,11 +121,11 @@ impl Pulse {
         }
     }
 
-    fn is_silenced(&mut self, sample: u16) -> bool {
+    fn is_silenced(&self, sample: u16) -> bool {
         sample == 0 || self.length_counter == 0 || self.is_muting_channel()
     }
 
-    fn is_muting_channel(&mut self) -> bool {
+    fn is_muting_channel(&self) -> bool {
         self.timer_period < 8 || self.timer_period > 0x7FF
     }
 

@@ -23,7 +23,6 @@ pub const PPU_ADDRESS_RANGE: u16 = 0x0007;
 
 // Controls
 pub const CONTROLLER_ONE_INPUT: u16 = 0x4016;
-pub const CONTROLLER_TWO_INPUT: u16 = 0x4017;
 
 // Direct Memory Access
 pub const DMA_ADDRESS: u16 = 0x4014;
@@ -46,3 +45,23 @@ pub const APU_NOISE_COUNTER_LOAD: u16 = 0x400F;
 pub const APU_DMC: u16 = 0x4013;
 pub const APU_STATUS: u16 = 0x4015;
 pub const APU_FRAME_COUNTER: u16 = 0x4017;
+
+pub fn get_address_range(address: u16) -> AddressRange {
+    match address {
+        0..=CPU_ADDRESS_UPPER => AddressRange::Cpu,
+        PPU_ADDRESS_START..=PPU_ADDRESS_END => AddressRange::Ppu,
+        DMA_ADDRESS => AddressRange::Dma,
+        APU_PULSE_1_DUTY..=APU_DMC | APU_STATUS | APU_FRAME_COUNTER => AddressRange::Apu,
+        CONTROLLER_ONE_INPUT => AddressRange::Controller,
+        _ => AddressRange::Unknown
+    }
+}
+
+pub enum AddressRange {
+    Cpu,
+    Ppu,
+    Dma,
+    Apu,
+    Controller,
+    Unknown
+}

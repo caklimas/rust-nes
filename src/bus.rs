@@ -1,7 +1,7 @@
 use std::rc::Rc;
 use std::cell::RefCell;
 
-use crate::addresses;
+use crate::addresses::{AddressRange, get_address_range};
 use crate::ppu::ppu;
 use crate::ppu::sprites;
 use crate::cartridge::cartridge;
@@ -55,14 +55,14 @@ impl Bus {
             None => ()
         };
 
-        if address <= addresses::CPU_ADDRESS_UPPER {
-            data = self.ram[(address & CPU_MIRROR) as usize];
-        } else if address >= addresses::PPU_ADDRESS_START && address <= addresses::PPU_ADDRESS_END {
-            data = self.ppu.read(address & addresses::PPU_ADDRESS_RANGE);
-        } else if address >= addresses::CONTROLLER_ONE_INPUT && address <= addresses::CONTROLLER_TWO_INPUT {
-            let masked_address = address & 0x0001;
-            data = self.controllers[masked_address as usize].get_msb();
-        }
+        data = match get_address_range(address) {
+            AddressRange::Cpu => self.ram[(address & CPU_MIRROR) as usize],
+            AddressRange::Ppu => self.ppu.read(address),
+            AddressRange::Dma => 0,
+            AddressRange::Apu => self.apu.read(address),
+            AddressRange::Controller => self.read_controllers(address),
+            AddressRange::Unknown => 0
+        };
 
         data
     }
@@ -77,19 +77,13 @@ impl Bus {
             None => ()
         };
 
-        if address <= addresses::CPU_ADDRESS_UPPER {
-            self.ram[(address & CPU_MIRROR) as usize] = data;
-        } else if address >= addresses::PPU_ADDRESS_START && address <= addresses::PPU_ADDRESS_END {
-            self.ppu.write(address & addresses::PPU_ADDRESS_RANGE, data);
-        } else if address == addresses::DMA_ADDRESS {
-            self.dma.page = data;
-            self.dma.address = 0x00;
-            self.dma_transfer = true;
-        } else if self.is_apu_address(address) {
-            self.apu.write(address, data);
-        } else if address >= addresses::CONTROLLER_ONE_INPUT && address <= addresses::CONTROLLER_TWO_INPUT {
-            let masked_address = address & 0x0001;
-            self.controllers[masked_address as usize].set_state();
+        match get_address_range(address) {
+            AddressRange::Cpu => self.ram[(address & CPU_MIRROR) as usize] = data,
+            AddressRange::Ppu => self.ppu.write(address, data),
+            AddressRange::Dma => self.write_dma(data),
+            AddressRange::Apu => self.apu.write(address, data),
+            AddressRange::Controller => self.write_controllers(address, data),
+            AddressRange::Unknown => ()
         }
     }
 
@@ -100,7 +94,19 @@ impl Bus {
         }
     }
 
-    fn is_apu_address(&mut self, address: u16) -> bool {
-        (address >= addresses::APU_PULSE_1_DUTY && address <= addresses::APU_DMC) || address == addresses::APU_STATUS || address == addresses::APU_FRAME_COUNTER
+    fn read_controllers(&mut self, address: u16) -> u8 {
+        let masked_address = address & 0x0001;
+        self.controllers[masked_address as usize].get_msb()
+    }
+
+    fn write_dma(&mut self, data: u8) {
+        self.dma.page = data;
+        self.dma.address = 0x00;
+        self.dma_transfer = true;
+    }
+
+    fn write_controllers(&mut self, address: u16, data: u8) {
+        let masked_address = address & 0x0001;
+        self.controllers[masked_address as usize].set_state();
     }
 }
