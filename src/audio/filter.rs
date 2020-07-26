@@ -20,12 +20,21 @@ impl Filter {
         }
     }
 
-    pub fn high_pass(&self, sample: f32) -> f32 {
-        (self.gamma * self.previous_output) + (sample - self.previous_input)
+    pub fn high_pass(&mut self, sample: f32) -> f32 {
+        let high_pass = (self.gamma * self.previous_output) + (sample - self.previous_input);
+        self.previous_input = sample;
+        self.previous_output = high_pass;
+
+        high_pass
     }
 
-    pub fn low_pass(&self, sample: f32) -> f32 {
-        ((1.0 - self.gamma) * self.previous_output) + (self.gamma * sample)
+    pub fn low_pass(&mut self, sample: f32) -> f32 {
+        let low_pass = ((1.0 - self.gamma) * self.previous_output) + (self.gamma * sample);
+        self.previous_input = sample;
+        self.previous_output = low_pass;
+        
+        low_pass
+
     }
 }
 
