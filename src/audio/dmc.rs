@@ -4,14 +4,17 @@ const RATE_TABLE: [u16; 16] = [
 
 #[derive(Debug, Default)]
 pub struct DeltaModulationChannel {
+    current_address: u16,
     irq_enabled: bool,
     loop_flag: bool,
     sample_address: u16,
+    sample_buffer: Vec<u8>,
     rate: u16
 }
 
 impl DeltaModulationChannel {
-    pub fn clock(&mut self) {
+    pub fn clock(&mut self) -> u8 {
+        0
     }
 
     pub fn set_rate(&mut self, data: u8) {

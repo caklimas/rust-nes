@@ -21,7 +21,8 @@ pub struct Apu2A03 {
     frame_clock_counter: usize, // Maintains musical timing of the apu
     step_mode: u8,
     interrupt_inhibit: bool,
-    trigger_interrupt: bool
+    trigger_interrupt: bool,
+    dummy: bool
 }
 
 impl Apu2A03 {
@@ -39,7 +40,8 @@ impl Apu2A03 {
             frame_clock_counter: 0,
             step_mode: 0,
             interrupt_inhibit: false,
-            trigger_interrupt: false
+            trigger_interrupt: false,
+            dummy: false
         }
     }
 
@@ -142,6 +144,7 @@ impl Apu2A03 {
             self.clock_envelopes();
             self.clock_sweeps();
             self.clock_length_counters();
+            self.triangle.clock_linear_counter();
         }
     }
 
@@ -150,13 +153,14 @@ impl Apu2A03 {
         let pulse_2 = self.pulse_2.clock();
         let triangle = self.triangle.clock();
         let noise = self.noise.clock();
+        let dmc = self.dmc.clock();
 
         let pulse_index = pulse_1 + pulse_2;
         let pulse_out = self.square_table[pulse_index as usize];
-        let tnd_index = (3 * triangle) + (2 * noise);
+        let tnd_index = (3 * triangle);
         let tnd_out = self.tnd_table[tnd_index as usize];
 
-        pulse_out   
+        pulse_out + tnd_out
     }
 
     fn clock_4_step_frame_counter(&mut self) {
