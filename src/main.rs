@@ -9,17 +9,17 @@ use sdl2::event::Event;
 use sdl2::keyboard::{Keycode, Scancode};
 use sdl2::pixels::PixelFormatEnum;
 
-mod nes;
+mod addresses;
+mod audio;
 mod bus;
-mod cpu;
-mod ppu;
 mod cartridge;
+mod controller;
+mod cpu;
+mod display;
 mod mappers;
 mod memory_sizes;
-mod display;
-mod addresses;
-mod controller;
-mod audio;
+mod nes;
+mod ppu;
 
 use audio::device::AudioDevice;
 

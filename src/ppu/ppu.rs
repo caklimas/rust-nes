@@ -1,12 +1,13 @@
 use std::rc::Rc;
 use std::cell::RefCell;
 
-use crate::cartridge::cartridge;
-use crate::memory_sizes;
-use crate::addresses;
+use crate::addresses::cpu::*;
+use crate::addresses::ppu::*;
 use super::background;
+use crate::cartridge::cartridge;
 use super::flags;
 use super::frame;
+use crate::memory_sizes;
 use super::oam;
 use super::sprites;
 
@@ -122,7 +123,7 @@ impl Ppu2C02 {
 
     /// Read from the Main Bus
     pub fn read(&mut self, address: u16) -> u8 {
-        let masked_address = address & addresses::PPU_ADDRESS_RANGE;
+        let masked_address = address & PPU_ADDRESS_RANGE;
         let mut data: u8 = 0;
         match masked_address {
             CONTROL => (), // Can't be read
@@ -142,7 +143,7 @@ impl Ppu2C02 {
                 data = self.ppu_data_buffer;
                 self.ppu_data_buffer = self.ppu_read(self.current_vram_address.get());
 
-                if self.current_vram_address.get() >= addresses::PALETTE_ADDRESS_LOWER {
+                if self.current_vram_address.get() >= PALETTE_ADDRESS_LOWER {
                     data = self.ppu_data_buffer;
                 }
 
@@ -156,7 +157,7 @@ impl Ppu2C02 {
 
     /// Write to the Main Bus
     pub fn write(&mut self, address: u16, data: u8) {
-        let masked_address = address & addresses::PPU_ADDRESS_RANGE; 
+        let masked_address = address & PPU_ADDRESS_RANGE; 
         match masked_address {
             CONTROL => {
                 self.control.set(data);
@@ -225,7 +226,7 @@ impl Ppu2C02 {
     /// Read from the PPU Bus
     fn ppu_read(&mut self, address: u16) -> u8 {
         let mut data: u8 = 0;
-        let ppu_address = address & addresses::PPU_ADDRESS_END;
+        let ppu_address = address & PPU_ADDRESS_END;
 
         match self.cartridge {
             Some(ref mut c) => {
@@ -236,11 +237,11 @@ impl Ppu2C02 {
             None => ()
         };
 
-        if ppu_address <= addresses::PATTERN_ADDRESS_UPPER {
+        if ppu_address <= PATTERN_ADDRESS_UPPER {
             data = self.read_pattern_table_data(ppu_address);
-        } else if ppu_address >= addresses::NAME_TABLE_ADDRESS_LOWER && ppu_address <= addresses::NAME_TABLE_ADDRESS_UPPER {
+        } else if ppu_address >= NAME_TABLE_ADDRESS_LOWER && ppu_address <= NAME_TABLE_ADDRESS_UPPER {
             data = self.read_name_table_data(ppu_address);
-        } else if ppu_address >= addresses::PALETTE_ADDRESS_LOWER && ppu_address <= addresses::PALETTE_ADDRESS_UPPER {
+        } else if ppu_address >= PALETTE_ADDRESS_LOWER && ppu_address <= PALETTE_ADDRESS_UPPER {
             data = self.read_palette_table_data(ppu_address);
         }
 
@@ -249,7 +250,7 @@ impl Ppu2C02 {
 
     /// Write to the PPU Bus
     fn ppu_write(&mut self, address: u16, data: u8) {
-        let ppu_address = address & addresses::PPU_ADDRESS_END;
+        let ppu_address = address & PPU_ADDRESS_END;
         match self.cartridge {
             Some(ref mut c) => {
                 if c.borrow_mut().ppu_write(ppu_address, data) {
@@ -259,11 +260,11 @@ impl Ppu2C02 {
             None => ()
         };
 
-        if ppu_address <= addresses::PATTERN_ADDRESS_UPPER {
+        if ppu_address <= PATTERN_ADDRESS_UPPER {
             self.write_pattern_table_data(ppu_address, data);
-        } else if ppu_address >= addresses::NAME_TABLE_ADDRESS_LOWER && ppu_address <= addresses::NAME_TABLE_ADDRESS_UPPER {
+        } else if ppu_address >= NAME_TABLE_ADDRESS_LOWER && ppu_address <= NAME_TABLE_ADDRESS_UPPER {
             self.write_name_table_data(ppu_address, data);
-        } else if ppu_address >= addresses::PALETTE_ADDRESS_LOWER && ppu_address <= addresses::PALETTE_ADDRESS_UPPER {
+        } else if ppu_address >= PALETTE_ADDRESS_LOWER && ppu_address <= PALETTE_ADDRESS_UPPER {
             self.write_palette_table_data(ppu_address, data);
         }
     }
@@ -580,7 +581,7 @@ impl Ppu2C02 {
     }
 
     fn get_color_from_palette(&mut self, palette_id: u16, pixel_id: u16) -> super::Color {
-        let address = addresses::PALETTE_ADDRESS_LOWER + (palette_id * 4) + pixel_id;
+        let address = PALETTE_ADDRESS_LOWER + (palette_id * 4) + pixel_id;
         let color_index = self.ppu_read(address) & 0x3F; // Make sure we don't go out of bounds
         super::COLOR_RAM[color_index as usize]
     }

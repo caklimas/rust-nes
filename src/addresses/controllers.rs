@@ -1,0 +1,1 @@
+pub const CONTROLLER_ONE_INPUT: u16 = 0x4016;

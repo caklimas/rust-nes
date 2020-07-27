@@ -1,4 +1,4 @@
-use crate::addresses;
+use crate::addresses::ppu::*;
 
 bitfield!{
     pub struct Status(u8);
@@ -118,11 +118,11 @@ impl ScrollAddress {
     }
 
     pub fn name_table_address(&mut self) -> u16 {
-        addresses::NAME_TABLE_ADDRESS_LOWER | (self.get() & 0x0FFF)
+        NAME_TABLE_ADDRESS_LOWER | (self.get() & 0x0FFF)
     }
 
     pub fn attribute_table_address(&mut self) -> u16 {
-        addresses::ATTRIBUTE_TABLE_ADDRESS_LOWER |
+        ATTRIBUTE_TABLE_ADDRESS_LOWER |
         ((self.name_table() as u16) << 10) |
         ((self.coarse_y() >> 2) << 3) as u16 |
         (self.coarse_x() >> 2) as u16

@@ -1,4 +1,5 @@
-use crate::addresses;
+use crate::addresses::apu::*;
+use super::dmc;
 use super::noise;
 use super::pulse;
 use super::triangle;
@@ -15,6 +16,7 @@ pub struct Apu2A03 {
     pulse_2: pulse::Pulse,
     triangle: triangle::Triangle,
     noise: noise::Noise,
+    dmc: dmc::DeltaModulationChannel,
     clock_counter: u32,
     frame_clock_counter: usize, // Maintains musical timing of the apu
     step_mode: u8,
@@ -32,6 +34,7 @@ impl Apu2A03 {
             pulse_2: pulse::Pulse::new(false),
             triangle: Default::default(),
             noise: Default::default(),
+            dmc: Default::default(),
             clock_counter: 0,
             frame_clock_counter: 0,
             step_mode: 0,
@@ -71,22 +74,26 @@ impl Apu2A03 {
 
     pub fn write(&mut self, address: u16, data: u8) {
         match address {
-            addresses::APU_PULSE_1_DUTY => self.pulse_1.set_duty_cycle(data),
-            addresses::APU_PULSE_1_SWEEP => self.pulse_1.set_sweep(data),
-            addresses::APU_PULSE_1_TIMER_LOW => self.pulse_1.set_reload_low(data),
-            addresses::APU_PULSE_1_TIMER_HIGH => self.pulse_1.set_reload_high(data),
-            addresses::APU_PULSE_2_DUTY => self.pulse_2.set_duty_cycle(data),
-            addresses::APU_PULSE_2_SWEEP => self.pulse_2.set_sweep(data),
-            addresses::APU_PULSE_2_TIMER_LOW => self.pulse_2.set_reload_low(data),
-            addresses::APU_PULSE_2_TIMER_HIGH => self.pulse_2.set_reload_high(data),
-            addresses::APU_TRIANGLE_COUNTER_RELOAD => self.triangle.set_counter_reload(data),
-            addresses::APU_TRIANGLE_TIMER_LOW => self.triangle.set_timer_low(data),
-            addresses::APU_TRIANGLE_TIMER_HIGH => self.triangle.set_timer_high(data),
-            addresses::APU_NOISE_VOLUME => self.noise.set_volume(data),
-            addresses::APU_NOISE_PERIOD => self.noise.set_period(data),
-            addresses::APU_NOISE_COUNTER_LOAD => self.noise.set_length_counter(data),
-            addresses::APU_STATUS => self.write_status(data),
-            addresses::APU_FRAME_COUNTER => self.write_frame_counter(data),
+            APU_PULSE_1_DUTY => self.pulse_1.set_duty_cycle(data),
+            APU_PULSE_1_SWEEP => self.pulse_1.set_sweep(data),
+            APU_PULSE_1_TIMER_LOW => self.pulse_1.set_reload_low(data),
+            APU_PULSE_1_TIMER_HIGH => self.pulse_1.set_reload_high(data),
+            APU_PULSE_2_DUTY => self.pulse_2.set_duty_cycle(data),
+            APU_PULSE_2_SWEEP => self.pulse_2.set_sweep(data),
+            APU_PULSE_2_TIMER_LOW => self.pulse_2.set_reload_low(data),
+            APU_PULSE_2_TIMER_HIGH => self.pulse_2.set_reload_high(data),
+            APU_TRIANGLE_COUNTER_RELOAD => self.triangle.set_counter_reload(data),
+            APU_TRIANGLE_TIMER_LOW => self.triangle.set_timer_low(data),
+            APU_TRIANGLE_TIMER_HIGH => self.triangle.set_timer_high(data),
+            APU_NOISE_VOLUME => self.noise.set_volume(data),
+            APU_NOISE_PERIOD => self.noise.set_period(data),
+            APU_NOISE_COUNTER_LOAD => self.noise.set_length_counter(data),
+            APU_DMC_FLAGS_RATE => self.dmc.set_rate(data),
+            APU_DMC_DIRECT_LOAD => self.dmc.set_direct_load(data),
+            APU_DMC_SAMPLE_ADDRESS => self.dmc.set_sample_address(data),
+            APU_DMC_SAMPLE_LENGTH => self.dmc.set_sample_length(data),
+            APU_STATUS => self.write_status(data),
+            APU_FRAME_COUNTER => self.write_frame_counter(data),
             _ => ()
         }
     }

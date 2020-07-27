@@ -1,5 +1,6 @@
 pub mod apu;
 pub mod device;
+pub mod dmc;
 pub mod envelope;
 pub mod filter;
 pub mod noise;

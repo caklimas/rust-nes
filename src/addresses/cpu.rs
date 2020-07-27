@@ -1,0 +1,3 @@
+pub const CPU_ADDRESS_UPPER: u16 = 0x1FFF;
+
+pub const PATTERN_ADDRESS_UPPER: u16 = 0x1FFF;
