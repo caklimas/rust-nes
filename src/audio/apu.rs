@@ -34,7 +34,7 @@ impl Apu2A03 {
             frame_clock_counter: 0,
             frame_interrupt: false,
             interrupt_inhibit: false,
-            noise: Default::default(),
+            noise: noise::Noise::new(),
             pulse_1: pulse::Pulse::new(true),
             pulse_2: pulse::Pulse::new(false),
             square_table: (0..31).map(|x| 95.52/((8128.0 / x as f32) + 100.0)).collect(),

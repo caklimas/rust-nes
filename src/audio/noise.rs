@@ -4,7 +4,7 @@ const PERIOD_TABLE: [u16; 16] = [
     4, 8, 16, 32, 64, 96, 128, 160, 202, 254, 380, 508, 762, 1016, 2034, 4068
 ];
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct Noise {
     pub envelope: envelope::Envelope,
     pub length_counter: u8,
@@ -18,6 +18,20 @@ pub struct Noise {
 }
 
 impl Noise {
+    pub fn new() -> Self {
+        Noise {
+            envelope: Default::default(),
+            length_counter: 0,
+            constant_volume: false,
+            enabled: false,
+            feedback_shift: 1, // On power-up, the shift register is loaded with the value 1.
+            length_counter_halt: false,
+            mode: false,
+            period: 0,
+            timer: 0
+        }
+    }
+
     pub fn clock(&mut self) -> u8 {
         if self.timer == 0 {
             self.clock_shift_register();
