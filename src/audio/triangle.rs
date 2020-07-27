@@ -6,9 +6,9 @@ const SEQUENCER: [u8; SEQUENCER_LENGTH] = [
 
 #[derive(Debug, Default)]
 pub struct Triangle {
+    pub length_counter: u8,
     counter_reload: u8,
     enabled: bool,
-    length_counter: u8,
     length_counter_halt: bool,
     linear_counter: u8,
     linear_counter_reload: bool,

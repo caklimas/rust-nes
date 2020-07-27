@@ -4,6 +4,8 @@ const RATE_TABLE: [u16; 16] = [
 
 #[derive(Debug, Default)]
 pub struct DeltaModulationChannel {
+    pub remaining_bytes: u8,
+    pub interrupt: bool,
     current_address: u16,
     irq_enabled: bool,
     loop_flag: bool,

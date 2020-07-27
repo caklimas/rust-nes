@@ -10,38 +10,38 @@ const FRAME_COUNTER_STEPS: [usize; 5] = [3728, 7456, 11185, 14914, 18640];
 #[derive(Debug)]
 pub struct Apu2A03 {
     pub buffer: Vec<f32>,
-    square_table: Vec<f32>,
-    tnd_table: Vec<f32>,
+    clock_counter: u32,
+    dmc: dmc::DeltaModulationChannel,
+    frame_clock_counter: usize, // Maintains musical timing of the apu
+    frame_interrupt: bool,
+    interrupt_inhibit: bool,
+    noise: noise::Noise,
     pulse_1: pulse::Pulse,
     pulse_2: pulse::Pulse,
-    triangle: triangle::Triangle,
-    noise: noise::Noise,
-    dmc: dmc::DeltaModulationChannel,
-    clock_counter: u32,
-    frame_clock_counter: usize, // Maintains musical timing of the apu
+    square_table: Vec<f32>,
     step_mode: u8,
-    interrupt_inhibit: bool,
-    trigger_interrupt: bool,
-    dummy: bool
+    tnd_table: Vec<f32>,
+    triangle: triangle::Triangle,
+    trigger_interrupt: bool
 }
 
 impl Apu2A03 {
     pub fn initialize() -> Self {
         Apu2A03 {
             buffer: Vec::<f32>::new(),
-            square_table: (0..31).map(|x| 95.52/((8128.0 / x as f32) + 100.0)).collect(),
-            tnd_table: (0..203).map(|x| 163.67/((24329.0 / x as f32) + 100.0)).collect(),
+            clock_counter: 0,
+            dmc: Default::default(),
+            frame_clock_counter: 0,
+            frame_interrupt: false,
+            interrupt_inhibit: false,
+            noise: Default::default(),
             pulse_1: pulse::Pulse::new(true),
             pulse_2: pulse::Pulse::new(false),
-            triangle: Default::default(),
-            noise: Default::default(),
-            dmc: Default::default(),
-            clock_counter: 0,
-            frame_clock_counter: 0,
+            square_table: (0..31).map(|x| 95.52/((8128.0 / x as f32) + 100.0)).collect(),
             step_mode: 0,
-            interrupt_inhibit: false,
+            triangle: Default::default(),
             trigger_interrupt: false,
-            dummy: false
+            tnd_table: (0..203).map(|x| 163.67/((24329.0 / x as f32) + 100.0)).collect()
         }
     }
 
@@ -69,7 +69,10 @@ impl Apu2A03 {
     }
 
     pub fn read(&mut self, address: u16) -> u8 {
-        let data = 0;
+        let data = match address {
+            APU_STATUS => self.read_status(),
+            _ => 0
+        };
 
         data
     }
@@ -110,6 +113,41 @@ impl Apu2A03 {
             },
             _ => ()
         }
+    }
+
+    fn read_status(&mut self) -> u8 {
+        let mut status = 0;
+        if self.pulse_1.length_counter != 0 {
+            status |= 1 << 0;
+        }
+
+        if self.pulse_2.length_counter != 0 {
+            status |= 1 << 1;
+        }
+
+        if self.triangle.length_counter != 0 {
+            status |= 1 << 2;
+        }
+
+        if self.noise.length_counter != 0 {
+            status |= 1 << 3;
+        }
+
+        if self.dmc.remaining_bytes > 0 {
+            status |= 1 << 4;
+        }
+
+        if self.frame_interrupt {
+            status |= 1 << 6;
+        }
+
+        if self.dmc.interrupt {
+            status |= 1 << 7;
+        }
+
+        self.frame_interrupt = false;
+        
+        status
     }
 
     fn write_status(&mut self, data: u8) {
@@ -157,7 +195,7 @@ impl Apu2A03 {
 
         let pulse_index = pulse_1 + pulse_2;
         let pulse_out = self.square_table[pulse_index as usize];
-        let tnd_index = (3 * triangle);
+        let tnd_index = (3 * triangle) + (2 * noise) + dmc;
         let tnd_out = self.tnd_table[tnd_index as usize];
 
         pulse_out + tnd_out
@@ -236,6 +274,7 @@ impl Apu2A03 {
         self.pulse_1.clock_length_counter();
         self.pulse_2.clock_length_counter();
         self.triangle.clock_length_counter();
+        self.noise.clock_length_counter();
     }
 
     fn is_max_step_counter(&self) -> bool {

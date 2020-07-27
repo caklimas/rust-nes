@@ -11,12 +11,12 @@ const DUTY_CYCLE_WAVEFORMS: [u8; 4] = [
 #[derive(Debug)]
 pub struct Pulse {
     pub envelope: envelope::Envelope,
+    pub length_counter: u8,
     constant_volume: bool,
     duty_cycle: u8,
     duty_shifter: u8,
     enabled: bool,
     is_first: bool,
-    length_counter: u8,
     sweep: sweep::Sweep,
     target_period: u16,
     timer: u16,
@@ -26,17 +26,17 @@ pub struct Pulse {
 impl Pulse {
     pub fn new(is_first: bool) -> Self {
         Pulse {
-            is_first,
-            enabled: false,
             envelope: Default::default(),
-            constant_volume: false,
             length_counter: 0,
-            sweep: Default::default(),
+            constant_volume: false,
             duty_cycle: DUTY_CYCLE_WAVEFORMS[0],
             duty_shifter: 0,
+            enabled: false,
+            is_first,
+            sweep: Default::default(),
+            target_period: 0,
             timer: 0,
-            timer_period: 0,
-            target_period: 0
+            timer_period: 0
         }
     }
 
