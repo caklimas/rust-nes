@@ -9,8 +9,10 @@ pub struct DeltaModulationChannel {
     current_address: u16,
     irq_enabled: bool,
     loop_flag: bool,
+    output_level: u8,
     sample_address: u16,
-    sample_buffer: Vec<u8>,
+    sample_length: u16,
+    sample_buffer: u8,
     rate: u16
 }
 
@@ -28,14 +30,14 @@ impl DeltaModulationChannel {
     }
 
     pub fn set_direct_load(&mut self, data: u8) {
-
+        self.output_level = data & 0b01111111;
     }
 
     pub fn set_sample_address(&mut self, data: u8) {
-
+        self.sample_address = 0xC000 + ((data as u16) * 64);
     }
 
     pub fn set_sample_length(&mut self, data: u8) {
-        
+        self.sample_length = ((data as u16) * 16) + 1;
     }
 }
