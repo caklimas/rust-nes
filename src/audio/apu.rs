@@ -170,10 +170,10 @@ impl Apu2A03 {
 
         self.interrupt_inhibit = match (data >> 6) & 0b1 {
             0 => {
-                false
+                true
             },
             1 => {
-                true
+                false
             },
             _ => panic!("Invalid interrupt request")
         };
