@@ -4,13 +4,13 @@ const PERIOD_TABLE: [u16; 16] = [
     4, 8, 16, 32, 64, 96, 128, 160, 202, 254, 380, 508, 762, 1016, 2034, 4068
 ];
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct Noise {
     pub envelope: envelope::Envelope,
+    pub length_counter: u8,
     constant_volume: bool,
     enabled: bool,
     feedback_shift: u16,
-    length_counter: u8,
     length_counter_halt: bool,
     mode: bool,
     period: u16,
@@ -18,10 +18,23 @@ pub struct Noise {
 }
 
 impl Noise {
+    pub fn new() -> Self {
+        Noise {
+            envelope: Default::default(),
+            length_counter: 0,
+            constant_volume: false,
+            enabled: false,
+            feedback_shift: 1, // On power-up, the shift register is loaded with the value 1.
+            length_counter_halt: false,
+            mode: false,
+            period: 0,
+            timer: 0
+        }
+    }
+
     pub fn clock(&mut self) -> u8 {
         if self.timer == 0 {
             self.clock_shift_register();
-            self.timer = self.period;
         } else {
             self.timer -= 1;
         }
@@ -32,6 +45,12 @@ impl Noise {
             self.envelope.decay_counter_period
         } else {
             self.envelope.decay_counter
+        }
+    }
+
+    pub fn clock_length_counter(&mut self) {
+        if self.length_counter > 0 && !self.length_counter_halt {
+            self.length_counter -= 1;
         }
     }
 
@@ -74,7 +93,7 @@ impl Noise {
         self.feedback_shift >>= 1;
 
         // Bit 14, the leftmost bit, is set to the calculated feedback.
-        self.feedback_shift = (self.feedback_shift & 0xBFFF) | (calculated_feedback << 14); 
+        self.feedback_shift |= calculated_feedback << 14; 
     }
 
     fn is_silenced(&mut self) -> bool {

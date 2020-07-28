@@ -6,9 +6,9 @@ const SEQUENCER: [u8; SEQUENCER_LENGTH] = [
 
 #[derive(Debug, Default)]
 pub struct Triangle {
+    pub length_counter: u8,
     counter_reload: u8,
     enabled: bool,
-    length_counter: u8,
     length_counter_halt: bool,
     linear_counter: u8,
     linear_counter_reload: bool,
@@ -48,19 +48,19 @@ impl Triangle {
 
     pub fn set_timer_low(&mut self, data: u8) {
         let timer_high = self.timer & 0xFF00;
-        self.timer = timer_high | (data as u16);
+        self.reload = timer_high | (data as u16);
     }
 
     pub fn set_timer_high(&mut self, data: u8) {
-        let timer_low = self.timer & 0xFF;
-        let timer_high = ((data & 0b111) as u16) << 8;
-        self.timer = timer_high | timer_low;
-        self.linear_counter_reload = true;
-
         if self.enabled {
             let index = ((data & 0b11111000) >> 3) as usize;
             self.length_counter = super::LENGTH_COUNTER_TABLE[index];
         }
+
+        let timer_low = self.reload & 0xFF;
+        let timer_high = ((data & 0b111) as u16) << 8;
+        self.reload = timer_high | timer_low;
+        self.linear_counter_reload = true;
     }
 
     pub fn set_enabled(&mut self, enabled: bool) {
