@@ -32,7 +32,6 @@ impl Nes {
 
     pub fn clock(&mut self, texture: &mut Texture, canvas: &mut Canvas<Window>) -> bool {
         let frame_complete = self.ppu().clock();
-        self.apu().clock();
 
         // The CPU runs 3 times slower than the PPU
         if self.system_clock_counter % 3 == 0 {
@@ -42,6 +41,11 @@ impl Nes {
             } else {
                 self.cpu.clock();
             }
+        }
+
+        // The APU runs 6 times slower than the PPU
+        if self.system_clock_counter % 6 == 0 {
+            self.apu().clock();
         }
 
         if self.ppu().nmi {

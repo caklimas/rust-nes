@@ -1,4 +1,5 @@
 use std::fs;
+use crate::memory_sizes::KILOBYTES_16;
 use crate::mappers;
 use super::cartridge_header::CartridgeHeader;
 use super::mirror::Mirror;
@@ -28,7 +29,7 @@ impl Cartridge {
         let mapper_id = ((header.mapper_2 >> 4) << 4) | (header.mapper_1 >> 4);
         let mirror = if (header.mapper_1 & 0x01) > 0 { Mirror::Vertical } else { Mirror::Horizontal };
 
-        let prg_memory_size = ((header.prg_rom_chunks as u32) * 16384) as usize;
+        let prg_memory_size = ((header.prg_rom_chunks as u32) * (KILOBYTES_16 as u32)) as usize;
         let post_header_index = if (header.mapper_1 & 0x04) > 0 { 16 + 512 } else { 16 };
 
         let chr_memory_start = (post_header_index + prg_memory_size) as usize;
@@ -38,11 +39,13 @@ impl Cartridge {
             let chr_memory_size = ((header.chr_rom_chunks as u32) * 8192) as usize;
             bytes[chr_memory_start..(chr_memory_start + chr_memory_size)].to_vec()
         };
+
+        let prg_memory = bytes[post_header_index..(post_header_index + prg_memory_size)].to_vec();
  
         Cartridge {
-            prg_memory: bytes[post_header_index..(post_header_index + prg_memory_size)].to_vec(),
+            prg_memory,
             chr_memory,
-            mapper_id: mapper_id,
+            mapper_id,
             prg_banks: header.prg_rom_chunks,
             chr_banks: header.chr_rom_chunks,
             mapper: Cartridge::get_mapper(mapper_id, header.prg_rom_chunks, header.chr_rom_chunks),
@@ -78,7 +81,6 @@ impl Cartridge {
     /// Write to the Main Bus
     pub fn cpu_write(&mut self, address: u16, data: u8) -> bool {
         let mut mapped_address: u32 = 0;
-
         match self.mapper {
             Some(ref mut m) => {
                 if m.cpu_map_write(address, &mut mapped_address, data) {

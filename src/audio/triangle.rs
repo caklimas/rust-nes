@@ -14,7 +14,8 @@ pub struct Triangle {
     linear_counter_reload: bool,
     reload: u16,
     sequencer_counter: usize,
-    timer: u16
+    timer: u16,
+    counter: u32
 }
 
 impl Triangle {
@@ -80,6 +81,7 @@ impl Triangle {
             self.timer -= 1;
         }
 
+        self.counter += 1;
         SEQUENCER[self.sequencer_counter]
     }
 }

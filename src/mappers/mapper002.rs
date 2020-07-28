@@ -44,17 +44,17 @@ impl mappers::Mapper for Mapper002 {
     }
 
     fn cpu_map_read(&mut self, address: u16, mapped_address: &mut u32) -> bool {
-        if address >= CPU_MIN_ADDRESS && address <= SWITCHABLE_ROM_BANK_MAX {
-            *mapped_address = ((self.prg_bank_low as u16) * KILOBYTES_16 + (address & KILOBYTES_16_MASK)) as u32;
-            return true;
-        } 
-        
-        if address >= FIXED_BANK_MIN && address <= CPU_MAX_ADDRESS {
-            *mapped_address = ((self.prg_bank_high as u16) * KILOBYTES_16 + (address & KILOBYTES_16_MASK)) as u32;
-            return true;
-        };
-
-        false
+        match address {
+            CPU_MIN_ADDRESS..=SWITCHABLE_ROM_BANK_MAX => {
+                *mapped_address = (self.prg_bank_low as u32) * (KILOBYTES_16 as u32) + ((address & KILOBYTES_16_MASK) as u32);
+                return true;
+            },
+            FIXED_BANK_MIN..=CPU_MAX_ADDRESS => {
+                *mapped_address = (self.prg_bank_high as u32) * (KILOBYTES_16 as u32) + ((address & KILOBYTES_16_MASK) as u32);
+                return true;
+            }
+            _ => return false
+        }
     }
 
     fn cpu_map_write(&mut self, address: u16, _mapped_address: &mut u32, data: u8) -> bool {

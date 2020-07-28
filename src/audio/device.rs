@@ -24,7 +24,6 @@ impl AudioDevice {
         };
 
         let device = audio_subsystem.open_playback(None, &desired_spec, |_spec| {
-            // initialize the audio callback
             AudioDevice {
                 buffer,
                 filter_90: Filter::new(90.0, Coefficient::High),

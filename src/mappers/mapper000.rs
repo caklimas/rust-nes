@@ -3,7 +3,7 @@ use crate::addresses::mappers::*;
 use crate::memory_sizes;
 use crate::cartridge::mirror::Mirror;
 
-
+#[derive(Debug)]
 pub struct Mapper000 {
     pub prg_banks: u8,
     pub chr_banks: u8
