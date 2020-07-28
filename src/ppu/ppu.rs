@@ -5,6 +5,7 @@ use crate::addresses::cpu::*;
 use crate::addresses::ppu::*;
 use super::background;
 use crate::cartridge::cartridge;
+use crate::cartridge::mirror::Mirror;
 use super::flags;
 use super::frame;
 use crate::memory_sizes;
@@ -490,8 +491,8 @@ impl Ppu2C02 {
 
         match self.cartridge {
             Some(ref mut c) => {
-                match c.borrow_mut().mirror {
-                    cartridge::Mirror::Vertical => {
+                match c.borrow_mut().get_mirror() {
+                    Mirror::Vertical => {
                         if masked_address <= 0x03FF {
                             data = self.name_table[0][address_offset];
                         } else if masked_address >= 0x0400 && masked_address <= 0x07FF {
@@ -502,7 +503,7 @@ impl Ppu2C02 {
                             data = self.name_table[1][address_offset];
                         }
                     },
-                    cartridge::Mirror::Horizontal => {
+                    Mirror::Horizontal => {
                         if masked_address <= 0x07FF {
                             data = self.name_table[0][address_offset];
                         } else if masked_address >= 0x0800 && masked_address <= 0x0FFF {
@@ -524,8 +525,8 @@ impl Ppu2C02 {
 
         match self.cartridge {
             Some(ref mut c) => {
-                match c.borrow_mut().mirror {
-                    cartridge::Mirror::Vertical => {
+                match c.borrow_mut().get_mirror() {
+                    Mirror::Vertical => {
                         if masked_address <= 0x03FF {
                             self.name_table[0][address_offset] = data;
                         } else if masked_address >= 0x0400 && masked_address <= 0x07FF {
@@ -536,7 +537,7 @@ impl Ppu2C02 {
                             self.name_table[1][address_offset] = data;
                         }
                     },
-                    cartridge::Mirror::Horizontal => {
+                    Mirror::Horizontal => {
                         if masked_address <= 0x07FF {
                             self.name_table[0][address_offset] = data;
                         } else if masked_address >= 0x0800 && masked_address <= 0x0FFF {

@@ -89,6 +89,13 @@ impl Bus {
 
     pub fn reset(&mut self) {
         self.apu.reset();
+        match self.cartridge {
+            Some(ref mut c) => {
+                c.borrow_mut().reset();
+            },
+            None => ()
+        };
+
         for i in 0..self.ram.len() {
             self.ram[i] = 0
         }
@@ -105,7 +112,7 @@ impl Bus {
         self.dma_transfer = true;
     }
 
-    fn write_controllers(&mut self, address: u16, data: u8) {
+    fn write_controllers(&mut self, address: u16, _data: u8) {
         let masked_address = address & 0x0001;
         self.controllers[masked_address as usize].set_state();
     }
