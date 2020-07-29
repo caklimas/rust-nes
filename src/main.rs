@@ -43,6 +43,7 @@ fn run_game(sdl_context: &Sdl, audio_device: &sdl2::audio::AudioDevice<AudioDevi
     let args: Vec<String> = env::args().collect();
     let mut nes = nes::Nes::new(buffer);
     let cartridge = cartridge::cartridge::Cartridge::new(&args[1]);
+    //let cartridge = cartridge::cartridge::Cartridge::new(r"C:\Users\Christopher\Desktop\Files\NES\ROMS\Castlevania.nes");
     nes.bus().load_cartridge(cartridge);
     
     nes.reset();

@@ -1,5 +1,8 @@
 use std::fs;
+use crate::memory_sizes::KILOBYTES_16;
 use crate::mappers;
+use super::cartridge_header::CartridgeHeader;
+use super::mirror::Mirror;
 
 pub struct Cartridge {
     prg_memory: Vec<u8>,
@@ -8,7 +11,7 @@ pub struct Cartridge {
     prg_banks: u8,
     chr_banks: u8,
     mapper: Option<Box<dyn mappers::mappers::Mapper>>,
-    pub mirror: Mirror
+    mirror: Mirror
 }
 
 impl Cartridge {
@@ -26,7 +29,7 @@ impl Cartridge {
         let mapper_id = ((header.mapper_2 >> 4) << 4) | (header.mapper_1 >> 4);
         let mirror = if (header.mapper_1 & 0x01) > 0 { Mirror::Vertical } else { Mirror::Horizontal };
 
-        let prg_memory_size = ((header.prg_rom_chunks as u32) * 16384) as usize;
+        let prg_memory_size = ((header.prg_rom_chunks as u32) * (KILOBYTES_16 as u32)) as usize;
         let post_header_index = if (header.mapper_1 & 0x04) > 0 { 16 + 512 } else { 16 };
 
         let chr_memory_start = (post_header_index + prg_memory_size) as usize;
@@ -37,10 +40,12 @@ impl Cartridge {
             bytes[chr_memory_start..(chr_memory_start + chr_memory_size)].to_vec()
         };
 
+        let prg_memory = bytes[post_header_index..(post_header_index + prg_memory_size)].to_vec();
+ 
         Cartridge {
-            prg_memory: bytes[post_header_index..(post_header_index + prg_memory_size)].to_vec(),
+            prg_memory,
             chr_memory,
-            mapper_id: mapper_id,
+            mapper_id,
             prg_banks: header.prg_rom_chunks,
             chr_banks: header.chr_rom_chunks,
             mapper: Cartridge::get_mapper(mapper_id, header.prg_rom_chunks, header.chr_rom_chunks),
@@ -76,10 +81,9 @@ impl Cartridge {
     /// Write to the Main Bus
     pub fn cpu_write(&mut self, address: u16, data: u8) -> bool {
         let mut mapped_address: u32 = 0;
-
         match self.mapper {
             Some(ref mut m) => {
-                if m.cpu_map_write(address, &mut mapped_address) {
+                if m.cpu_map_write(address, &mut mapped_address, data) {
                     self.prg_memory[mapped_address as usize] = data;
                     return true;
                 }
@@ -112,7 +116,7 @@ impl Cartridge {
         let mut mapped_address: u32 = 0;
         match self.mapper {
             Some(ref mut m) => {
-                if m.ppu_map_write(address, &mut mapped_address) {
+                if m.ppu_map_write(address, &mut mapped_address, data) {
                     self.chr_memory[mapped_address as usize] = data;
                     return true;
                 }
@@ -123,27 +127,29 @@ impl Cartridge {
         false
     }
 
+    pub fn get_mirror(&mut self) -> Mirror {
+        match self.mapper {
+            Some(ref mut mapper) => {
+                let mirror = mapper.get_mirror();
+                match mirror {
+                    Mirror::Hardware => self.mirror,
+                    _ => mirror
+                }
+            },
+            None => self.mirror
+        }
+    }
+
     fn get_mapper(mapper_id: u8, prg_banks: u8, chr_banks: u8) -> Option<Box<dyn mappers::mappers::Mapper>> {
         let mut mapper: Option<Box<dyn mappers::mappers::Mapper>> = None;
         match mapper_id {
-            0 => mapper = Some(Box::new(mappers::mapper000::Mapper000 { prg_banks, chr_banks })),
+            0 => mapper = Some(Box::new(mappers::mapper000::Mapper000::new(prg_banks, chr_banks))),
+            2 => mapper = Some(Box::new(mappers::mapper002::Mapper002::new(prg_banks, chr_banks))),
             _ => ()
         };
 
         mapper
     }
-}
-
-pub struct CartridgeHeader {
-    name: [u8; 4],
-    prg_rom_chunks: u8,
-    chr_rom_chunks: u8,
-    mapper_1: u8,
-    mapper_2: u8,
-    prg_ram_size: u8,
-    tv_system_1: u8,
-    tv_system_2: u8,
-    unused: [u8; 5]
 }
 
 impl CartridgeHeader {
@@ -166,12 +172,4 @@ impl CartridgeHeader {
             unused
         }
     }
-}
-
-#[derive(Debug)]
-pub enum Mirror {
-    Horizontal,
-    Vertical,
-    OneScreenLow,
-    OneScreenHigh
 }

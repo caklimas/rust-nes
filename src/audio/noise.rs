@@ -11,7 +11,6 @@ pub struct Noise {
     constant_volume: bool,
     enabled: bool,
     feedback_shift: u16,
-    length_counter_halt: bool,
     mode: bool,
     period: u16,
     timer: u16
@@ -25,7 +24,6 @@ impl Noise {
             constant_volume: false,
             enabled: false,
             feedback_shift: 1, // On power-up, the shift register is loaded with the value 1.
-            length_counter_halt: false,
             mode: false,
             period: 0,
             timer: 0
@@ -49,7 +47,7 @@ impl Noise {
     }
 
     pub fn clock_length_counter(&mut self) {
-        if self.length_counter > 0 && !self.length_counter_halt {
+        if self.length_counter > 0 && !self.envelope.loop_flag {
             self.length_counter -= 1;
         }
     }

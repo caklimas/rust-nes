@@ -2,6 +2,7 @@ pub mod apu;
 pub mod cpu;
 pub mod controllers;
 pub mod dma;
+pub mod mappers;
 pub mod ppu;
 
 use apu::*;

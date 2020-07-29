@@ -49,23 +49,18 @@ impl Apu2A03 {
 
     }
 
-    pub fn clock(&mut self) {
-        if self.clock_counter % (APU_CLOCK_RATE as u32) == 0 {
-            
-            if FRAME_COUNTER_STEPS.contains(&self.frame_clock_counter) {
-                self.clock_frame_counter();
-            }
-            
-            self.frame_clock_counter += 1;
-            if self.is_max_step_counter() {
-                self.frame_clock_counter = 0;
-            }
+    pub fn clock(&mut self) {    
+        let sample = self.mix_samples();
 
-            let sample = self.mix_samples();
-            self.buffer.push(sample);
+        if FRAME_COUNTER_STEPS.contains(&self.frame_clock_counter) {
+            self.clock_frame_counter();
         }
-
-        self.clock_counter += 1;
+        
+        self.frame_clock_counter += 1;
+        if self.is_max_step_counter() {
+            self.frame_clock_counter = 0;
+        }
+        self.buffer.push(sample);
     }
 
     pub fn read(&mut self, address: u16) -> u8 {
@@ -181,8 +176,8 @@ impl Apu2A03 {
         if self.step_mode == 5 {
             self.clock_envelopes();
             self.clock_sweeps();
-            self.clock_length_counters();
             self.triangle.clock_linear_counter();
+            self.clock_length_counters();
         }
     }
 
@@ -219,9 +214,9 @@ impl Apu2A03 {
             },
             14914 => {
                 self.clock_envelopes();
+                self.triangle.clock_linear_counter();
                 self.clock_sweeps();
                 self.clock_length_counters();
-                self.triangle.clock_linear_counter();
 
                 if !self.interrupt_inhibit {
                     self.trigger_interrupt = true;
@@ -240,8 +235,8 @@ impl Apu2A03 {
             7456 => {
                 self.clock_envelopes();
                 self.clock_sweeps();
-                self.clock_length_counters();
                 self.triangle.clock_linear_counter();
+                self.clock_length_counters();
             },
             11185 => {
                 self.clock_envelopes();
@@ -252,8 +247,8 @@ impl Apu2A03 {
             18640 => {
                 self.clock_envelopes();
                 self.clock_sweeps();
-                self.clock_length_counters();
                 self.triangle.clock_linear_counter();
+                self.clock_length_counters();
             },
             _ => ()
         }
