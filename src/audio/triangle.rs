@@ -12,9 +12,9 @@ pub struct Triangle {
     length_counter_halt: bool,
     linear_counter: u8,
     linear_counter_reload: bool,
-    reload: u16,
     sequencer_counter: usize,
     timer: u16,
+    timer_period: u16,
     counter: u32
 }
 
@@ -48,8 +48,8 @@ impl Triangle {
     }
 
     pub fn set_timer_low(&mut self, data: u8) {
-        let timer_high = self.timer & 0xFF00;
-        self.reload = timer_high | (data as u16);
+        let timer_high = self.timer_period & 0xFF00;
+        self.timer_period = timer_high | (data as u16);
     }
 
     pub fn set_timer_high(&mut self, data: u8) {
@@ -58,9 +58,9 @@ impl Triangle {
             self.length_counter = super::LENGTH_COUNTER_TABLE[index];
         }
 
-        let timer_low = self.reload & 0xFF;
+        let timer_low = self.timer_period & 0xFF;
         let timer_high = ((data & 0b111) as u16) << 8;
-        self.reload = timer_high | timer_low;
+        self.timer_period = timer_high | timer_low;
         self.linear_counter_reload = true;
     }
 
@@ -73,7 +73,7 @@ impl Triangle {
 
     fn get_sample(&mut self) -> u8 {
         if self.timer == 0 {
-            self.timer = self.reload;
+            self.timer = self.timer_period;
             if self.length_counter != 0 && self.linear_counter != 0 {
                 self.sequencer_counter = (self.sequencer_counter + 1) % SEQUENCER_LENGTH;
             }
