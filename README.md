@@ -29,3 +29,19 @@ rust-nes.exe {path-to-rom}
 
 Ex: rust-nes.exe "C:\ROMS\Super Mario Bros. (World).nes"
 ```
+
+### Controls
+This is the keyboard mapping from the NES Controller:
+```
+   NES   | Keyboard
+___________________
+|   A    |    Z   |
+|   B    |    X   |
+| Start  |  Enter |
+| Select | R-Shift|
+|   Up   |   Up   |
+|  Down  |  Down  |
+|  Left  |  Left  |
+|  Right |  Right |
+-------------------
+```
