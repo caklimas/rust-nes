@@ -2,8 +2,8 @@
 
 This is an NES emulator written in Rust.
 
-![Super Mario Brothers](https://media.giphy.com/media/h40wc0r5KJvP8YDjhy/giphy.gif)
-![Castlevania](https://media.giphy.com/media/SqZ2IYPCeEXZM3GUqk/giphy.gif)
+![Super Mario Brothers](demo/Super%20Mario%20Brothers.gif)
+![Castlevania](demo/Castlevania.gif)
 
 The goal of this project is purely educational to both learn Rust and also learn more about systems programming/writing an emulator. This emulator uses NTSC timing and as of right now only supports mappers 0 and 2.
 
