@@ -32,9 +32,8 @@ Ex: rust-nes.exe "C:\ROMS\Super Mario Bros. (World).nes"
 
 ### Controls
 This is the keyboard mapping from the NES Controller:
-```
-   NES   | Keyboard
-___________________
+| NES    | Keyboard
+| -------| --------
 |   A    |    Z   |
 |   B    |    X   |
 | Start  |  Enter |
@@ -43,5 +42,3 @@ ___________________
 |  Down  |  Down  |
 |  Left  |  Left  |
 |  Right |  Right |
--------------------
-```
