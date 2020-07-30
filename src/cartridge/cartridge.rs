@@ -146,6 +146,7 @@ impl Cartridge {
             0 => mapper = Some(Box::new(mappers::mapper000::Mapper000::new(prg_banks, chr_banks))),
             2 => mapper = Some(Box::new(mappers::mapper002::Mapper002::new(prg_banks, chr_banks))),
             3 => mapper = Some(Box::new(mappers::mapper003::Mapper003::new(prg_banks, chr_banks))),
+           66 => mapper = Some(Box::new(mappers::mapper066::Mapper066::new(prg_banks, chr_banks))),
             _ => ()
         };
 
