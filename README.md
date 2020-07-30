@@ -8,10 +8,10 @@ This is an NES emulator written in Rust.
 The goal of this project is purely educational to both learn Rust and also learn more about systems programming/writing an emulator. This emulator uses NTSC timing.
 
 The emulator supports the following mappers:
-- [Mapper000](https://wiki.nesdev.com/w/index.php/NROM)
-- [Mapper002](https://wiki.nesdev.com/w/index.php/UxROM)
-- [Mapper003](https://wiki.nesdev.com/w/index.php/INES_Mapper_003)
-- [Mapper066](https://wiki.nesdev.com/w/index.php/GxROM)
+- [Mapper_000](https://wiki.nesdev.com/w/index.php/NROM)
+- [Mapper_002](https://wiki.nesdev.com/w/index.php/UxROM)
+- [Mapper_003](https://wiki.nesdev.com/w/index.php/INES_Mapper_003)
+- [Mapper_066](https://wiki.nesdev.com/w/index.php/GxROM)
 
 ## Getting Started
 ### Install Rust
