@@ -127,9 +127,9 @@ impl Cartridge {
         false
     }
 
-    pub fn get_mirror(&mut self) -> Mirror {
+    pub fn get_mirror(&self) -> Mirror {
         match self.mapper {
-            Some(ref mut mapper) => {
+            Some(ref mapper) => {
                 let mirror = mapper.get_mirror();
                 match mirror {
                     Mirror::Hardware => self.mirror,

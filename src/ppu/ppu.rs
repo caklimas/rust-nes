@@ -5,10 +5,8 @@ use crate::addresses::cpu::*;
 use crate::addresses::ppu::*;
 use super::background;
 use crate::cartridge::cartridge;
-use crate::cartridge::mirror::Mirror;
 use super::flags;
 use super::frame;
-use crate::memory_sizes;
 use super::oam;
 use super::sprites;
 
@@ -27,39 +25,37 @@ const MAX_VISIBLE_SCANLINE: i16 = 239;
 const MAX_VISIBLE_CLOCK_CYCLE: u16 = 257;
 
 pub struct Ppu2C02 {
-    pub name_table: [[u8; memory_sizes::KILOBYTES_1 as usize]; 2], // A full name table is 1KB and the NES can hold 2 name tables
-    pub pallete_table: [u8; 32],
-    pub pattern_table: [[u8; memory_sizes::KILOBYTES_4 as usize]; 2],
     pub cartridge: Option<Rc<RefCell<cartridge::Cartridge>>>,
     pub nmi: bool,
-    pub frame_complete: bool,
     pub frame: frame::Frame,
     pub oam: oam::ObjectAttributeMemory,
-    scanline: i16,
-    cycle: u16,
-    status: super::flags::Status,
-    control: flags::Control,
-    mask: super::flags::Mask,
     address_latch: bool,
-    ppu_data_buffer: u8,
-    current_vram_address: flags::ScrollAddress,
-    temp_vram_address: flags::ScrollAddress,
-    fine_x_scroll: u8,
     background: background::Background,
-    sprite: sprites::Sprite
+    control: flags::Control,
+    current_vram_address: flags::ScrollAddress,
+    cycle: u16,
+    fine_x_scroll: u8,
+    mask: super::flags::Mask,
+    name_table: super::name_table::NameTable, 
+    pallete_table: super::palette_table::PaletteTable,
+    pattern_table: super::pattern_table::PatternTable,
+    ppu_data_buffer: u8,
+    scanline: i16,
+    sprite: sprites::Sprite,
+    status: super::flags::Status,
+    temp_vram_address: flags::ScrollAddress
 }
 
 impl Ppu2C02 {
     pub fn new() -> Self {
         Ppu2C02 {
-            name_table: [[0; 1024]; 2],
-            pallete_table: [0; 32],
-            pattern_table: [[0; memory_sizes::KILOBYTES_4 as usize]; 2],
+            name_table: super::name_table::NameTable::new(),
+            pallete_table: super::palette_table::PaletteTable::new(),
+            pattern_table: super::pattern_table::PatternTable::new(),
             cartridge: None,
             nmi: false,
             scanline: 0,
             cycle: 0,
-            frame_complete: false,
             frame: frame::Frame::new(),
             oam: oam::ObjectAttributeMemory::new(),
             status: flags::Status(0),
@@ -239,11 +235,11 @@ impl Ppu2C02 {
         };
 
         if ppu_address <= PATTERN_ADDRESS_UPPER {
-            data = self.read_pattern_table_data(ppu_address);
+            data = self.pattern_table.read_data(ppu_address);
         } else if ppu_address >= NAME_TABLE_ADDRESS_LOWER && ppu_address <= NAME_TABLE_ADDRESS_UPPER {
-            data = self.read_name_table_data(ppu_address);
+            data = self.name_table.read_data(ppu_address, &self.cartridge);
         } else if ppu_address >= PALETTE_ADDRESS_LOWER && ppu_address <= PALETTE_ADDRESS_UPPER {
-            data = self.read_palette_table_data(ppu_address);
+            data = self.pallete_table.read_data(ppu_address);
         }
 
         data
@@ -262,11 +258,11 @@ impl Ppu2C02 {
         };
 
         if ppu_address <= PATTERN_ADDRESS_UPPER {
-            self.write_pattern_table_data(ppu_address, data);
+            self.pattern_table.write_data(ppu_address, data);
         } else if ppu_address >= NAME_TABLE_ADDRESS_LOWER && ppu_address <= NAME_TABLE_ADDRESS_UPPER {
-            self.write_name_table_data(ppu_address, data);
+            self.name_table.write_data(ppu_address, &self.cartridge, data);
         } else if ppu_address >= PALETTE_ADDRESS_LOWER && ppu_address <= PALETTE_ADDRESS_UPPER {
-            self.write_palette_table_data(ppu_address, data);
+            self.pallete_table.write_data(ppu_address, data);
         }
     }
 
@@ -472,113 +468,6 @@ impl Ppu2C02 {
             // v: IHGF.EDCBA..... = t: IHGF.ED CBA.....
             self.current_vram_address.transfer_y_address(self.temp_vram_address);
         }
-    }
-
-    fn read_pattern_table_data(&mut self, address: u16) -> u8 {
-        let page =(address & 0x1000) >> 12;
-        self.pattern_table[page as usize][(address & 0x0FFF) as usize]
-    }
-
-    fn write_pattern_table_data(&mut self, address: u16, data: u8) {
-        let page = (address & 0x1000) >> 12;
-        self.pattern_table[page as usize][(address & 0x0FFF) as usize] = data;
-    }
-    
-    fn read_name_table_data(&mut self, address: u16) -> u8 {
-        let mut data: u8 = 0;
-        let masked_address = address & 0x0FFF;
-        let address_offset = (masked_address & 0x03FF) as usize; // Offset by size of name table(1023)
-
-        match self.cartridge {
-            Some(ref mut c) => {
-                match c.borrow_mut().get_mirror() {
-                    Mirror::Vertical => {
-                        if masked_address <= 0x03FF {
-                            data = self.name_table[0][address_offset];
-                        } else if masked_address >= 0x0400 && masked_address <= 0x07FF {
-                            data = self.name_table[1][address_offset];
-                        } else if masked_address >= 0x0800 && masked_address <= 0x0BFF {
-                            data = self.name_table[0][address_offset];
-                        } else if masked_address >= 0x0C00 && masked_address <= 0x0FFF {
-                            data = self.name_table[1][address_offset];
-                        }
-                    },
-                    Mirror::Horizontal => {
-                        if masked_address <= 0x07FF {
-                            data = self.name_table[0][address_offset];
-                        } else if masked_address >= 0x0800 && masked_address <= 0x0FFF {
-                            data = self.name_table[1][address_offset];
-                        }
-                    },
-                    _ => ()
-                };
-            },
-            None => ()
-        };
-
-        data
-    }
-
-    fn write_name_table_data(&mut self, address: u16, data: u8) {
-        let masked_address = address & 0x0FFF;
-        let address_offset = (masked_address & 0x03FF) as usize; // Offset by size of name table(1023)
-
-        match self.cartridge {
-            Some(ref mut c) => {
-                match c.borrow_mut().get_mirror() {
-                    Mirror::Vertical => {
-                        if masked_address <= 0x03FF {
-                            self.name_table[0][address_offset] = data;
-                        } else if masked_address >= 0x0400 && masked_address <= 0x07FF {
-                            self.name_table[1][address_offset] = data;
-                        } else if masked_address >= 0x0800 && masked_address <= 0x0BFF {
-                            self.name_table[0][address_offset] = data;
-                        } else if masked_address >= 0x0C00 && masked_address <= 0x0FFF {
-                            self.name_table[1][address_offset] = data;
-                        }
-                    },
-                    Mirror::Horizontal => {
-                        if masked_address <= 0x07FF {
-                            self.name_table[0][address_offset] = data;
-                        } else if masked_address >= 0x0800 && masked_address <= 0x0FFF {
-                            self.name_table[1][address_offset] = data;
-                        }
-                    }, 
-                    _ => ()
-                };
-            },
-            None => ()
-        };
-    }
-
-    fn read_palette_table_data(&mut self, address: u16) -> u8 {
-        let mut masked_address = address & 0x001F;
-        if masked_address == 0x0010 {
-            masked_address = 0x0000;
-        } else if masked_address == 0x0014 {
-            masked_address = 0x0004;
-        } else if masked_address == 0x0018 {
-            masked_address = 0x0008;
-        } else if masked_address == 0x001C {
-            masked_address = 0x000C;
-        }
-
-        self.pallete_table[masked_address as usize]
-    }
-
-    fn write_palette_table_data(&mut self, address: u16, data: u8) {
-        let mut masked_address = address & 0x001F;
-        if masked_address == 0x0010 {
-            masked_address = 0x0000;
-        } else if masked_address == 0x0014 {
-            masked_address = 0x0004;
-        } else if masked_address == 0x0018 {
-            masked_address = 0x0008;
-        } else if masked_address == 0x001C {
-            masked_address = 0x000C;
-        }
-
-        self.pallete_table[masked_address as usize] = data;
     }
 
     fn get_color_from_palette(&mut self, palette_id: u16, pixel_id: u16) -> super::Color {

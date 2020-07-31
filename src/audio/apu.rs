@@ -4,7 +4,6 @@ use super::noise;
 use super::pulse;
 use super::triangle;
 
-const APU_CLOCK_RATE: u8 = 6;
 const FRAME_COUNTER_STEPS: [usize; 5] = [3728, 7456, 11185, 14914, 18640];
 
 #[derive(Debug)]

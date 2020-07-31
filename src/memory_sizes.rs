@@ -1,5 +1,7 @@
 pub const KILOBYTES_1: u16 = 0x0400;
+pub const KILOBYTES_1_MASK: u16 = KILOBYTES_1 - 1;
 pub const KILOBYTES_4: u16 = 0x1000;
+pub const KILOBYTES_4_MASK: u16 = KILOBYTES_4 - 1;
 pub const KILOBYTES_8: u16 = 0x2000;
 pub const KILOBYTES_8_MASK: u16 = KILOBYTES_8 - 1;
 pub const KILOBYTES_16: u16 = 0x4000;
