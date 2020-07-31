@@ -10,8 +10,8 @@ The goal of this project is purely educational to both learn Rust and also learn
 The emulator supports the following mappers:
 - [Mapper_000](https://wiki.nesdev.com/w/index.php/NROM) ([List of Games](http://bootgod.dyndns.org:7777/search.php?ines=0))
 - [Mapper_002](https://wiki.nesdev.com/w/index.php/UxROM) ([List of Games](http://bootgod.dyndns.org:7777/search.php?ines=2))
-- [Mapper_003](https://wiki.nesdev.com/w/index.php/INES_Mapper_003)
-- [Mapper_066](https://wiki.nesdev.com/w/index.php/GxROM)
+- [Mapper_003](https://wiki.nesdev.com/w/index.php/INES_Mapper_003) ([List of Games](http://bootgod.dyndns.org:7777/search.php?ines=3))
+- [Mapper_066](https://wiki.nesdev.com/w/index.php/GxROM) ([List of Games](http://bootgod.dyndns.org:7777/search.php?ines=66))
 
 ## Getting Started
 ### Install Rust
