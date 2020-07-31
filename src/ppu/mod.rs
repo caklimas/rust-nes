@@ -2,7 +2,10 @@ pub mod background;
 pub mod flags;
 pub mod frame;
 pub mod fps_limiter;
+pub mod name_table;
 pub mod oam;
+pub mod palette_table;
+pub mod pattern_table;
 pub mod ppu;
 pub mod sprites;
 
