@@ -10,7 +10,7 @@ pub struct Cartridge {
     mapper_id: u8,
     prg_banks: u8,
     chr_banks: u8,
-    mapper: Option<Box<dyn mappers::mappers::Mapper>>,
+    mapper: Option<Box<dyn mappers::mapper::Mapper>>,
     mirror: Mirror
 }
 
@@ -64,11 +64,14 @@ impl Cartridge {
 
     /// Read from the Main Bus
     pub fn cpu_read(&mut self, address: u16, data: &mut u8) -> bool {
-        let mut mapped_address: u32 = 0;
         match self.mapper {
             Some(ref mut m) => {
-                if m.cpu_map_read(address, &mut mapped_address) {
-                    *data = self.prg_memory[mapped_address as usize];
+                let result = m.cpu_map_read(address);
+                if result.read_from_cart_ram {
+                    *data = self.prg_memory[result.mapped_address as usize];
+                    return true;
+                } else if result.read_from_mapper_ram {
+                    *data = result.data;
                     return true;
                 }
             },
@@ -80,11 +83,15 @@ impl Cartridge {
 
     /// Write to the Main Bus
     pub fn cpu_write(&mut self, address: u16, data: u8) -> bool {
-        let mut mapped_address: u32 = 0;
         match self.mapper {
             Some(ref mut m) => {
-                if m.cpu_map_write(address, &mut mapped_address, data) {
-                    self.prg_memory[mapped_address as usize] = data;
+                let result = m.cpu_map_write(address, data);
+
+                if result.write_to_cart_ram {
+                    self.prg_memory[result.mapped_address as usize] = data;
+                }
+
+                if result.handled {
                     return true;
                 }
             },
@@ -96,12 +103,14 @@ impl Cartridge {
 
     /// Read from the PPU Bus
     pub fn ppu_read(&mut self, address: u16, data: &mut u8) -> bool {
-        let mut mapped_address: u32 = 0;
-
         match self.mapper {
             Some(ref mut m) => {
-                if m.ppu_map_read(address, &mut mapped_address) {
-                    *data = self.chr_memory[mapped_address as usize];
+                let result = m.ppu_map_read(address);
+                if result.read_from_cart_ram {
+                    *data = self.chr_memory[result.mapped_address as usize];
+                    return true;
+                } else if result.read_from_mapper_ram {
+                    *data = result.data;
                     return true;
                 }
             },
@@ -127,9 +136,9 @@ impl Cartridge {
         false
     }
 
-    pub fn get_mirror(&mut self) -> Mirror {
+    pub fn get_mirror(&self) -> Mirror {
         match self.mapper {
-            Some(ref mut mapper) => {
+            Some(ref mapper) => {
                 let mirror = mapper.get_mirror();
                 match mirror {
                     Mirror::Hardware => self.mirror,
@@ -140,10 +149,11 @@ impl Cartridge {
         }
     }
 
-    fn get_mapper(mapper_id: u8, prg_banks: u8, chr_banks: u8) -> Option<Box<dyn mappers::mappers::Mapper>> {
-        let mut mapper: Option<Box<dyn mappers::mappers::Mapper>> = None;
+    fn get_mapper(mapper_id: u8, prg_banks: u8, chr_banks: u8) -> Option<Box<dyn mappers::mapper::Mapper>> {
+        let mut mapper: Option<Box<dyn mappers::mapper::Mapper>> = None;
         match mapper_id {
             0 => mapper = Some(Box::new(mappers::mapper000::Mapper000::new(prg_banks, chr_banks))),
+            1 => mapper = Some(Box::new(mappers::mapper001::mapper001::Mapper001::new(prg_banks, chr_banks))),
             2 => mapper = Some(Box::new(mappers::mapper002::Mapper002::new(prg_banks, chr_banks))),
             3 => mapper = Some(Box::new(mappers::mapper003::Mapper003::new(prg_banks, chr_banks))),
            66 => mapper = Some(Box::new(mappers::mapper066::Mapper066::new(prg_banks, chr_banks))),
