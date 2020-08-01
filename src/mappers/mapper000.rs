@@ -1,4 +1,5 @@
-use super::mappers;
+use super::mapper::{Mapper};
+use super::mapper_results::{MapperReadResult, MapperWriteResult};
 use crate::addresses::mappers::*;
 use crate::memory_sizes;
 use crate::cartridge::mirror::Mirror;
@@ -18,7 +19,7 @@ impl Mapper000 {
     }
 }
 
-impl mappers::Mapper for Mapper000 {
+impl Mapper for Mapper000 {
     fn reset(&mut self) {}
 
     fn get_prg_banks(&self) -> u8 {
@@ -33,37 +34,33 @@ impl mappers::Mapper for Mapper000 {
         Mirror::Hardware
     }
 
-    fn cpu_map_read(&mut self, address: u16, mapped_address: &mut u32) -> bool {
+    fn cpu_map_read(&self, address: u16) -> MapperReadResult {
         if address < CPU_MIN_ADDRESS {
-            return false;
+            return MapperReadResult::none();
         }
         
         let prg_banks = self.get_prg_banks();
         let masked_address = if prg_banks > 1 { memory_sizes::KILOBYTES_32_MASK } else { memory_sizes::KILOBYTES_16_MASK };
-        *mapped_address = (address & masked_address) as u32;
-
-        true
+        MapperReadResult::from_cart_ram((address & masked_address) as u32)
     }
 
-    fn cpu_map_write(&mut self, address: u16, mapped_address: &mut u32, data: u8) -> bool {
+    fn cpu_map_write(&mut self, address: u16, data: u8) -> MapperWriteResult {
         if address < CPU_MIN_ADDRESS {
-            return false;
+            return MapperWriteResult::none();
         }
 
         let prg_banks = self.get_prg_banks();
         let masked_address = if prg_banks > 1 { memory_sizes::KILOBYTES_32_MASK } else { memory_sizes::KILOBYTES_16_MASK };
-        *mapped_address = (address & masked_address) as u32;
+        let mapped_address = (address & masked_address) as u32;
 
-        true
+        MapperWriteResult::to_cart_ram(mapped_address)
     }
 
-    fn ppu_map_read(&mut self, address: u16, mapped_address: &mut u32) -> bool {
-        if address > PPU_MAX_ADDRESS {
-            return false;
+    fn ppu_map_read(&self, address: u16) -> MapperReadResult {
+        match address {
+            PPU_MIN_ADDRESS..=PPU_MAX_ADDRESS => MapperReadResult::from_cart_ram(address as u32),
+            _ => MapperReadResult::none()
         }
-
-        *mapped_address = address as u32;
-        true
     }
 
     fn ppu_map_write(&mut self, address: u16, mapped_address: &mut u32, data: u8) -> bool {
