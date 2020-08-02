@@ -1,5 +1,7 @@
+use std::collections::HashSet;
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
+use sdl2::keyboard::{Scancode};
 use sdl2::render::{Canvas, Texture};
 use sdl2::video::{Window};
 
@@ -30,7 +32,7 @@ impl Nes {
         }
     }
 
-    pub fn clock(&mut self, texture: &mut Texture, canvas: &mut Canvas<Window>) -> bool {
+    pub fn clock(&mut self, texture: &mut Texture, canvas: &mut Canvas<Window>, event_pump: &sdl2::EventPump) -> bool {
         let frame_complete = self.ppu().clock();
 
         // The CPU runs 3 times slower than the PPU
@@ -40,6 +42,17 @@ impl Nes {
                 self.dma_transfer();
             } else {
                 self.cpu.clock();
+                if self.bus().poll_input {
+                    let pressed_keys: HashSet<Scancode> = event_pump.keyboard_state().pressed_scancodes().collect();
+                    self.bus().controllers[0].buttons[0] = pressed_keys.contains(&Scancode::Right);
+                    self.bus().controllers[0].buttons[1] = pressed_keys.contains(&Scancode::Left);
+                    self.bus().controllers[0].buttons[2] = pressed_keys.contains(&Scancode::Down);
+                    self.bus().controllers[0].buttons[3] = pressed_keys.contains(&Scancode::Up);
+                    self.bus().controllers[0].buttons[4] = pressed_keys.contains(&Scancode::Return);
+                    self.bus().controllers[0].buttons[5] = pressed_keys.contains(&Scancode::RShift);
+                    self.bus().controllers[0].buttons[6] = pressed_keys.contains(&Scancode::Z);
+                    self.bus().controllers[0].buttons[7] = pressed_keys.contains(&Scancode::X);
+                }
             }
         }
 
