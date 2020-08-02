@@ -10,6 +10,7 @@ use crate::controller;
 
 const RAM_SIZE: usize = 2048;
 const CPU_MIRROR: u16 = 0x07FF;
+const CONTROLLER_OPEN_BUS: u8 = 0x40;
 
 pub struct Bus {
     pub ppu: ppu::Ppu2C02,
@@ -19,6 +20,7 @@ pub struct Bus {
     pub dma: sprites::DirectMemoryAccess,
     pub dma_transfer: bool,
     pub audio_sample: f64,
+    pub poll_input: bool,
     ram: [u8; RAM_SIZE]
 }
 
@@ -32,6 +34,7 @@ impl Bus {
             dma: Default::default(),
             dma_transfer: false,
             audio_sample: 0.0,
+            poll_input: false,
             ram: [0; RAM_SIZE]
         }
     }
@@ -103,7 +106,7 @@ impl Bus {
 
     fn read_controllers(&mut self, address: u16) -> u8 {
         let masked_address = address & 0x0001;
-        self.controllers[masked_address as usize].get_msb()
+        self.controllers[masked_address as usize].get_msb() | CONTROLLER_OPEN_BUS
     }
 
     fn write_dma(&mut self, data: u8) {
@@ -112,8 +115,9 @@ impl Bus {
         self.dma_transfer = true;
     }
 
-    fn write_controllers(&mut self, address: u16, _data: u8) {
+    fn write_controllers(&mut self, address: u16, data: u8) {
         let masked_address = address & 0x0001;
         self.controllers[masked_address as usize].set_state();
+        self.poll_input = data & 0b1 != 0;
     }
 }

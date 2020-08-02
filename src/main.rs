@@ -1,7 +1,6 @@
 #[macro_use]
 extern crate bitfield;
 
-use std::collections::HashSet;
 use std::env;
 use std::sync::{Arc, Mutex};
 use sdl2::Sdl;
@@ -50,7 +49,7 @@ fn run_game(sdl_context: &Sdl, audio_device: &sdl2::audio::AudioDevice<AudioDevi
 
     let mut event_pump = sdl_context.event_pump().expect("Error loading event pump");
     'running: loop {
-        let frame_complete = nes.clock(&mut texture, &mut canvas);
+        let frame_complete = nes.clock(&mut texture, &mut canvas, &event_pump);
         if frame_complete {
             if !audio_started {
                 audio_started = true;
@@ -65,16 +64,6 @@ fn run_game(sdl_context: &Sdl, audio_device: &sdl2::audio::AudioDevice<AudioDevi
                     _ => {}
                 }
             }
-
-            let pressed_keys: HashSet<Scancode> = event_pump.keyboard_state().pressed_scancodes().collect();
-            nes.bus().controllers[0].buttons[0] = pressed_keys.contains(&Scancode::Right);
-            nes.bus().controllers[0].buttons[1] = pressed_keys.contains(&Scancode::Left);
-            nes.bus().controllers[0].buttons[2] = pressed_keys.contains(&Scancode::Down);
-            nes.bus().controllers[0].buttons[3] = pressed_keys.contains(&Scancode::Up);
-            nes.bus().controllers[0].buttons[4] = pressed_keys.contains(&Scancode::Return);
-            nes.bus().controllers[0].buttons[5] = pressed_keys.contains(&Scancode::RShift);
-            nes.bus().controllers[0].buttons[6] = pressed_keys.contains(&Scancode::Z);
-            nes.bus().controllers[0].buttons[7] = pressed_keys.contains(&Scancode::X);
         }
     }
 }
