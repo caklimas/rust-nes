@@ -1,5 +1,6 @@
 use super::envelope;
 use super::sweep;
+use super::timer;
 
 const DUTY_CYCLE_WAVEFORMS: [u8; 4] = [
     0b01000000, // 12.5%
@@ -19,8 +20,7 @@ pub struct Pulse {
     is_first: bool,
     sweep: sweep::Sweep,
     target_period: u16,
-    timer: u16,
-    timer_period: u16
+    timer: timer::Timer
 }
 
 impl Pulse {
@@ -35,17 +35,16 @@ impl Pulse {
             is_first,
             sweep: Default::default(),
             target_period: 0,
-            timer: 0,
-            timer_period: 0
+            timer: Default::default()
         }
     }
 
     pub fn clock(&mut self) -> u8 {
-        if self.timer == 0 {
-            self.timer = self.timer_period;
+        if self.timer.counter == 0 {
+            self.timer.reset();
             self.duty_shifter = (self.duty_shifter + 1) % 8;
         } else {
-            self.timer -= 1;
+            self.timer.decrement();
         }
 
         let sample = ((self.duty_cycle >> (7 - self.duty_shifter)) & 0b01) as u16;
@@ -62,7 +61,7 @@ impl Pulse {
         self.calculate_period();
 
         if self.sweep.divider_counter == 0 && self.sweep.enabled && !self.is_muting_channel() {
-            self.timer_period = self.target_period;
+            self.timer.period = self.target_period;
         }
 
         if self.sweep.divider_counter == 0 || self.sweep.reload {
@@ -98,19 +97,17 @@ impl Pulse {
         self.sweep.reload = true;
     }
 
-    pub fn set_reload_low(&mut self, data: u8) {
-        self.timer_period = (self.timer_period & 0xFF00) | (data as u16);
+    pub fn set_timer_low(&mut self, data: u8) {
+        self.timer.set_low(data);
     }
 
-    pub fn set_reload_high(&mut self, data: u8) {
+    pub fn set_timer_high(&mut self, data: u8) {
         if self.enabled {
             let index = (data & 0b11111000) >> 3;
             self.length_counter = super::LENGTH_COUNTER_TABLE[index as usize];
         }
 
-        let reload_high = ((data & 0b111) as u16) << 8;
-        self.timer_period = reload_high | self.timer_period & 0x00FF;
-        self.timer = self.timer_period;
+        self.timer.set_high(data);
         self.envelope.start = true;
     }
 
@@ -126,20 +123,20 @@ impl Pulse {
     }
 
     fn is_muting_channel(&self) -> bool {
-        self.timer_period < 8 || self.timer_period > 0x7FF
+        self.timer.period < 8 || self.timer.period > 0x7FF
     }
 
     fn calculate_period(&mut self) {
-        let period_change = self.timer_period >> self.sweep.shift_amount;
+        let period_change = self.timer.period >> self.sweep.shift_amount;
 
         if self.sweep.negate {
-            self.target_period = self.timer_period - period_change;
+            self.target_period = self.timer.period - period_change;
 
             if self.is_first && self.target_period >= 1 {
                 self.target_period -= 1;
             }
         } else {
-            self.target_period = self.timer_period + period_change;
+            self.target_period = self.timer.period + period_change;
         }
     }
 }
