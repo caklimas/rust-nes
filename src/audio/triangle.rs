@@ -1,3 +1,5 @@
+use super::timer;
+
 const SEQUENCER_LENGTH: usize = 32;
 const SEQUENCER: [u8; SEQUENCER_LENGTH] = [
     15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0,
@@ -13,9 +15,7 @@ pub struct Triangle {
     linear_counter: u8,
     linear_counter_reload: bool,
     sequencer_counter: usize,
-    timer: u16,
-    timer_period: u16,
-    counter: u32
+    timer: timer::Timer
 }
 
 impl Triangle {
@@ -48,8 +48,7 @@ impl Triangle {
     }
 
     pub fn set_timer_low(&mut self, data: u8) {
-        let timer_high = self.timer_period & 0xFF00;
-        self.timer_period = timer_high | (data as u16);
+        self.timer.set_low(data);
     }
 
     pub fn set_timer_high(&mut self, data: u8) {
@@ -58,9 +57,7 @@ impl Triangle {
             self.length_counter = super::LENGTH_COUNTER_TABLE[index];
         }
 
-        let timer_low = self.timer_period & 0xFF;
-        let timer_high = ((data & 0b111) as u16) << 8;
-        self.timer_period = timer_high | timer_low;
+        self.timer.set_high(data);
         self.linear_counter_reload = true;
     }
 
@@ -72,16 +69,15 @@ impl Triangle {
     }
 
     fn get_sample(&mut self) -> u8 {
-        if self.timer == 0 {
-            self.timer = self.timer_period;
+        if self.timer.counter == 0 {
+            self.timer.reset();
             if self.length_counter != 0 && self.linear_counter != 0 {
                 self.sequencer_counter = (self.sequencer_counter + 1) % SEQUENCER_LENGTH;
             }
         } else {
-            self.timer -= 1;
+            self.timer.decrement();
         }
 
-        self.counter += 1;
         SEQUENCER[self.sequencer_counter]
     }
 }

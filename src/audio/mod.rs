@@ -6,6 +6,7 @@ pub mod filter;
 pub mod noise;
 pub mod pulse;
 pub mod sweep;
+pub mod timer;
 pub mod triangle;
 
 const LENGTH_COUNTER_TABLE: [u8; 32] = [
