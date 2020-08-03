@@ -11,7 +11,7 @@ pub struct CartridgeHeader {
 }
 
 impl CartridgeHeader {
-    pub fn new(bytes: &Vec<u8>) -> Self {
+    pub fn new(bytes: &[u8]) -> Self {
         let mut name: [u8; 4] = Default::default();
         name.copy_from_slice(&bytes[0..4]);
 

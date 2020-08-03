@@ -5,7 +5,7 @@ use std::env;
 use std::sync::{Arc, Mutex};
 use sdl2::Sdl;
 use sdl2::event::Event;
-use sdl2::keyboard::{Keycode, Scancode};
+use sdl2::keyboard::{Keycode};
 use sdl2::pixels::PixelFormatEnum;
 
 mod addresses;
@@ -41,7 +41,7 @@ fn run_game(sdl_context: &Sdl, audio_device: &sdl2::audio::AudioDevice<AudioDevi
     let mut audio_started = false;
     let args: Vec<String> = env::args().collect();
     let mut nes = nes::Nes::new(buffer);
-    let cartridge = cartridge::cartridge::Cartridge::new(&args[1]);
+    let cartridge = cartridge::Cartridge::new(&args[1]);
     //let cartridge = cartridge::cartridge::Cartridge::new(r"C:\Users\Christopher\Desktop\Files\NES\ROMS\Castlevania.nes");
     nes.bus().load_cartridge(cartridge);
     
@@ -59,10 +59,10 @@ fn run_game(sdl_context: &Sdl, audio_device: &sdl2::audio::AudioDevice<AudioDevi
             for event in event_pump.poll_iter() {
                 match event {
                     Event::Quit {..} | Event::KeyDown { keycode: Some(Keycode::Escape), .. } => {
-                        match nes.bus().cartridge {
-                            Some(ref mut c) => c.borrow_mut().save_data(),
-                            None => ()
+                        if let Some(ref mut c) = nes.bus().cartridge {
+                            c.borrow_mut().save_data();
                         }
+
                         break 'running
                     },
                     _ => {}

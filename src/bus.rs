@@ -4,7 +4,7 @@ use std::cell::RefCell;
 use crate::addresses::{AddressRange, get_address_range};
 use crate::ppu::ppu;
 use crate::ppu::sprites;
-use crate::cartridge::cartridge;
+use crate::cartridge;
 use crate::audio;
 use crate::controller;
 
@@ -14,7 +14,7 @@ const CONTROLLER_OPEN_BUS: u8 = 0x40;
 
 pub struct Bus {
     pub ppu: ppu::Ppu2C02,
-    pub apu: audio::apu::Apu2A03,
+    pub apu: audio::Apu2A03,
     pub cartridge: Option<Rc<RefCell<cartridge::Cartridge>>>,
     pub controllers: [controller::Controller; 2],
     pub dma: sprites::DirectMemoryAccess,
@@ -28,7 +28,7 @@ impl Bus {
     pub fn new() -> Self {
         Bus {
             ppu: ppu::Ppu2C02::new(),
-            apu: audio::apu::Apu2A03::initialize(),
+            apu: audio::Apu2A03::initialize(),
             cartridge: None,
             controllers: Default::default(),
             dma: Default::default(),
@@ -48,15 +48,11 @@ impl Bus {
 
     pub fn read(&mut self, address: u16) -> u8 {
         let mut data: u8 = 0;
-
-        match self.cartridge {
-            Some(ref mut c) => {
-                if c.borrow_mut().cpu_read(address, &mut data) {
-                    return data;
-                }
-            },
-            None => ()
-        };
+        if let Some(ref mut c) = self.cartridge {
+            if c.borrow_mut().cpu_read(address, &mut data) {
+                return data;
+            }
+        }
 
         data = match get_address_range(address) {
             AddressRange::Cpu => self.ram[(address & CPU_MIRROR) as usize],
@@ -71,14 +67,11 @@ impl Bus {
     }
 
     pub fn write(&mut self, address: u16, data: u8) {
-        match self.cartridge {
-            Some(ref mut c) => {
-                if c.borrow_mut().cpu_write(address, data) {
-                    return;
-                }
-            },
-            None => ()
-        };
+        if let Some(ref mut c) = self.cartridge {
+            if c.borrow_mut().cpu_write(address, data) {
+                return;
+            }
+        }
 
         match get_address_range(address) {
             AddressRange::Cpu => self.ram[(address & CPU_MIRROR) as usize] = data,
@@ -92,12 +85,9 @@ impl Bus {
 
     pub fn reset(&mut self) {
         self.apu.reset();
-        match self.cartridge {
-            Some(ref mut c) => {
-                c.borrow_mut().reset();
-            },
-            None => ()
-        };
+        if let Some(ref mut c) = self.cartridge {
+            c.borrow_mut().reset();
+        }
 
         for i in 0..self.ram.len() {
             self.ram[i] = 0

@@ -55,7 +55,7 @@ impl Mapper for Mapper000 {
         let masked_address = if prg_banks > 1 { memory_sizes::KILOBYTES_32_MASK } else { memory_sizes::KILOBYTES_16_MASK };
         let mapped_address = (address & masked_address) as u32;
 
-        MapperWriteResult::to_cart_ram(mapped_address)
+        MapperWriteResult::write_to_cart_ram(mapped_address)
     }
 
     fn ppu_map_read(&self, address: u16) -> MapperReadResult {

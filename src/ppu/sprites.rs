@@ -118,8 +118,6 @@ impl Sprite {
 
     pub fn get_pattern_address(&mut self, index: usize, sprite_mode: bool, sprite_table_address: u16, scanline: i16) -> (u16, bool) {
         let oam_entry = self.get_object_attribute_entry(index * OAM_ENTRY_SIZE);
-        let mut sprite_pattern_bit_low: u8;
-        let mut sprite_pattern_bit_high: u8;
         let sprite_pattern_address_low: u16;
 
         let pattern_table = if !sprite_mode { 
@@ -176,7 +174,7 @@ impl Sprite {
 
     fn get_object_attribute_entry(&mut self, index: usize) -> oam::ObjectAttributeEntry {
         oam::ObjectAttributeEntry {
-            y: self.sprite_scanline[index + 0],
+            y: self.sprite_scanline[index],
             tile_id: self.sprite_scanline[index + 1],
             attribute: oam::OamAttribute(self.sprite_scanline[index + 2]),
             x: self.sprite_scanline[index + 3]

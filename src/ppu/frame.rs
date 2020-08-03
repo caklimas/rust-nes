@@ -22,7 +22,7 @@ impl Frame {
             return;
         }
 
-        let (r, g, b) = color;
+        let (red, green, blue) = color;
         let y_offset = y * BYTES_PER_ROW * display::PIXEL_SIZE;
         for sdl_row_num in 0..display::PIXEL_SIZE {
             let row_offset = y_offset + (sdl_row_num * BYTES_PER_ROW);
@@ -30,9 +30,9 @@ impl Frame {
             for sdl_col_num in 0..display::PIXEL_SIZE {
                 let col_offset = x_offset + (sdl_col_num * 3);
                 let offset = row_offset + col_offset;
-                self.pixels[offset + 0] = r;
-                self.pixels[offset + 1] = g;
-                self.pixels[offset + 2] = b;
+                self.pixels[offset] = red;
+                self.pixels[offset + 1] = green;
+                self.pixels[offset + 2] = blue;
             }
         }
     }

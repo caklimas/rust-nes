@@ -24,7 +24,7 @@ impl ChrBank {
     }
 
     pub fn get_mapped_address(&self, address: u16, mode: &control_register::ChrBankMode) -> u32 {
-        let mapped_address = match mode {
+        match mode {
             control_register::ChrBankMode::Switch8KB => {
                 (self.chunk_8 as u32) * (KILOBYTES_8 as u32) + ((address & KILOBYTES_8_MASK) as u32)
             },
@@ -41,9 +41,7 @@ impl ChrBank {
 
                 (select_4 as u32) * (KILOBYTES_4 as u32) + ((address & KILOBYTES_4_MASK) as u32)
             }
-        };
-
-        mapped_address
+        }
     }
 
     pub fn write_low(&mut self, mode: &control_register::ChrBankMode, data: u8) {

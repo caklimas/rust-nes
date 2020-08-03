@@ -26,7 +26,7 @@ impl PrgBank {
     }
 
     pub fn get_mapped_address(&self, address: u16, prg_mode: &control_register::PrgBankMode) -> u32 {
-        let mapped_address = match prg_mode {
+        match prg_mode {
             control_register::PrgBankMode::Switch32KB => (self.chunk_32 as u32) * (KILOBYTES_32 as u32) + ((address & KILOBYTES_32_MASK) as u32),
             control_register::PrgBankMode::FixFirst | control_register::PrgBankMode::FixLast => {
                 let select_16 = match address {
@@ -41,9 +41,7 @@ impl PrgBank {
 
                 (select_16 as u32) * (KILOBYTES_16 as u32) + ((address & KILOBYTES_16_MASK) as u32)
             }
-        };
-
-        mapped_address
+        }
     }
 
     pub fn write(&mut self, mode: &control_register::PrgBankMode, data: u8) {

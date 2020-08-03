@@ -49,7 +49,7 @@ impl MapperWriteResult {
         }
     }
 
-    pub fn to_cart_ram(mapped_address: u32) -> Self {
+    pub fn write_to_cart_ram(mapped_address: u32) -> Self {
         MapperWriteResult {
             handled: true,
             mapped_address,

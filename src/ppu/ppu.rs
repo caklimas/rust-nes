@@ -4,7 +4,7 @@ use std::cell::RefCell;
 use crate::addresses::cpu::*;
 use crate::addresses::ppu::*;
 use super::background;
-use crate::cartridge::cartridge;
+use crate::cartridge;
 use super::flags;
 use super::frame;
 use super::oam;
@@ -94,12 +94,10 @@ impl Ppu2C02 {
             // Post render scanline does nothing
         }
 
-        if self.scanline >= 241 && self.scanline < 261 {
-            if self.scanline == 241 && self.cycle == 1 {
-                self.status.set_vertical_blank(true);
-                if self.control.generate_nmi() {
-                    self.nmi = true;
-                }
+        if self.scanline == 241 && self.scanline < 261 && self.cycle == 1 {
+            self.status.set_vertical_blank(true);
+            if self.control.generate_nmi() {
+                self.nmi = true;
             }
         }
 
@@ -225,14 +223,11 @@ impl Ppu2C02 {
         let mut data: u8 = 0;
         let ppu_address = address & PPU_ADDRESS_END;
 
-        match self.cartridge {
-            Some(ref mut c) => {
-                if c.borrow_mut().ppu_read(ppu_address, &mut data) {
-                    return data;
-                }
-            },
-            None => ()
-        };
+        if let Some(ref mut c) = self.cartridge {
+            if c.borrow_mut().ppu_read(ppu_address, &mut data) {
+                return data;
+            }
+        }
 
         if ppu_address <= PATTERN_ADDRESS_UPPER {
             data = self.pattern_table.read_data(ppu_address);
@@ -248,14 +243,11 @@ impl Ppu2C02 {
     /// Write to the PPU Bus
     fn ppu_write(&mut self, address: u16, data: u8) {
         let ppu_address = address & PPU_ADDRESS_END;
-        match self.cartridge {
-            Some(ref mut c) => {
-                if c.borrow_mut().ppu_write(ppu_address, data) {
-                    return;
-                }
-            },
-            None => ()
-        };
+        if let Some(ref mut c) = self.cartridge {
+            if c.borrow_mut().ppu_write(ppu_address, data) {
+                return;
+            }
+        }
 
         if ppu_address <= PATTERN_ADDRESS_UPPER {
             self.pattern_table.write_data(ppu_address, data);
