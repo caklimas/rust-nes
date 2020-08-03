@@ -23,16 +23,14 @@ impl AudioDevice {
             samples: Some(SAMPLES)
         };
 
-        let device = audio_subsystem.open_playback(None, &desired_spec, |_spec| {
+        audio_subsystem.open_playback(None, &desired_spec, |_spec| {
             AudioDevice {
                 buffer,
                 filter_90: Filter::new(90.0, Coefficient::High),
                 filter_440: Filter::new(440.0, Coefficient::High),
                 filter_14000: Filter::new(14_000.0, Coefficient::Low)
             }
-        }).expect("Error opening device");
-
-        device
+        }).expect("Error opening device")
     }
 }
 

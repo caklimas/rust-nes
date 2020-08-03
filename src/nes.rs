@@ -12,7 +12,7 @@ use crate::audio;
 use crate::display;
 
 pub struct Nes {
-    pub cpu: cpu::cpu::Cpu6502,
+    pub cpu: cpu::Cpu6502,
     fps_limiter: ppu::fps_limiter::FpsLimiter,
     timer: Instant,
     system_clock_counter: u32,
@@ -23,7 +23,7 @@ pub struct Nes {
 impl Nes {
     pub fn new(buffer: Arc<Mutex<Vec<f32>>>) -> Self {
         Nes {
-            cpu: cpu::cpu::Cpu6502::new(),
+            cpu: cpu::Cpu6502::new(),
             fps_limiter: ppu::fps_limiter::FpsLimiter::new(60),
             timer: Instant::now(),
             system_clock_counter: 0,
@@ -94,7 +94,7 @@ impl Nes {
         &mut self.cpu.bus.ppu
     }
 
-    pub fn apu(&mut self) -> &mut audio::apu::Apu2A03 {
+    pub fn apu(&mut self) -> &mut audio::Apu2A03 {
         &mut self.cpu.bus.apu
     }
 

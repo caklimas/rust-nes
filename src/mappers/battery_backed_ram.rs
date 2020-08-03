@@ -2,8 +2,7 @@ use std::fs;
 use std::path::Path;
 use super::mapper::Mapper;
 
-pub fn save_battery_backed_ram(file_path: &str, data: &Vec<u8>) {
-    println!("Saving {} bytes of data", data.len());
+pub fn save_battery_backed_ram(file_path: &str, data: &[u8]) {
     let save_data = get_save_data_path(file_path);
     fs::write(save_data, data).expect("Error writing save data to path");
 }

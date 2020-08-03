@@ -21,14 +21,12 @@ impl PaletteTable {
 
     fn get_masked_address(address: u16) -> u16 {
         let address = address & 0x001F;
-        let masked_address = match address & 0x001F {
+        match address & 0x001F {
             0x0010 => 0x0000,
             0x0014 => 0x0004,
             0x0018 => 0x0008,
             0x001C => 0x000C,
             _ => address
-        };
-
-        masked_address
+        }
     }
 }

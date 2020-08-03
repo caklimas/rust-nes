@@ -1,6 +1,6 @@
 use std::rc::Rc;
 use std::cell::RefCell;
-use crate::cartridge::cartridge::Cartridge;
+use crate::cartridge::Cartridge;
 use crate::cartridge::mirror::Mirror;
 use crate::memory_sizes::*;
 
