@@ -1,3 +1,4 @@
+pub mod battery_backed_ram;
 pub mod mapper;
 pub mod mapper000;
 pub mod mapper001;

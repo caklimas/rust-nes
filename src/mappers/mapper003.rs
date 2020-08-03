@@ -8,14 +8,16 @@ use crate::cartridge::mirror::Mirror;
 pub struct Mapper003 {
     pub prg_banks: u8,
     pub chr_banks: u8,
+    battery_backed_ram: bool,
     chr_bank: u8
 }
 
 impl Mapper003 {
-    pub fn new(prg_banks: u8, chr_banks: u8) -> Self {
+    pub fn new(prg_banks: u8, chr_banks: u8, battery_backed_ram: bool) -> Self {
         Mapper003 {
             prg_banks,
             chr_banks,
+            battery_backed_ram,
             chr_bank: 0
         }
     }
@@ -68,4 +70,8 @@ impl Mapper for Mapper003 {
     fn ppu_map_write(&mut self, _address: u16, _mapped_address: &mut u32, _data: u8) -> bool {
         false
     }
+
+    fn load_battery_backed_ram(&mut self, _data: Vec<u8>) {}
+
+    fn save_battery_backed_ram(&self, _file_path: &str) {}
 }

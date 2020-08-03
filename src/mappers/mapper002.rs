@@ -12,16 +12,18 @@ pub struct Mapper002 {
     pub prg_banks: u8,
     pub chr_banks: u8,
     pub prg_bank_low: u8,
-    pub prg_bank_high: u8
+    pub prg_bank_high: u8,
+    battery_backed_ram: bool
 }
 
 impl Mapper002 {
-    pub fn new(prg_banks: u8, chr_banks: u8) -> Self {
+    pub fn new(prg_banks: u8, chr_banks: u8, battery_backed_ram: bool) -> Self {
         Mapper002 {
             prg_banks,
             chr_banks,
             prg_bank_low: 0,
-            prg_bank_high: if prg_banks > 0 { prg_banks - 1 } else { prg_banks }
+            prg_bank_high: if prg_banks > 0 { prg_banks - 1 } else { prg_banks },
+            battery_backed_ram
         }
     }
 }
@@ -73,7 +75,7 @@ impl Mapper for Mapper002 {
         }
     }
 
-    fn ppu_map_write(&mut self, address: u16, mapped_address: &mut u32, data: u8) -> bool {
+    fn ppu_map_write(&mut self, address: u16, mapped_address: &mut u32, _data: u8) -> bool {
         
         if address > PPU_MAX_ADDRESS || self.get_chr_banks() != 0 {
             return false;
@@ -82,4 +84,8 @@ impl Mapper for Mapper002 {
         *mapped_address = address as u32;
         true
     }
+
+    fn load_battery_backed_ram(&mut self, _data: Vec<u8>) {}
+
+    fn save_battery_backed_ram(&self, _file_path: &str) {}
 }

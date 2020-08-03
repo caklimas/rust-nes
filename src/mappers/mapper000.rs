@@ -7,14 +7,16 @@ use crate::cartridge::mirror::Mirror;
 #[derive(Debug)]
 pub struct Mapper000 {
     pub prg_banks: u8,
-    pub chr_banks: u8
+    pub chr_banks: u8,
+    battery_backed_ram: bool
 }
 
 impl Mapper000 {
-    pub fn new(prg_banks: u8, chr_banks: u8) -> Self {
+    pub fn new(prg_banks: u8, chr_banks: u8, battery_backed_ram: bool) -> Self {
         Mapper000 {
             prg_banks,
-            chr_banks
+            chr_banks,
+            battery_backed_ram
         }
     }
 }
@@ -44,7 +46,7 @@ impl Mapper for Mapper000 {
         MapperReadResult::from_cart_ram((address & masked_address) as u32)
     }
 
-    fn cpu_map_write(&mut self, address: u16, data: u8) -> MapperWriteResult {
+    fn cpu_map_write(&mut self, address: u16, _data: u8) -> MapperWriteResult {
         if address < CPU_MIN_ADDRESS {
             return MapperWriteResult::none();
         }
@@ -63,7 +65,7 @@ impl Mapper for Mapper000 {
         }
     }
 
-    fn ppu_map_write(&mut self, address: u16, mapped_address: &mut u32, data: u8) -> bool {
+    fn ppu_map_write(&mut self, address: u16, mapped_address: &mut u32, _data: u8) -> bool {
         
         if address > PPU_MAX_ADDRESS || self.get_chr_banks() != 0 {
             return false;
@@ -72,4 +74,8 @@ impl Mapper for Mapper000 {
         *mapped_address = address as u32;
         true
     }
+
+    fn load_battery_backed_ram(&mut self, _data: Vec<u8>) {}
+
+    fn save_battery_backed_ram(&self, _file_path: &str) {}
 }

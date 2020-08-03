@@ -59,6 +59,10 @@ fn run_game(sdl_context: &Sdl, audio_device: &sdl2::audio::AudioDevice<AudioDevi
             for event in event_pump.poll_iter() {
                 match event {
                     Event::Quit {..} | Event::KeyDown { keycode: Some(Keycode::Escape), .. } => {
+                        match nes.bus().cartridge {
+                            Some(ref mut c) => c.borrow_mut().save_data(),
+                            None => ()
+                        }
                         break 'running
                     },
                     _ => {}
