@@ -5,12 +5,13 @@ use super::cartridge_header::CartridgeHeader;
 use super::mirror::Mirror;
 
 pub struct Cartridge {
-    prg_memory: Vec<u8>,
-    chr_memory: Vec<u8>,
-    mapper_id: u8,
-    prg_banks: u8,
     chr_banks: u8,
+    chr_memory: Vec<u8>,
+    file_path: std::string::String,
+    prg_banks: u8,
+    prg_memory: Vec<u8>,
     mapper: Option<Box<dyn mappers::mapper::Mapper>>,
+    mapper_id: u8,
     mirror: Mirror
 }
 
@@ -23,8 +24,8 @@ impl Cartridge {
     /// CHR ROM data, if present (8192 * y bytes)
     /// PlayChoice INST-ROM, if present (0 or 8192 bytes)
     /// PlayChoice PROM, if present (16 bytes Data, 16 bytes CounterOut) (this is often missing, see PC10 ROM-Images for details)
-    pub fn new(file_name: &str) -> Self {
-        let bytes = fs::read(file_name).expect("Cannot find file");
+    pub fn new(file_path: &str) -> Self {
+        let bytes = fs::read(file_path).expect("Cannot find file");
         let header = CartridgeHeader::new(&bytes);
         let mapper_id = ((header.mapper_2 >> 4) << 4) | (header.mapper_1 >> 4);
         let mirror = if (header.mapper_1 & 0x01) > 0 { Mirror::Vertical } else { Mirror::Horizontal };
@@ -41,14 +42,15 @@ impl Cartridge {
         };
 
         let prg_memory = bytes[post_header_index..(post_header_index + prg_memory_size)].to_vec();
- 
+
         Cartridge {
-            prg_memory,
-            chr_memory,
-            mapper_id,
-            prg_banks: header.prg_rom_chunks,
             chr_banks: header.chr_rom_chunks,
-            mapper: Cartridge::get_mapper(mapper_id, header.prg_rom_chunks, header.chr_rom_chunks),
+            chr_memory,
+            file_path: file_path.to_owned(),
+            prg_banks: header.prg_rom_chunks,
+            prg_memory,
+            mapper: Cartridge::get_mapper(mapper_id, &header, file_path),
+            mapper_id,
             mirror
         }
     }
@@ -149,39 +151,31 @@ impl Cartridge {
         }
     }
 
-    fn get_mapper(mapper_id: u8, prg_banks: u8, chr_banks: u8) -> Option<Box<dyn mappers::mapper::Mapper>> {
-        let mut mapper: Option<Box<dyn mappers::mapper::Mapper>> = None;
-        match mapper_id {
-            0 => mapper = Some(Box::new(mappers::mapper000::Mapper000::new(prg_banks, chr_banks))),
-            1 => mapper = Some(Box::new(mappers::mapper001::mapper001::Mapper001::new(prg_banks, chr_banks))),
-            2 => mapper = Some(Box::new(mappers::mapper002::Mapper002::new(prg_banks, chr_banks))),
-            3 => mapper = Some(Box::new(mappers::mapper003::Mapper003::new(prg_banks, chr_banks))),
-           66 => mapper = Some(Box::new(mappers::mapper066::Mapper066::new(prg_banks, chr_banks))),
-            _ => ()
+    pub fn save_data(&mut self) {
+        match self.mapper {
+            Some(ref mut m) => m.save_battery_backed_ram(&self.file_path),
+            None => ()
+        }
+    }
+
+    fn get_mapper(mapper_id: u8, header: &CartridgeHeader, file_name: &str) -> Option<Box<dyn mappers::mapper::Mapper>> {
+        let prg_banks = header.prg_rom_chunks;
+        let chr_banks = header.chr_rom_chunks;
+        let has_battery_backed_ram = (header.mapper_1 >> 1) & 1 != 0;
+        let mut mapper: Option<Box<dyn mappers::mapper::Mapper>> =  match mapper_id {
+            0 => Some(Box::new(mappers::mapper000::Mapper000::new(prg_banks, chr_banks, has_battery_backed_ram))),
+            1 => Some(Box::new(mappers::mapper001::mapper001::Mapper001::new(prg_banks, chr_banks, has_battery_backed_ram))),
+            2 => Some(Box::new(mappers::mapper002::Mapper002::new(prg_banks, chr_banks, has_battery_backed_ram))),
+            3 => Some(Box::new(mappers::mapper003::Mapper003::new(prg_banks, chr_banks, has_battery_backed_ram))),
+           66 => Some(Box::new(mappers::mapper066::Mapper066::new(prg_banks, chr_banks, has_battery_backed_ram))),
+            _ => None
         };
 
-        mapper
-    }
-}
-
-impl CartridgeHeader {
-    pub fn new(bytes: &Vec<u8>) -> Self {
-        let mut name: [u8; 4] = Default::default();
-        name.copy_from_slice(&bytes[0..4]);
-
-        let mut unused: [u8; 5] = Default::default();
-        unused.copy_from_slice(&bytes[11..16]);
-
-        CartridgeHeader {
-            name,
-            prg_rom_chunks: bytes[4],
-            chr_rom_chunks: bytes[5],
-            mapper_1: bytes[6],
-            mapper_2: bytes[7],
-            prg_ram_size: bytes[8],
-            tv_system_1: bytes[9],
-            tv_system_2: bytes[10],
-            unused
+        match mapper {
+            Some(ref mut m) => mappers::battery_backed_ram::load_battery_backed_ram(m, file_name),
+            None => ()
         }
+
+        mapper
     }
 }

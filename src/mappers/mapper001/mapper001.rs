@@ -1,4 +1,5 @@
 use super::*;
+use crate::mappers::battery_backed_ram;
 use crate::mappers::mapper::{Mapper};
 use crate::mappers::mapper_results::{MapperReadResult, MapperWriteResult};
 use crate::addresses::mappers::*;
@@ -9,6 +10,7 @@ use crate::cartridge::mirror::Mirror;
 pub struct Mapper001 {
     pub prg_banks: u8,
     pub chr_banks: u8,
+    battery_backed_ram: bool,
     chr_bank: chr_bank::ChrBank,
     control_register: control_register::ControlRegister,
     prg_bank: prg_bank::PrgBank,
@@ -17,10 +19,11 @@ pub struct Mapper001 {
 }
 
 impl Mapper001 {
-    pub fn new(prg_banks: u8, chr_banks: u8) -> Self {
+    pub fn new(prg_banks: u8, chr_banks: u8, battery_backed_ram: bool) -> Self {
         Mapper001 {
             prg_banks,
             chr_banks,
+            battery_backed_ram,
             chr_bank: chr_bank::ChrBank::new(),
             control_register: control_register::ControlRegister(0x00),
             prg_bank: prg_bank::PrgBank::new(prg_banks),
@@ -100,7 +103,7 @@ impl Mapper for Mapper001 {
         }
     }
 
-    fn ppu_map_write(&mut self, address: u16, mapped_address: &mut u32, data: u8) -> bool {
+    fn ppu_map_write(&mut self, address: u16, mapped_address: &mut u32, _data: u8) -> bool {
         
         if address > PPU_MAX_ADDRESS || self.get_chr_banks() != 0 {
             return false;
@@ -108,6 +111,24 @@ impl Mapper for Mapper001 {
         
         *mapped_address = address as u32;
         true
+    }
+
+    fn load_battery_backed_ram(&mut self, data: Vec<u8>) {
+        if !self.battery_backed_ram {
+            return;
+        }
+
+        self.ram = data;
+    }
+
+    fn save_battery_backed_ram(&self, file_path: &str) {
+        if !self.battery_backed_ram {
+            println!("Don't save");
+            return;
+        }
+
+        println!("Save");
+        battery_backed_ram::save_battery_backed_ram(file_path, &self.ram);
     }
 }
 

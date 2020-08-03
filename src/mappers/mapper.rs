@@ -10,4 +10,6 @@ pub trait Mapper {
     fn cpu_map_write(&mut self, address: u16, data: u8) -> MapperWriteResult;
     fn ppu_map_read(&self, address: u16) -> MapperReadResult;
     fn ppu_map_write(&mut self, address: u16, mapped_address: &mut u32, data: u8) -> bool;
+    fn load_battery_backed_ram(&mut self, data: Vec<u8>);
+    fn save_battery_backed_ram(&self, file_path: &str);
 }
