@@ -6,17 +6,19 @@ use crate::memory_sizes::*;
 
 /// A full name table is 1KB and the NES can hold 2 name tables
 pub struct NameTable {
-    data: [[u8; KILOBYTES_1 as usize]; 2]
+    data: [[u8; KILOBYTES_1 as usize]; 2],
+    counter: u32
 }
 
 impl NameTable {
     pub fn new() -> Self {
         NameTable {
-            data: [[0; KILOBYTES_1 as usize]; 2]
+            data: [[0; KILOBYTES_1 as usize]; 2],
+            counter: 0
         }
     }
     
-    pub fn read_data(&self, address: u16, cartridge: &Option<Rc<RefCell<Cartridge>>>) -> u8 {
+    pub fn read_data(&mut self, address: u16, cartridge: &Option<Rc<RefCell<Cartridge>>>) -> u8 {
         let name_table_address = NameTableAddress::new(address);
         match cartridge {
             Some(ref c) => {

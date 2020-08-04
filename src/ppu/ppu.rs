@@ -101,7 +101,9 @@ impl Ppu2C02 {
             }
         }
 
-        self.render_pixel();
+        if self.scanline != -1 || self.scanline != 261 {
+            self.render_pixel();
+        }
 
         self.cycle += 1;
 
