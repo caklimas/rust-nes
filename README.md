@@ -4,6 +4,8 @@ This is a Nintendo emulator written in Rust.
 
 ![Super Mario Brothers](demo/Super%20Mario%20Brothers.gif)
 ![Castlevania](demo/Castlevania.gif)
+<br />
+![Legend of Zelda](demo/Legend%20of%20Zelda.gif)
 
 The goal of this project is purely educational to both learn Rust and also learn more about systems programming/writing an emulator. This emulator uses NTSC timing.
 

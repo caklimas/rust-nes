@@ -39,6 +39,12 @@ impl NameTable {
                             _ => 0
                         }
                     },
+                    Mirror::OneScreenLow => {
+                        self.data[0][name_table_address.address_offset]
+                    },
+                    Mirror::OneScreenHigh => {
+                        self.data[1][name_table_address.address_offset]
+                    }
                     _ => 0
                 }
             }
@@ -67,6 +73,12 @@ impl NameTable {
                             _ => ()
                         }
                     },
+                    Mirror::OneScreenLow => {
+                        self.data[0][name_table_address.address_offset] = data
+                    },
+                    Mirror::OneScreenHigh => {
+                        self.data[1][name_table_address.address_offset] = data
+                    }
                     _ => ()
                 }
             },
