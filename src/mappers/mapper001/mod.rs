@@ -1,6 +1,5 @@
 pub mod chr_bank;
 pub mod control_register;
-pub mod mapper001;
 pub mod prg_bank;
 pub mod shift_register;
 

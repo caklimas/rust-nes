@@ -42,17 +42,6 @@ impl Nes {
                 self.dma_transfer();
             } else {
                 self.cpu.clock();
-                if self.bus().poll_input {
-                    let pressed_keys: HashSet<Scancode> = event_pump.keyboard_state().pressed_scancodes().collect();
-                    self.bus().controllers[0].buttons[0] = pressed_keys.contains(&Scancode::Right);
-                    self.bus().controllers[0].buttons[1] = pressed_keys.contains(&Scancode::Left);
-                    self.bus().controllers[0].buttons[2] = pressed_keys.contains(&Scancode::Down);
-                    self.bus().controllers[0].buttons[3] = pressed_keys.contains(&Scancode::Up);
-                    self.bus().controllers[0].buttons[4] = pressed_keys.contains(&Scancode::Return);
-                    self.bus().controllers[0].buttons[5] = pressed_keys.contains(&Scancode::RShift);
-                    self.bus().controllers[0].buttons[6] = pressed_keys.contains(&Scancode::Z);
-                    self.bus().controllers[0].buttons[7] = pressed_keys.contains(&Scancode::X);
-                }
             }
         }
 
@@ -66,6 +55,11 @@ impl Nes {
             self.cpu.non_mask_interrupt_request();
         }
 
+        if self.apu().trigger_interrupt && self.cpu.get_flag(cpu::Flags6502::DisableInterrupts) == 0 {
+            self.cpu.interrupt_request();
+            self.apu().trigger_interrupt = false;
+        }
+
         if frame_complete {
             let pixels = self.ppu().frame.get_pixels();
             display::draw_frame(texture, canvas, &pixels);
@@ -73,6 +67,11 @@ impl Nes {
             self.timer = Instant::now();
             let mut lock = self.buffer.lock().expect("Error getting a lock for the buffer");
             lock.append(&mut self.cpu.bus.apu.buffer);
+        }
+
+        if self.bus().strobe_pulse & 1 == 1 {
+            let pressed_scancodes: HashSet<Scancode> = event_pump.keyboard_state().pressed_scancodes().collect();
+            self.bus().controllers[0].set_controller_state(pressed_scancodes);
         }
 
         self.fps_limiter.calculate_fps();

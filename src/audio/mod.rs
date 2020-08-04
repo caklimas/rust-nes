@@ -21,6 +21,7 @@ const FRAME_COUNTER_STEPS: [usize; 5] = [3728, 7456, 11185, 14914, 18640];
 #[derive(Debug)]
 pub struct Apu2A03 {
     pub buffer: Vec<f32>,
+    pub trigger_interrupt: bool,
     clock_counter: u32,
     dmc: dmc::DeltaModulationChannel,
     frame_clock_counter: usize, // Maintains musical timing of the apu
@@ -32,14 +33,14 @@ pub struct Apu2A03 {
     square_table: Vec<f32>,
     step_mode: u8,
     tnd_table: Vec<f32>,
-    triangle: triangle::Triangle,
-    trigger_interrupt: bool
+    triangle: triangle::Triangle
 }
 
 impl Apu2A03 {
     pub fn initialize() -> Self {
         Apu2A03 {
             buffer: Vec::<f32>::new(),
+            trigger_interrupt: false,
             clock_counter: 0,
             dmc: Default::default(),
             frame_clock_counter: 0,
@@ -51,7 +52,6 @@ impl Apu2A03 {
             square_table: (0..31).map(|x| 95.52/((8128.0 / x as f32) + 100.0)).collect(),
             step_mode: 0,
             triangle: Default::default(),
-            trigger_interrupt: false,
             tnd_table: (0..203).map(|x| 163.67/((24329.0 / x as f32) + 100.0)).collect()
         }
     }
