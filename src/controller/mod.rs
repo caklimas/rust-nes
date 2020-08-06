@@ -42,6 +42,7 @@ impl Controller {
     pub fn set_controller_state(&mut self, pressed_scancodes: HashSet<Scancode>) {
         self.controller_state.set_a(pressed_scancodes.contains(&Scancode::Z));
         self.controller_state.set_b(pressed_scancodes.contains(&Scancode::X));
+        self.controller_state.set_select(pressed_scancodes.contains(&Scancode::RShift));
         self.controller_state.set_start(pressed_scancodes.contains(&Scancode::Return));
         self.controller_state.set_up(pressed_scancodes.contains(&Scancode::Up));
         self.controller_state.set_down(pressed_scancodes.contains(&Scancode::Down));
