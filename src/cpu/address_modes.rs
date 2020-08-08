@@ -126,7 +126,7 @@ pub fn ind(cpu6502: &mut Cpu6502) -> u8 {
     0
 }
 
-/// Address mode: Indirext X
+/// Address mode: Indirect X
 /// The supplied address is offset by X to index a location in page 0x00
 /// The actual address is then read from this location
 pub fn izx(cpu6502: &mut Cpu6502) -> u8 {
