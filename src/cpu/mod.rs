@@ -1,6 +1,7 @@
+pub mod address_modes;
 pub mod opcodes;
 pub mod opcode_table;
-pub mod address_modes;
+pub mod unofficial_opcodes;
 
 use crate::bus;
 
