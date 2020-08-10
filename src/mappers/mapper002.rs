@@ -46,6 +46,10 @@ impl Mapper for Mapper002 {
         Mirror::Hardware
     }
 
+    fn irq_active(&self) -> bool { false }
+    fn irq_clear(&mut self) {}
+    fn irq_scanline(&mut self) {}
+
     fn cpu_map_read(&self, address: u16) -> MapperReadResult {
         match address {
             CPU_MIN_ADDRESS..=SWITCHABLE_ROM_BANK_MAX => {

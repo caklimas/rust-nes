@@ -19,6 +19,7 @@ const SCROLL: u16 = 0x0005; // Used for worlds larger than the current screen
 const PPU_ADDRESS: u16 = 0x0006; // The ppu address to send data to
 const PPU_DATA: u16 = 0x0007; // The data to send to the ppu address
 
+const IRQ_CLOCK_CYCLE: u16 = 260;
 const MAX_CLOCK_CYCLE: u16 = 341;
 const MAX_SCANLINE: i16 = 261;
 const MAX_VISIBLE_SCANLINE: i16 = 239;
@@ -106,6 +107,15 @@ impl Ppu2C02 {
         }
 
         self.cycle += 1;
+
+        // The IRQ counter should decrement on PPU cycle 260, right after the visible part of the target scanline has ended
+        if self.mask.is_rendering_enabled() && self.cycle == IRQ_CLOCK_CYCLE && self.scanline < 240 {
+            if let Some(ref mut c) = self.cartridge {
+                if let Some(ref mut m) = c.borrow_mut().mapper {
+                    m.irq_scanline();
+                }
+            }
+        }
 
         if self.cycle >= MAX_CLOCK_CYCLE {
             self.cycle = 0;

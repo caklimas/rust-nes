@@ -14,6 +14,7 @@ The emulator supports the following mappers:
 - [Mapper_001](https://wiki.nesdev.com/w/index.php/MMC1) ([Supported Games](http://bootgod.dyndns.org:7777/search.php?ines=1))
 - [Mapper_002](https://wiki.nesdev.com/w/index.php/UxROM) ([Supported Games](http://bootgod.dyndns.org:7777/search.php?ines=2))
 - [Mapper_003](https://wiki.nesdev.com/w/index.php/INES_Mapper_003) ([Supported Games](http://bootgod.dyndns.org:7777/search.php?ines=3))
+- [Mapper_004](https://wiki.nesdev.com/w/index.php/MMC3) ([Supported Games](http://bootgod.dyndns.org:7777/search.php?ines=4))
 - [Mapper_066](https://wiki.nesdev.com/w/index.php/GxROM) ([Supported Games](http://bootgod.dyndns.org:7777/search.php?ines=66))
 
 ## Getting Started

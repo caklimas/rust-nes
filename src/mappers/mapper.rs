@@ -6,6 +6,9 @@ pub trait Mapper {
     fn get_prg_banks(&self) -> u8;
     fn get_chr_banks(&self) -> u8;
     fn get_mirror(&self) -> Mirror;
+    fn irq_active(&self) -> bool;
+    fn irq_clear(&mut self);
+    fn irq_scanline(&mut self);
     fn cpu_map_read(&self, address: u16) -> MapperReadResult;
     fn cpu_map_write(&mut self, address: u16, data: u8) -> MapperWriteResult;
     fn ppu_map_read(&self, address: u16) -> MapperReadResult;
