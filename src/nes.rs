@@ -60,6 +60,8 @@ impl Nes {
             self.apu().trigger_interrupt = false;
         }
 
+        self.check_mapper_irq();
+
         if frame_complete {
             let pixels = self.ppu().frame.get_pixels();
             display::draw_frame(texture, canvas, &pixels);
@@ -95,6 +97,22 @@ impl Nes {
 
     pub fn apu(&mut self) -> &mut audio::Apu2A03 {
         &mut self.cpu.bus.apu
+    }
+
+    fn check_mapper_irq(&mut self) {
+        let mut trigger_interrupt = false;
+        if let Some(ref mut c) = self.cpu.bus.cartridge {
+            if let Some(ref mut m) = c.borrow_mut().mapper {
+                if m.irq_active() {
+                    trigger_interrupt = true;
+                    m.irq_clear();
+                }
+            }
+        }
+
+        if trigger_interrupt && self.cpu.get_flag(cpu::Flags6502::DisableInterrupts) == 0 {
+            self.cpu.interrupt_request();
+        }
     }
 
     fn dma_transfer(&mut self) {

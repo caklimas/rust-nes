@@ -1,7 +1,7 @@
 use super::mapper::{Mapper};
 use super::mapper_results::{MapperReadResult, MapperWriteResult};
 use crate::addresses::mappers::*;
-use crate::memory_sizes;
+use crate::memory_sizes::*;
 use crate::cartridge::mirror::Mirror;
 
 #[derive(Debug)]
@@ -36,13 +36,17 @@ impl Mapper for Mapper000 {
         Mirror::Hardware
     }
 
+    fn irq_active(&self) -> bool { false }
+    fn irq_clear(&mut self) {}
+    fn irq_scanline(&mut self) {}
+
     fn cpu_map_read(&self, address: u16) -> MapperReadResult {
         if address < CPU_MIN_ADDRESS {
             return MapperReadResult::none();
         }
         
         let prg_banks = self.get_prg_banks();
-        let masked_address = if prg_banks > 1 { memory_sizes::KILOBYTES_32_MASK } else { memory_sizes::KILOBYTES_16_MASK };
+        let masked_address = if prg_banks > 1 { KILOBYTES_32_MASK } else { KILOBYTES_16_MASK };
         MapperReadResult::from_cart_ram((address & masked_address) as u32)
     }
 
@@ -52,7 +56,7 @@ impl Mapper for Mapper000 {
         }
 
         let prg_banks = self.get_prg_banks();
-        let masked_address = if prg_banks > 1 { memory_sizes::KILOBYTES_32_MASK } else { memory_sizes::KILOBYTES_16_MASK };
+        let masked_address = if prg_banks > 1 { KILOBYTES_32_MASK } else { KILOBYTES_16_MASK };
         let mapped_address = (address & masked_address) as u32;
 
         MapperWriteResult::write_to_cart_ram(mapped_address)
@@ -76,6 +80,5 @@ impl Mapper for Mapper000 {
     }
 
     fn load_battery_backed_ram(&mut self, _data: Vec<u8>) {}
-
     fn save_battery_backed_ram(&self, _file_path: &str) {}
 }

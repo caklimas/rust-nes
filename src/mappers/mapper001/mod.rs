@@ -69,6 +69,10 @@ impl Mapper for Mapper001 {
         self.control_register.get_mirror()
     }
 
+    fn irq_active(&self) -> bool { false }
+    fn irq_clear(&mut self) {}
+    fn irq_scanline(&mut self) {}
+
     fn cpu_map_read(&self, address: u16) -> MapperReadResult {
         match address {
             OPTIONAL_RAM_ADDRESS_LOWER..=OPTIONAL_RAM_ADDRESS_UPPER => {

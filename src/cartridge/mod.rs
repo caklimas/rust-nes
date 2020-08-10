@@ -6,14 +6,14 @@ use crate::memory_sizes::KILOBYTES_16;
 use crate::mappers;
 
 pub struct Cartridge {
+    pub mapper: Option<Box<dyn mappers::mapper::Mapper>>,
     chr_banks: u8,
     chr_memory: Vec<u8>,
     file_path: std::string::String,
-    prg_banks: u8,
-    prg_memory: Vec<u8>,
-    mapper: Option<Box<dyn mappers::mapper::Mapper>>,
     mapper_id: u8,
-    mirror: mirror::Mirror
+    mirror: mirror::Mirror,
+    prg_banks: u8,
+    prg_memory: Vec<u8>
 }
 
 impl Cartridge {
@@ -151,6 +151,7 @@ impl Cartridge {
             1 => Some(Box::new(mappers::mapper001::Mapper001::new(prg_banks, chr_banks, has_battery_backed_ram))),
             2 => Some(Box::new(mappers::mapper002::Mapper002::new(prg_banks, chr_banks, has_battery_backed_ram))),
             3 => Some(Box::new(mappers::mapper003::Mapper003::new(prg_banks, chr_banks, has_battery_backed_ram))),
+            4 => Some(Box::new(mappers::mapper004::Mapper004::new(prg_banks, chr_banks, has_battery_backed_ram))),
            66 => Some(Box::new(mappers::mapper066::Mapper066::new(prg_banks, chr_banks, has_battery_backed_ram))),
             _ => None
         };

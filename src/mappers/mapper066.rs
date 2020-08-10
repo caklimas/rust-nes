@@ -40,6 +40,10 @@ impl Mapper for Mapper066 {
         Mirror::Hardware
     }
 
+    fn irq_active(&self) -> bool { false }
+    fn irq_clear(&mut self) {}
+    fn irq_scanline(&mut self) {}
+
     fn cpu_map_read(&self, address: u16) -> MapperReadResult {
         if address < CPU_MIN_ADDRESS {
             return MapperReadResult::none();

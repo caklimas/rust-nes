@@ -6,15 +6,13 @@ use crate::memory_sizes::*;
 
 /// A full name table is 1KB and the NES can hold 2 name tables
 pub struct NameTable {
-    data: [[u8; KILOBYTES_1 as usize]; 2],
-    counter: u32
+    data: [[u8; KILOBYTES_1 as usize]; 2]
 }
 
 impl NameTable {
     pub fn new() -> Self {
         NameTable {
-            data: [[0; KILOBYTES_1 as usize]; 2],
-            counter: 0
+            data: [[0; KILOBYTES_1 as usize]; 2]
         }
     }
     
@@ -39,6 +37,12 @@ impl NameTable {
                             _ => 0
                         }
                     },
+                    Mirror::OneScreenLow => {
+                        self.data[0][name_table_address.address_offset]
+                    },
+                    Mirror::OneScreenHigh => {
+                        self.data[1][name_table_address.address_offset]
+                    }
                     _ => 0
                 }
             }
@@ -67,6 +71,12 @@ impl NameTable {
                             _ => ()
                         }
                     },
+                    Mirror::OneScreenLow => {
+                        self.data[0][name_table_address.address_offset] = data
+                    },
+                    Mirror::OneScreenHigh => {
+                        self.data[1][name_table_address.address_offset] = data
+                    }
                     _ => ()
                 }
             },
