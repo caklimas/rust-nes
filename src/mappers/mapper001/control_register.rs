@@ -1,6 +1,9 @@
+use serde::{Serialize, Deserialize};
+
 use crate::cartridge::mirror::Mirror;
 
 bitfield! {
+    #[derive(Clone, Copy, Serialize, Deserialize)]
     pub struct ControlRegister(u8);
     impl Debug;
 

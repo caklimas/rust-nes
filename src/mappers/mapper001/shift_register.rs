@@ -1,4 +1,6 @@
-#[derive(Debug, Default)]
+use serde::{Serialize, Deserialize};
+
+#[derive(Clone, Copy, Serialize, Deserialize, Debug, Default)]
 pub struct ShiftRegister {
     pub bit_shift: u8,
     pub load_register: u8

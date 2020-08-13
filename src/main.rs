@@ -1,12 +1,18 @@
 #[macro_use]
 extern crate bitfield;
 
-use std::env;
-use std::sync::{Arc, Mutex};
+#[macro_use]
+extern crate serde_big_array;
+
 use sdl2::Sdl;
 use sdl2::event::Event;
 use sdl2::keyboard::{Keycode};
+use sdl2::messagebox::*;
 use sdl2::pixels::PixelFormatEnum;
+use std::env;
+use std::path::Path;
+use std::string::String;
+use std::sync::{Arc, Mutex};
 
 mod addresses;
 mod audio;
@@ -15,10 +21,12 @@ mod cartridge;
 mod controller;
 mod cpu;
 mod display;
+mod instant;
 mod mappers;
 mod memory_sizes;
 mod nes;
 mod ppu;
+mod save_state;
 
 use audio::device::AudioDevice;
 
@@ -40,12 +48,7 @@ fn run_game(sdl_context: &Sdl, audio_device: &sdl2::audio::AudioDevice<AudioDevi
 
     let mut audio_started = false;
     let args: Vec<String> = env::args().collect();
-    let mut nes = nes::Nes::new(buffer);
-    let cartridge = cartridge::Cartridge::new(&args[1]);
-    //let cartridge = cartridge::cartridge::Cartridge::new(r"C:\Users\Christopher\Desktop\Files\NES\ROMS\Castlevania.nes");
-    nes.bus().load_cartridge(cartridge);
-    
-    nes.reset();
+    let mut nes = get_nes(&args[1], buffer);
 
     let mut event_pump = sdl_context.event_pump().expect("Error loading event pump");
     'running: loop {
@@ -65,9 +68,45 @@ fn run_game(sdl_context: &Sdl, audio_device: &sdl2::audio::AudioDevice<AudioDevi
 
                         break 'running
                     },
+                    Event::KeyDown { keycode: Some(Keycode::F7), .. } => {
+                        let file_path: Option<String> = match nes.bus().cartridge {
+                            Some(ref c) => Some(String::from(&c.borrow().file_path)),
+                            None => None
+                        };
+
+                        if let Some(ref f) = file_path {
+                            save_state::quick_save(&mut nes, &f);
+                            show_simple_message_box(
+                                MessageBoxFlag::INFORMATION,
+                                "Quick save",
+                                "Data has been saved",
+                                canvas.window()).expect("Error showing simple message");
+                        }
+                    },
                     _ => {}
                 }
             }
         }
+    }
+}
+
+fn get_nes(file_path: &str, buffer: Arc<Mutex<Vec<f32>>>) -> nes::Nes {
+    let path = Path::new(file_path);
+    let os_extension = path.extension().expect("Error getting file extension");
+    let extension = os_extension.to_str().expect("Error converting to string");
+    
+    match extension {
+        "nes" => {
+            let mut nes = nes::Nes::new(buffer);
+            let cartridge = cartridge::Cartridge::new(file_path);
+            nes.bus().load_cartridge(cartridge);
+            nes.reset();
+            nes
+        },
+        "qks" => {
+            let nes = save_state::quick_load(file_path, buffer);
+            nes
+        },
+        _ => panic!("Unrecognized file extension")
     }
 }

@@ -1,9 +1,12 @@
+use serde::{Serialize, Deserialize};
+
 use crate::memory_sizes::*;
 
 const BANK_REGISTER_LENGTH: usize = 8;
 const CHR_BANK_LENGTH: usize = 8;
 const PRG_BANK_LENGTH: usize = 4;
 
+#[derive(Clone, Copy, Serialize, Deserialize, Debug)]
 pub struct BankSelect {
     pub chr_banks: [u32; CHR_BANK_LENGTH],
     pub prg_banks: [u32; PRG_BANK_LENGTH],
@@ -117,6 +120,7 @@ impl BankSelect {
     }
 }
 
+#[derive(Clone, Copy, Serialize, Deserialize, Debug)]
 pub enum PrgBankMode {
     /// $8000-$9FFF swappable
     /// $C000-$DFFF fixed to second-last bank
@@ -127,6 +131,7 @@ pub enum PrgBankMode {
     UpperSwappable
 }
 
+#[derive(Clone, Copy, Serialize, Deserialize, Debug)]
 pub enum ChrA12Inversion {
     /// two 2 KB banks at $0000-$0FFF
     /// four 1 KB banks at $1000-$1FFF

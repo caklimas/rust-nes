@@ -52,3 +52,7 @@ This is the keyboard mapping from the NES Controller:
 |  Down  |  Down  |
 |  Left  |  Left  |
 |  Right |  Right |
+
+### Extra controls
+This emulator also supports quicksave and quickload. To save hit F7 which will save it under a .qks file.
+To load that simply pass it in as an argument in place of the .nes file

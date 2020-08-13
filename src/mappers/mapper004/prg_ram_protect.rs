@@ -1,3 +1,6 @@
+use serde::{Serialize, Deserialize};
+
+#[derive(Clone, Copy, Serialize, Deserialize, Debug)]
 pub struct PrgRamProtect {
     enable_chip: bool,
     allow_writes: bool

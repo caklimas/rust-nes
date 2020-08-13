@@ -1,6 +1,7 @@
+use serde::{Serialize, Deserialize};
 use super::sprites;
 
-#[derive(Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct ObjectAttributeMemory {
     pub memory: Vec<u8>,
     pub address: u8

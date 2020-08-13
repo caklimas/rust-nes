@@ -1,6 +1,8 @@
+use serde::{Serialize, Deserialize};
 use crate::addresses::ppu::*;
 
 bitfield!{
+    #[derive(Serialize, Deserialize)]
     pub struct Status(u8);
     impl Debug;
     
@@ -11,6 +13,7 @@ bitfield!{
 }
 
 bitfield! {
+    #[derive(Serialize, Deserialize)]
     pub struct Mask(u8);
     impl Debug;
 
@@ -33,6 +36,7 @@ impl Mask {
 }
 
 bitfield! {
+    #[derive(Serialize, Deserialize)]
     pub struct Control(u8);
     impl Debug;
 
@@ -58,7 +62,7 @@ impl Control {
 }
 
 bitfield! {
-    #[derive(Copy, Clone)]
+    #[derive(Serialize, Deserialize, Copy, Clone)]
     pub struct ScrollAddress(u16);
     impl Debug;
 

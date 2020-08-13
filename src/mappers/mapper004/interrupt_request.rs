@@ -1,3 +1,6 @@
+use serde::{Serialize, Deserialize};
+
+#[derive(Clone, Copy, Serialize, Deserialize, Debug)]
 pub struct InterruptRequest {
     pub active: bool,
     pub counter: u8,

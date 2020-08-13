@@ -1,4 +1,6 @@
-#[derive(Debug, Default)]
+use serde::{Serialize, Deserialize};
+
+#[derive(Serialize, Deserialize, Debug, Default)]
 pub struct Timer {
     pub counter: u16,
     pub period: u16

@@ -1,8 +1,10 @@
+use serde::{Serialize, Deserialize};
+
 const RATE_TABLE: [u16; 16] = [
     428, 380, 340, 320, 286, 254, 226, 214, 190, 160, 142, 128, 106, 84, 72, 54
 ];
 
-#[derive(Debug, Default)]
+#[derive(Serialize, Deserialize, Debug, Default)]
 pub struct DeltaModulationChannel {
     pub remaining_bytes: u8,
     pub interrupt: bool,

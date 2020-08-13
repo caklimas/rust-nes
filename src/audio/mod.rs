@@ -8,6 +8,7 @@ pub mod sweep;
 pub mod timer;
 pub mod triangle;
 
+use serde::{Serialize, Deserialize};
 use crate::addresses::apu::*;
 
 const LENGTH_COUNTER_TABLE: [u8; 32] = [
@@ -18,7 +19,7 @@ const LENGTH_COUNTER_TABLE: [u8; 32] = [
 const SAMPLE_RATE: i32 = 44_100;
 const FRAME_COUNTER_STEPS: [usize; 5] = [3728, 7456, 11185, 14914, 18640];
 
-#[derive(Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct Apu2A03 {
     pub buffer: Vec<f32>,
     pub trigger_interrupt: bool,
@@ -172,16 +173,7 @@ impl Apu2A03 {
             _ => panic!("Invalid step mode")
         };
 
-        self.interrupt_inhibit = match (data >> 6) & 0b1 {
-            0 => {
-                true
-            },
-            1 => {
-                false
-            },
-            _ => panic!("Invalid interrupt request")
-        };
-
+        self.interrupt_inhibit = (data >> 6) & 0b1 > 0;
         if self.step_mode == 5 {
             self.clock_envelopes();
             self.clock_sweeps();

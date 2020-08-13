@@ -1,3 +1,7 @@
+use serde::{Serialize, Deserialize};
+use std::fmt::{Debug, Formatter, Result};
+
+#[derive(Serialize, Deserialize)]
 pub struct PaletteTable {
     data: [u8; 32]
 }
@@ -28,5 +32,13 @@ impl PaletteTable {
             0x001C => 0x000C,
             _ => address
         }
+    }
+}
+
+impl Debug for PaletteTable {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+        f.debug_struct("PaletteTable")
+         .field("data_length", &self.data.len())
+         .finish()
     }
 }

@@ -1,5 +1,6 @@
+use std::fmt::{Debug, Formatter, Result};
 use crate::display;
-use super::Color;
+use super::colors::Color;
 
 const BYTES_PER_COLUMN: usize = display::PIXEL_SIZE * display::BYTES_PER_COLOR;
 const BYTES_PER_ROW: usize = BYTES_PER_COLUMN * display::SCREEN_WIDTH;
@@ -37,7 +38,21 @@ impl Frame {
         }
     }
 
-    pub fn get_pixels(&mut self) -> &[u8] {
+    pub fn get_pixels(&self) -> &[u8] {
         &self.pixels
+    }
+}
+
+impl Default for Frame {
+    fn default() -> Self {
+        Frame::new()
+    }
+}
+
+impl Debug for Frame {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+        f.debug_struct("Ppu2C02")
+         .field("pixel_length", &self.pixels.len())
+         .finish()
     }
 }

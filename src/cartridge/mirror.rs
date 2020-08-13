@@ -1,4 +1,6 @@
-#[derive(Clone, Copy, Debug)]
+use serde::{Serialize, Deserialize};
+
+#[derive(Clone, Copy, Serialize, Deserialize, Debug)]
 pub enum Mirror {
     Hardware,
     Horizontal,

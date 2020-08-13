@@ -1,7 +1,9 @@
+use serde::{Serialize, Deserialize};
+
 use crate::memory_sizes::*;
 use super::control_register;
 
-#[derive(Debug)]
+#[derive(Clone, Copy, Serialize, Deserialize, Debug)]
 pub struct ChrBank {
     pub chunk_4_low: u8,
     pub chunk_4_high: u8,

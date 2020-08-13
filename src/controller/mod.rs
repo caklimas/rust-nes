@@ -1,5 +1,6 @@
 pub mod controller_state;
 
+use serde::{Serialize, Deserialize};
 use std::collections::HashSet;
 use sdl2::keyboard::{Scancode};
 
@@ -15,7 +16,7 @@ const CONTROLLER_OPEN_BUS: u8 = 0x40;
 /// 5 - Down
 /// 6 - Left
 /// 7 - Right
-#[derive(Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct Controller {
     pub button_states: u8,
     pub button_shift: u8,
@@ -40,8 +41,8 @@ impl Controller {
     }
 
     pub fn set_controller_state(&mut self, pressed_scancodes: HashSet<Scancode>) {
-        self.controller_state.set_a(pressed_scancodes.contains(&Scancode::Z));
-        self.controller_state.set_b(pressed_scancodes.contains(&Scancode::X));
+        self.controller_state.set_a(pressed_scancodes.contains(&Scancode::X));
+        self.controller_state.set_b(pressed_scancodes.contains(&Scancode::Z));
         self.controller_state.set_select(pressed_scancodes.contains(&Scancode::RShift));
         self.controller_state.set_start(pressed_scancodes.contains(&Scancode::Return));
         self.controller_state.set_up(pressed_scancodes.contains(&Scancode::Up));

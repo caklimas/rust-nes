@@ -1,9 +1,11 @@
-#[derive(Debug, Default)]
+use serde::{Serialize, Deserialize};
+
+#[derive(Serialize, Deserialize, Debug, Default)]
 pub struct Envelope {
     pub decay_counter: u8,
-    pub decay_counter_period: u8,
     pub loop_flag: bool,
     pub start: bool,
+    pub volume: u8,
     divider: u8,
 }
 
@@ -14,13 +16,13 @@ impl Envelope {
         } else {
             self.start = false;
             self.decay_counter = 15;
-            self.divider = self.decay_counter_period;
+            self.divider = self.volume;
         }
     }
 
     fn clock_divider(&mut self) {
         if self.divider == 0 {
-            self.divider = self.decay_counter_period;
+            self.divider = self.volume;
             self.clock_delay_counter();
         } else {
             self.divider -= 1;

@@ -2,8 +2,10 @@ pub mod bank_select;
 pub mod prg_ram_protect;
 pub mod interrupt_request;
 
+use serde::{Serialize, Deserialize};
 use crate::mappers::battery_backed_ram;
 use super::mapper::{Mapper};
+use super::mapper_save_data::{MapperSaveData, Mapper004SaveData};
 use super::mapper_results::{MapperReadResult, MapperWriteResult};
 use crate::memory_sizes::*;
 use crate::cartridge::mirror::Mirror;
@@ -12,6 +14,7 @@ const OPTIONAL_RAM_ADDRESS_LOWER: u16 = 0x6000;
 const OPTIONAL_RAM_ADDRESS_UPPER: u16 = 0x7FFF;
 const RAM_ADDRESS_MASK: u16 = 0x1FFF;
 
+#[derive(Serialize, Deserialize)]
 pub struct Mapper004 {
     pub prg_banks: u8,
     pub chr_banks: u8,
@@ -34,6 +37,19 @@ impl Mapper004 {
             mirror: Mirror::Horizontal,
             prg_ram_protect: prg_ram_protect::PrgRamProtect::new(),
             ram: vec![0; KILOBYTES_8 as usize]
+        }
+    }
+
+    pub fn from(data: &Mapper004SaveData) -> Self {
+        Mapper004 {
+            prg_banks: data.prg_banks,
+            chr_banks: data.chr_banks,
+            bank_select: data.bank_select,
+            battery_backed_ram: data.battery_backed_ram,
+            interrupt_request: data.interrupt_request,
+            mirror: data.mirror,
+            prg_ram_protect: data.prg_ram_protect,
+            ram: data.ram.to_owned()
         }
     }
 }
@@ -198,6 +214,19 @@ impl Mapper for Mapper004 {
         }
         
         battery_backed_ram::save_battery_backed_ram(file_path, &self.ram);
+    }
+
+    fn save_state(&self) -> MapperSaveData {
+        MapperSaveData::Mapper004(Mapper004SaveData{
+            prg_banks: self.prg_banks,
+            chr_banks: self.chr_banks,
+            bank_select: self.bank_select,
+            battery_backed_ram: self.battery_backed_ram,
+            interrupt_request: self.interrupt_request,
+            mirror: self.mirror,
+            prg_ram_protect: self.prg_ram_protect,
+            ram: self.ram.to_owned()
+        })
     }
 }
 
