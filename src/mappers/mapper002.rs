@@ -1,4 +1,7 @@
+use serde::{Serialize, Deserialize};
+
 use super::mapper::{Mapper};
+use super::mapper_save_data::{MapperSaveData, Mapper002SaveData};
 use super::mapper_results::{MapperReadResult, MapperWriteResult};
 use crate::addresses::mappers::*;
 use crate::memory_sizes::{KILOBYTES_16, KILOBYTES_16_MASK};
@@ -7,7 +10,7 @@ use crate::cartridge::mirror::Mirror;
 const SWITCHABLE_ROM_BANK_MAX: u16 = 0xBFFF;
 const FIXED_BANK_MIN: u16 = 0xC000;
 
-#[derive(Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct Mapper002 {
     pub prg_banks: u8,
     pub chr_banks: u8,
@@ -24,6 +27,16 @@ impl Mapper002 {
             prg_bank_low: 0,
             prg_bank_high: if prg_banks > 0 { prg_banks - 1 } else { prg_banks },
             battery_backed_ram
+        }
+    }
+
+    pub fn from(data: &Mapper002SaveData) -> Self {
+        Mapper002 {
+            prg_banks: data.prg_banks,
+            chr_banks: data.chr_banks,
+            prg_bank_low: data.prg_bank_low,
+            prg_bank_high: data.prg_bank_high,
+            battery_backed_ram: data.battery_backed_ram
         }
     }
 }
@@ -90,6 +103,15 @@ impl Mapper for Mapper002 {
     }
 
     fn load_battery_backed_ram(&mut self, _data: Vec<u8>) {}
-
     fn save_battery_backed_ram(&self, _file_path: &str) {}
+
+    fn save_state(&self) -> MapperSaveData {
+        MapperSaveData::Mapper002(Mapper002SaveData{
+            prg_banks: self.prg_banks,
+            chr_banks: self.chr_banks,
+            prg_bank_low: self.prg_bank_low,
+            prg_bank_high: self.prg_bank_high,
+            battery_backed_ram: self.battery_backed_ram
+        })
+    }
 }

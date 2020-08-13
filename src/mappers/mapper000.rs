@@ -1,4 +1,5 @@
 use super::mapper::{Mapper};
+use super::mapper_save_data::{MapperSaveData, Mapper000SaveData};
 use super::mapper_results::{MapperReadResult, MapperWriteResult};
 use crate::addresses::mappers::*;
 use crate::memory_sizes::*;
@@ -17,6 +18,14 @@ impl Mapper000 {
             prg_banks,
             chr_banks,
             battery_backed_ram
+        }
+    }
+
+    pub fn from(data: &Mapper000SaveData) -> Self {
+        Mapper000 {
+            prg_banks: data.prg_banks,
+            chr_banks: data.chr_banks,
+            battery_backed_ram: data.battery_backed_ram
         }
     }
 }
@@ -81,4 +90,12 @@ impl Mapper for Mapper000 {
 
     fn load_battery_backed_ram(&mut self, _data: Vec<u8>) {}
     fn save_battery_backed_ram(&self, _file_path: &str) {}
+
+    fn save_state(&self) -> MapperSaveData {
+        MapperSaveData::Mapper000(Mapper000SaveData{
+            prg_banks: self.prg_banks,
+            chr_banks: self.chr_banks,
+            battery_backed_ram: self.battery_backed_ram
+        })
+    }
 }

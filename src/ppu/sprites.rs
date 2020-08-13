@@ -1,10 +1,11 @@
+use serde::{Serialize, Deserialize};
 use super::oam;
 
 pub const OAM_ENTRY_SIZE: usize = 4;
 pub const MAX_SPRITES: usize = 64;
 pub const MAX_SPRITE_COUNT: usize = 64;
 
-#[derive(Debug, Default)]
+#[derive(Serialize, Deserialize, Debug, Default)]
 pub struct Sprite {
     pub sprite_scanline: Vec<u8>,
     pub count: usize,
@@ -182,7 +183,7 @@ impl Sprite {
     }
 }
 
-#[derive(Copy, Clone, Debug, Default)]
+#[derive(Serialize, Deserialize, Copy, Clone, Debug, Default)]
 pub struct DirectMemoryAccess {
     pub page: u8,
     pub address: u8,

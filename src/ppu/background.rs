@@ -1,4 +1,6 @@
-#[derive(Debug, Default)]
+use serde::{Serialize, Deserialize};
+
+#[derive(Serialize, Deserialize, Debug, Default)]
 pub struct Background {
     pub next_tile_id: u8,
     pub next_tile_attribute: u8,

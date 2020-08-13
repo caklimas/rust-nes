@@ -1,4 +1,6 @@
-#[derive(Debug, Default)]
+use serde::{Serialize, Deserialize};
+
+#[derive(Serialize, Deserialize, Debug, Default)]
 pub struct Sweep {
     pub divider_counter: u16,
     pub enabled: bool,

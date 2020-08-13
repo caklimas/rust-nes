@@ -1,34 +1,38 @@
-use std::collections::HashSet;
-use std::sync::{Arc, Mutex};
-use std::time::Instant;
 use sdl2::keyboard::{Scancode};
 use sdl2::render::{Canvas, Texture};
 use sdl2::video::{Window};
+use serde::{Serialize, Deserialize};
+use std::collections::HashSet;
+use std::sync::{Arc, Mutex};
+use std::time::{Instant};
 
-use crate::cpu;
-use crate::bus;
-use crate::ppu;
 use crate::audio;
+use crate::bus;
+use crate::cpu;
 use crate::display;
+use crate::instant::InstantWrapper;
+use crate::ppu;
 
+#[derive(Serialize, Deserialize)]
 pub struct Nes {
     pub cpu: cpu::Cpu6502,
-    fps_limiter: ppu::fps_limiter::FpsLimiter,
-    timer: Instant,
-    system_clock_counter: u32,
+    buffer: Arc<Mutex<Vec<f32>>>,
     dma_dummy: bool,
-    buffer: Arc<Mutex<Vec<f32>>>
+    fps_limiter: ppu::fps_limiter::FpsLimiter,
+    system_clock_counter: u32,
+    #[serde(skip_serializing, skip_deserializing)]
+    timer: InstantWrapper
 }
 
 impl Nes {
     pub fn new(buffer: Arc<Mutex<Vec<f32>>>) -> Self {
         Nes {
             cpu: cpu::Cpu6502::new(),
-            fps_limiter: ppu::fps_limiter::FpsLimiter::new(60),
-            timer: Instant::now(),
-            system_clock_counter: 0,
+            buffer,
             dma_dummy: false,
-            buffer
+            fps_limiter: ppu::fps_limiter::FpsLimiter::new(60),
+            system_clock_counter: 0,
+            timer: Default::default()
         }
     }
 
@@ -65,8 +69,8 @@ impl Nes {
         if frame_complete {
             let pixels = self.ppu().frame.get_pixels();
             display::draw_frame(texture, canvas, &pixels);
-            self.fps_limiter.limit(self.timer);
-            self.timer = Instant::now();
+            self.fps_limiter.limit(&self.timer);
+            self.timer.instant = Instant::now();
             let mut lock = self.buffer.lock().expect("Error getting a lock for the buffer");
             lock.append(&mut self.cpu.bus.apu.buffer);
         }
@@ -87,11 +91,15 @@ impl Nes {
         self.system_clock_counter = 0;
     }
 
+    pub fn load_buffer(&mut self, buffer: Arc<Mutex<Vec<f32>>>) {
+        self.buffer = buffer;
+    }
+
     pub fn bus(&mut self) -> &mut bus::Bus {
         &mut self.cpu.bus
     }
 
-    pub fn ppu(&mut self) -> &mut ppu::ppu::Ppu2C02 {
+    pub fn ppu(&mut self) -> &mut ppu::Ppu2C02 {
         &mut self.cpu.bus.ppu
     }
 

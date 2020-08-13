@@ -1,10 +1,13 @@
+use serde::{Serialize, Deserialize};
+
 use super::mapper::{Mapper};
+use super::mapper_save_data::{MapperSaveData, Mapper003SaveData};
 use super::mapper_results::{MapperReadResult, MapperWriteResult};
 use crate::addresses::mappers::*;
 use crate::memory_sizes::*;
 use crate::cartridge::mirror::Mirror;
 
-#[derive(Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct Mapper003 {
     pub prg_banks: u8,
     pub chr_banks: u8,
@@ -19,6 +22,15 @@ impl Mapper003 {
             chr_banks,
             battery_backed_ram,
             chr_bank: 0
+        }
+    }
+
+    pub fn from(data: &Mapper003SaveData) -> Self {
+        Mapper003 {
+            prg_banks: data.prg_banks,
+            chr_banks: data.chr_banks,
+            battery_backed_ram: data.battery_backed_ram,
+            chr_bank: data.chr_bank
         }
     }
 }
@@ -76,6 +88,14 @@ impl Mapper for Mapper003 {
     }
 
     fn load_battery_backed_ram(&mut self, _data: Vec<u8>) {}
-
     fn save_battery_backed_ram(&self, _file_path: &str) {}
+
+    fn save_state(&self) -> MapperSaveData {
+        MapperSaveData::Mapper003(Mapper003SaveData{
+            prg_banks: self.prg_banks,
+            chr_banks: self.chr_banks,
+            battery_backed_ram: self.battery_backed_ram,
+            chr_bank: self.chr_bank
+        })
+    }
 }

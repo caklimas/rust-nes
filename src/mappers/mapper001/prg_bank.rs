@@ -1,7 +1,9 @@
+use serde::{Serialize, Deserialize};
+
 use crate::memory_sizes::*;
 use super::control_register;
 
-#[derive(Debug)]
+#[derive(Clone, Copy, Serialize, Deserialize, Debug)]
 pub struct PrgBank {
     pub chunk_16_low: u8,
     pub chunk_32: u8,

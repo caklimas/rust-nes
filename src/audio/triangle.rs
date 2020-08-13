@@ -1,3 +1,4 @@
+use serde::{Serialize, Deserialize};
 use super::timer;
 
 const SEQUENCER_LENGTH: usize = 32;
@@ -6,7 +7,7 @@ const SEQUENCER: [u8; SEQUENCER_LENGTH] = [
     0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15
 ];
 
-#[derive(Debug, Default)]
+#[derive(Serialize, Deserialize, Debug, Default)]
 pub struct Triangle {
     pub length_counter: u8,
     counter_reload: u8,

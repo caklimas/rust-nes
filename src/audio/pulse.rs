@@ -1,3 +1,4 @@
+use serde::{Serialize, Deserialize};
 use super::envelope;
 use super::sweep;
 use super::timer;
@@ -9,7 +10,7 @@ const DUTY_CYCLE_WAVEFORMS: [u8; 4] = [
     0b10011111, // 25% negated
 ];
 
-#[derive(Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct Pulse {
     pub envelope: envelope::Envelope,
     pub length_counter: u8,
@@ -51,7 +52,7 @@ impl Pulse {
         if self.is_silenced(sample) {
             0
         } else if self.constant_volume {
-            self.envelope.decay_counter_period
+            self.envelope.volume
         } else {
             self.envelope.decay_counter
         }
@@ -86,7 +87,7 @@ impl Pulse {
         self.constant_volume = (data & 0b10000) > 0;
 
         let volume = data & 0b1111;
-        self.envelope.decay_counter_period = volume;
+        self.envelope.volume = volume;
     }
 
     pub fn set_sweep(&mut self, data: u8) {

@@ -1,4 +1,7 @@
+use serde::{Serialize, Deserialize};
+
 bitfield! {
+    #[derive(Serialize, Deserialize)]
     pub struct ControllerState(u8);
     impl Debug;
 

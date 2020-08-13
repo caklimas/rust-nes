@@ -15,14 +15,17 @@ const PRG_ROM_LAST_BANK_LOWER: u16 = 0xC000;
 const PRG_ROM_LAST_BANK_UPPER: u16 = 0xFFFF;
 const RAM_ADDRESS_MASK: u16 = 0x1FFF;
 
+use serde::{Serialize, Deserialize};
+
 use crate::mappers::battery_backed_ram;
 use crate::mappers::mapper::{Mapper};
+use crate::mappers::mapper_save_data::{MapperSaveData, Mapper001SaveData};
 use crate::mappers::mapper_results::{MapperReadResult, MapperWriteResult};
 use crate::addresses::mappers::*;
 use crate::memory_sizes::*;
 use crate::cartridge::mirror::Mirror;
 
-#[derive(Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct Mapper001 {
     pub prg_banks: u8,
     pub chr_banks: u8,
@@ -45,6 +48,19 @@ impl Mapper001 {
             prg_bank: prg_bank::PrgBank::new(prg_banks),
             ram: vec![0; KILOBYTES_32 as usize],
             shift_register: Default::default()
+        }
+    }
+
+    pub fn from(data: &Mapper001SaveData) -> Self {
+        Mapper001 {
+            prg_banks: data.prg_banks,
+            chr_banks: data.chr_banks,
+            battery_backed_ram: data.battery_backed_ram,
+            chr_bank: data.chr_bank,
+            control_register: data.control_register,
+            prg_bank: data.prg_bank,
+            ram: data.ram.to_owned(),
+            shift_register: data.shift_register
         }
     }
 }
@@ -147,6 +163,19 @@ impl Mapper for Mapper001 {
         }
         
         battery_backed_ram::save_battery_backed_ram(file_path, &self.ram);
+    }
+
+    fn save_state(&self) -> MapperSaveData {
+        MapperSaveData::Mapper001(Mapper001SaveData{
+            prg_banks: self.prg_banks,
+            chr_banks: self.chr_banks,
+            battery_backed_ram: self.battery_backed_ram,
+            chr_bank: self.chr_bank,
+            control_register: self.control_register,
+            prg_bank: self.prg_bank,
+            ram: self.ram.to_owned(),
+            shift_register: self.shift_register
+        })
     }
 }
 

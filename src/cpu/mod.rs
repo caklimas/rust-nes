@@ -3,6 +3,8 @@ pub mod opcodes;
 pub mod opcode_table;
 pub mod unofficial_opcodes;
 
+use serde::{Serialize, Deserialize};
+use std::fmt::{Debug, Formatter, Result};
 use crate::bus;
 
 const NON_MASK_INTERRUPT_PROGRAM_COUNTER_ADDRESS: u16 = 0xFFFA;
@@ -12,6 +14,7 @@ const STACK_END_LOCATION: u8 = 0xFD;
 
 pub const INTERRUPT_PROGRAM_COUNTER_ADDRESS: u16 = 0xFFFE;
 
+#[derive(Serialize, Deserialize)]
 pub struct Cpu6502 {
     pub bus: bus::Bus,
     pub accumulator: u8,
@@ -164,6 +167,25 @@ impl Cpu6502 {
         } else { 
             0 
         }
+    }
+}
+
+impl Debug for Cpu6502 {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+        f.debug_struct("Cpu6502")
+         .field("bus", &self.bus)
+         .field("accumulator", &self.accumulator)
+         .field("x_register", &self.x_register)
+         .field("y_register", &self.y_register)
+         .field("stack_pointer", &self.stack_pointer)
+         .field("program_counter", &self.program_counter)
+         .field("status_register", &self.status_register)
+         .field("fetched_data", &self.fetched_data)
+         .field("addr_abs", &self.addr_abs)
+         .field("addr_rel", &self.addr_rel)
+         .field("opcode", &self.opcode)
+         .field("cycles", &self.cycles)
+         .finish()
     }
 }
 

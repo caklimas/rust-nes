@@ -1,15 +1,20 @@
 pub mod cartridge_header;
 pub mod mirror;
 
+use serde::{Serialize, Deserialize};
 use std::fs;
 use crate::memory_sizes::KILOBYTES_16;
 use crate::mappers;
+use crate::mappers::mapper_save_data::*;
 
+#[derive(Serialize, Deserialize, Debug)]
 pub struct Cartridge {
+    pub file_path: std::string::String,
+    #[serde(skip)]
     pub mapper: Option<Box<dyn mappers::mapper::Mapper>>,
     chr_banks: u8,
     chr_memory: Vec<u8>,
-    file_path: std::string::String,
+    pub mapper_save_data: MapperSaveData,
     mapper_id: u8,
     mirror: mirror::Mirror,
     prg_banks: u8,
@@ -51,6 +56,7 @@ impl Cartridge {
             prg_banks: header.prg_rom_chunks,
             prg_memory,
             mapper: Cartridge::get_mapper(mapper_id, &header, file_path),
+            mapper_save_data: MapperSaveData::None,
             mapper_id,
             mirror
         }
@@ -139,6 +145,24 @@ impl Cartridge {
     pub fn save_data(&mut self) {
         if let Some(ref mut m) = self.mapper {
             m.save_battery_backed_ram(&self.file_path);
+        }
+    }
+
+    pub fn load_mapper(&mut self) {
+        self.mapper = match self.mapper_save_data {
+            MapperSaveData::None => None,
+            MapperSaveData::Mapper000(ref m) => Some(Box::new(mappers::mapper000::Mapper000::from(m))),
+            MapperSaveData::Mapper001(ref m) => Some(Box::new(mappers::mapper001::Mapper001::from(m))),
+            MapperSaveData::Mapper002(ref m) => Some(Box::new(mappers::mapper002::Mapper002::from(m))),
+            MapperSaveData::Mapper003(ref m) => Some(Box::new(mappers::mapper003::Mapper003::from(m))),
+            MapperSaveData::Mapper004(ref m) => Some(Box::new(mappers::mapper004::Mapper004::from(m))),
+            MapperSaveData::Mapper066(ref m) => Some(Box::new(mappers::mapper066::Mapper066::from(m)))
+        }
+    }
+
+    pub fn save_mapper(&mut self) {
+        if let Some(ref mapper) = self.mapper {
+            self.mapper_save_data = mapper.save_state();
         }
     }
 

@@ -1,8 +1,10 @@
-use std::rc::Rc;
+use serde::{Serialize, Deserialize};
+use std::fmt::{Debug, Formatter, Result};
 use std::cell::RefCell;
+use std::rc::Rc;
 
 use crate::addresses::{AddressRange, get_address_range};
-use crate::ppu::ppu;
+use crate::ppu;
 use crate::ppu::sprites;
 use crate::cartridge;
 use crate::audio;
@@ -11,6 +13,9 @@ use crate::controller;
 const RAM_SIZE: usize = 2048;
 const CPU_MIRROR: u16 = 0x07FF;
 
+big_array! { BigArray; }
+
+#[derive(Serialize, Deserialize)]
 pub struct Bus {
     pub ppu: ppu::Ppu2C02,
     pub apu: audio::Apu2A03,
@@ -20,6 +25,7 @@ pub struct Bus {
     pub dma_transfer: bool,
     pub audio_sample: f64,
     pub strobe_pulse: u8,
+    #[serde(with = "BigArray")]
     ram: [u8; RAM_SIZE]
 }
 
@@ -108,5 +114,25 @@ impl Bus {
         self.strobe_pulse = data;
         let masked_address = address & 0x0001;
         self.controllers[masked_address as usize].write(&self.strobe_pulse)
+    }
+}
+
+impl Debug for Bus {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+        let mut builder = f.debug_struct("Bus");
+        builder.field("ppu", &5)// &self.ppu)
+         .field("apu", &6);// &self.apu);
+
+         if let Some(ref c) = self.cartridge {
+             builder.field("cartridge", &c.borrow());
+         }
+         
+        builder.field("controllers", &self.controllers)
+         .field("dma", &self.dma)
+         .field("dma_transfer", &self.dma_transfer)
+         .field("audio_sample", &self.audio_sample)
+         .field("strobe_pulse", &self.strobe_pulse)
+         .field("ram length", &self.ram.len())
+         .finish()
     }
 }

@@ -1,4 +1,6 @@
+use std::fmt::{Debug, Formatter, Result};
 use crate::cartridge::mirror::Mirror;
+use super::mapper_save_data::{MapperSaveData};
 use super::mapper_results::{MapperReadResult, MapperWriteResult};
 
 pub trait Mapper {
@@ -15,4 +17,14 @@ pub trait Mapper {
     fn ppu_map_write(&mut self, address: u16, mapped_address: &mut u32, data: u8) -> bool;
     fn load_battery_backed_ram(&mut self, data: Vec<u8>);
     fn save_battery_backed_ram(&self, file_path: &str);
+    fn save_state(&self) -> MapperSaveData;
+}
+
+impl Debug for dyn Mapper {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+        f.debug_struct("Mapper")
+         .field("prg_banks", &self.get_prg_banks())
+         .field("chr_banks", &self.get_chr_banks())
+         .finish()
+    }
 }
