@@ -107,12 +107,10 @@ pub fn bpl(cpu: &mut Cpu6502) -> u8 {
 /// Opcode: Force Interrupt
 /// Push program counter and processor status into stack
 pub fn brk(cpu: &mut Cpu6502) -> u8 {
-    cpu.program_counter += 1;
-    cpu.set_flag(Flags6502::Break, true);
-    cpu.set_flag(Flags6502::DisableInterrupts, true);
-
     cpu.write_counter_to_stack();
-    cpu.write_to_stack(cpu.status_register);
+    cpu.write_to_stack(cpu.status_register | 0b00110000);
+
+    cpu.set_flag(Flags6502::DisableInterrupts, true);
     cpu.program_counter = cpu.read_program_counter(INTERRUPT_PROGRAM_COUNTER_ADDRESS);
 
     0
@@ -370,7 +368,6 @@ pub fn pha(cpu: &mut Cpu6502) -> u8 {
 /// Opcode: Push Processor Status
 pub fn php(cpu: &mut Cpu6502) -> u8 {
     cpu.write_to_stack(cpu.status_register | (Flags6502::Break as u8) | (Flags6502::Unused as u8));
-
     0
 }
 
@@ -384,8 +381,7 @@ pub fn pla(cpu: &mut Cpu6502) -> u8 {
 
 /// Opcode: Pull Processor Status
 pub fn plp(cpu: &mut Cpu6502) -> u8 {
-    cpu.status_register = (cpu.read_from_stack() | 0x30) - 0x10;
-
+    cpu.status_register = cpu.read_from_stack();
     0
 }
 
@@ -427,9 +423,8 @@ pub fn ror(cpu: &mut Cpu6502) -> u8 {
 
 /// Opcode: Return from Interrupt
 pub fn rti(cpu: &mut Cpu6502) -> u8 {
-    cpu.status_register = (cpu.read_from_stack() | 0x30) - 0x10;
+    plp(cpu);
     cpu.program_counter = cpu.read_counter_from_stack();
-
     0
 }
 

@@ -98,7 +98,7 @@ impl Cpu6502 {
 
     pub fn read_from_stack(&mut self) -> u8 {
         self.stack_pointer = self.stack_pointer.wrapping_add(1);
-        self.read(STACK_BASE_LOCATION + (self.stack_pointer as u16),)
+        self.read(STACK_BASE_LOCATION + (self.stack_pointer as u16))
     }
 
     pub fn read_counter_from_stack(&mut self) -> u16 {
@@ -132,7 +132,6 @@ impl Cpu6502 {
             1 => (),
             _ => {
                 self.write_counter_to_stack();
-                self.set_flag(Flags6502::Break, false);
                 self.set_flag(Flags6502::Unused, true);
                 self.set_flag(Flags6502::DisableInterrupts, true);
                 self.write_to_stack(self.status_register);
@@ -144,7 +143,6 @@ impl Cpu6502 {
 
     pub fn non_mask_interrupt_request(&mut self) {
         self.write_counter_to_stack();
-        self.set_flag(Flags6502::Break, false);
         self.set_flag(Flags6502::Unused, true);
         self.set_flag(Flags6502::DisableInterrupts, true);
         self.write_to_stack(self.status_register);
