@@ -8,6 +8,7 @@ pub mod name_table;
 pub mod oam;
 pub mod palette_table;
 pub mod pattern_table;
+pub mod registers;
 pub mod sprites;
 
 use serde::{Serialize, Deserialize};
@@ -17,15 +18,6 @@ use std::cell::RefCell;
 use crate::addresses::cpu::*;
 use crate::addresses::ppu::*;
 use crate::cartridge;
-
-const CONTROL: u16 = 0x0000; // Configure ppu to render in different ways
-const MASK: u16 = 0x0001; // Decides what sprites or backgrounds are being drawn and what happens at the edges of the screen
-const STATUS: u16 = 0x0002;
-const OAM_ADDRESS: u16 = 0x0003;
-const OAM_DATA: u16 = 0x0004;
-const SCROLL: u16 = 0x0005; // Used for worlds larger than the current screen
-const PPU_ADDRESS: u16 = 0x0006; // The ppu address to send data to
-const PPU_DATA: u16 = 0x0007; // The data to send to the ppu address
 
 const IRQ_CLOCK_CYCLE: u16 = 260;
 const MAX_CLOCK_CYCLE: u16 = 341;
@@ -136,108 +128,6 @@ impl Ppu2C02 {
         }
 
         self.cycle == MAX_VISIBLE_CLOCK_CYCLE && self.scanline == 240
-    }
-
-    /// Read from the Main Bus
-    pub fn read(&mut self, address: u16) -> u8 {
-        let masked_address = address & PPU_ADDRESS_RANGE;
-        let mut data: u8 = 0;
-        match masked_address {
-            CONTROL => (), // Can't be read
-            MASK => (), // Can't be read
-            STATUS => {
-                data = self.status.get() | (self.ppu_data_buffer & 0x1F);
-                self.status.set_vertical_blank(false);
-                self.address_latch = false;
-            },
-            OAM_ADDRESS => (),
-            OAM_DATA => {
-                data = self.oam.memory[self.oam.address as usize];
-            },
-            SCROLL => (),
-            PPU_ADDRESS => (),
-            PPU_DATA => {
-                data = self.ppu_data_buffer;
-                self.ppu_data_buffer = self.ppu_read(self.current_vram_address.get());
-
-                if self.current_vram_address.get() >= PALETTE_ADDRESS_LOWER {
-                    data = self.ppu_data_buffer;
-                }
-
-                self.current_vram_address.increment(self.control.get_increment_amount());
-            },
-            _ => ()
-        };
-
-        data
-    }
-
-    /// Write to the Main Bus
-    pub fn write(&mut self, address: u16, data: u8) {
-        let masked_address = address & PPU_ADDRESS_RANGE; 
-        match masked_address {
-            CONTROL => {
-                self.control.set(data);
-
-                // t: ...BA.......... = d: ......BA
-                let ba = data & 0b11;
-                self.temp_vram_address.set_name_table(ba);
-            },
-            MASK => {
-                self.mask.set(data);
-            },
-            STATUS => (),
-            OAM_ADDRESS => {
-                self.oam.address = data;
-            },
-            OAM_DATA => {
-                self.oam.memory[self.oam.address as usize] = data;
-                self.oam.address = self.oam.address.wrapping_add(1);
-            },
-            SCROLL => {
-                if !self.address_latch {
-                    // t: ....... ...HGFED = d: HGFED...
-                    // x:              CBA = d: .....CBA
-                    // w:                  = 1
-                    let hgfed = (data & 0b11111000) >> 3;
-                    self.temp_vram_address.set_coarse_x(hgfed);
-                    self.fine_x_scroll = data & 0b111;
-                    self.address_latch = true;
-                } else {
-                    // t: CBA..HGFED..... = d: HGFEDCBA
-                    // w:                  = 0
-                    let cba = data & 0b111;
-                    let hgfed = (data & 0b11111000) >> 3;
-                    self.temp_vram_address.set_coarse_y(hgfed);
-                    self.temp_vram_address.set_fine_y(cba);
-
-                    self.address_latch = false;
-                }
-            },
-            PPU_ADDRESS => {
-                if !self.address_latch {
-                    // t: .FEDCBA........ = d: ..FEDCBA
-                    // t: X.............. = 0
-                    // w:                  = 1
-                    let fedbca = data & 0b00111111;
-                    self.temp_vram_address.set_high_byte(fedbca);
-                    self.address_latch = true;
-                } else {
-                    // t: ....... HGFEDCBA = d: HGFEDCBA
-                    // v                   = t
-                    // w:                  = 0
-                    self.temp_vram_address.set_low_byte(data);
-
-                    self.current_vram_address.set(self.temp_vram_address.get());
-                    self.address_latch = false;
-                }
-            },
-            PPU_DATA => {
-                self.ppu_write(self.current_vram_address.get(), data);
-                self.current_vram_address.increment(self.control.get_increment_amount());
-            },
-            _ => ()
-        };
     }
 
     /// Read from the PPU Bus

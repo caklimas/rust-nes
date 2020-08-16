@@ -73,6 +73,9 @@ impl Cartridge {
         if let Some(ref mut m) = self.mapper {
             let result = m.cpu_map_read(address);
             if result.read_from_cart_ram {
+                if address == 0x3f12 {
+                    // println!("Read from cart ram");
+                }
                 *data = self.prg_memory[result.mapped_address as usize];
                 return true;
             } else if result.read_from_mapper_ram {
@@ -170,6 +173,7 @@ impl Cartridge {
         let prg_banks = header.prg_rom_chunks;
         let chr_banks = header.chr_rom_chunks;
         let has_battery_backed_ram = (header.mapper_1 >> 1) & 1 != 0;
+        // println!("Mapper id: {}", mapper_id);
         let mut mapper: Option<Box<dyn mappers::mapper::Mapper>> =  match mapper_id {
             0 => Some(Box::new(mappers::mapper000::Mapper000::new(prg_banks, chr_banks, has_battery_backed_ram))),
             1 => Some(Box::new(mappers::mapper001::Mapper001::new(prg_banks, chr_banks, has_battery_backed_ram))),

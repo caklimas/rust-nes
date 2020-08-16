@@ -47,6 +47,6 @@ pub fn stp(cpu: &mut Cpu6502) -> u8 {
 
 /// This is used when it is an illegal opcode and does nothing
 pub fn xxx(cpu: &mut Cpu6502) -> u8 {
-    println!("Unofficial opcode 0x{:02X}", cpu.opcode);
+    // println!("Unofficial opcode 0x{:02X}", cpu.opcode);
     0
 }

@@ -20,6 +20,7 @@ impl PaletteTable {
 
     pub fn write_data(&mut self, address: u16, data: u8) {
         let masked_address = PaletteTable::get_masked_address(address);
+        // println!("Palette write: {}",masked_address);
         self.data[masked_address as usize] = data;
     }
 
