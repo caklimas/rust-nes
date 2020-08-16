@@ -50,11 +50,20 @@ impl super::Ppu2C02 {
     }
 
     fn read_ppu_data(&mut self) -> u8 {
+        let address = self.current_vram_address.get();
         let mut data = self.ppu_data_buffer;
-        self.ppu_data_buffer = self.ppu_read(self.current_vram_address.get());
+        self.ppu_data_buffer = self.ppu_read(address);
 
-        if self.current_vram_address.get() >= PALETTE_ADDRESS_LOWER {
+        /*
+         * The buffer reads from address - 0x1000
+         * It's the case because the majority of the time (that is, on just about every board but GTROM),
+         * video memory $3000-$3FFF mirrors $2000-$2FFF. 
+         * When PA13 is high ($2000-$3FFF),
+         * nothing is listening to PA12 (the line that distinguishes $0000-$0FFF from $1000-$1FFF and distinguishes $2000-$2FFF from $3000-$3FFF)
+        */
+        if address >= PALETTE_ADDRESS_LOWER {
             data = self.ppu_data_buffer;
+            self.ppu_data_buffer = self.ppu_read(address - 0x1000);
         }
 
         if self.mask.is_rendering_enabled() && (self.scanline < 240 || self.scanline == 261) {
@@ -131,10 +140,6 @@ impl super::Ppu2C02 {
 
     fn write_ppu_data(&mut self, data: u8) {
         self.ppu_write(self.current_vram_address.get(), data);
-        if self.current_vram_address.get() == 0x3f12 {
-            // println!("PPU_DATA writing data {} to address {}", data, self.current_vram_address.get());
-        }
-
         if self.mask.is_rendering_enabled() && (self.scanline < 240 || self.scanline == 261) {
             self.current_vram_address.increment_x();
             self.current_vram_address.increment_y();
