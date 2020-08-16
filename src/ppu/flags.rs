@@ -30,7 +30,7 @@ bitfield! {
 }
 
 impl Mask {
-    pub fn is_rendering_enabled(&mut self) -> bool {
+    pub fn is_rendering_enabled(&self) -> bool {
         self.render_background() || self.render_sprite()
     }
 }
