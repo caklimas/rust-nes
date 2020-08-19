@@ -27,14 +27,14 @@ pub struct Mapper004 {
 }
 
 impl Mapper004 {
-    pub fn new(prg_banks: u8, chr_banks: u8, battery_backed_ram: bool) -> Self {
+    pub fn new(prg_banks: u8, chr_banks: u8, battery_backed_ram: bool, mirror: Mirror) -> Self {
         Mapper004 {
             prg_banks,
             chr_banks,
             bank_select: bank_select::BankSelect::new(prg_banks),
             battery_backed_ram,
             interrupt_request: interrupt_request::InterruptRequest::new(),
-            mirror: Mirror::Horizontal,
+            mirror,
             prg_ram_protect: prg_ram_protect::PrgRamProtect::new(),
             ram: vec![0; KILOBYTES_8 as usize]
         }
@@ -56,7 +56,6 @@ impl Mapper004 {
 
 impl Mapper for Mapper004 {
     fn reset(&mut self) {
-        self.mirror = Mirror::Horizontal;
         self.bank_select.reset();
         self.interrupt_request.reset();
     }

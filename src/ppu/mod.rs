@@ -131,11 +131,11 @@ impl Ppu2C02 {
     }
 
     /// Read from the PPU Bus
-    fn ppu_read(&mut self, address: u16) -> u8 {
+    fn ppu_read(&self, address: u16) -> u8 {
         let mut data: u8 = 0;
         let ppu_address = address & PPU_ADDRESS_END;
 
-        if let Some(ref mut c) = self.cartridge {
+        if let Some(ref c) = self.cartridge {
             if c.borrow_mut().ppu_read(ppu_address, &mut data) {
                 return data;
             }
@@ -374,7 +374,7 @@ impl Ppu2C02 {
         }
     }
 
-    fn get_color_from_palette(&mut self, palette_id: u16, pixel_id: u16) -> colors::Color {
+    pub fn get_color_from_palette(&self, palette_id: u16, pixel_id: u16) -> colors::Color {
         let address = PALETTE_ADDRESS_LOWER + (palette_id * 4) + pixel_id;
         let color_index = self.ppu_read(address) & 0x3F; // Make sure we don't go out of bounds
         colors::COLOR_RAM[color_index as usize]

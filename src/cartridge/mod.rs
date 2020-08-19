@@ -55,7 +55,7 @@ impl Cartridge {
             file_path: file_path.to_owned(),
             prg_banks: header.prg_rom_chunks,
             prg_memory,
-            mapper: Cartridge::get_mapper(mapper_id, &header, file_path),
+            mapper: Cartridge::get_mapper(mapper_id, &header, file_path, mirror),
             mapper_save_data: MapperSaveData::None,
             mapper_id,
             mirror
@@ -73,9 +73,6 @@ impl Cartridge {
         if let Some(ref mut m) = self.mapper {
             let result = m.cpu_map_read(address);
             if result.read_from_cart_ram {
-                if address == 0x3f12 {
-                    // println!("Read from cart ram");
-                }
                 *data = self.prg_memory[result.mapped_address as usize];
                 return true;
             } else if result.read_from_mapper_ram {
@@ -104,8 +101,8 @@ impl Cartridge {
     }
 
     /// Read from the PPU Bus
-    pub fn ppu_read(&mut self, address: u16, data: &mut u8) -> bool {
-        if let Some(ref mut m) = self.mapper {
+    pub fn ppu_read(&self, address: u16, data: &mut u8) -> bool {
+        if let Some(ref m) = self.mapper {
             let result = m.ppu_map_read(address);
             if result.read_from_cart_ram {
                 *data = self.chr_memory[result.mapped_address as usize];
@@ -169,17 +166,16 @@ impl Cartridge {
         }
     }
 
-    fn get_mapper(mapper_id: u8, header: &cartridge_header::CartridgeHeader, file_name: &str) -> Option<Box<dyn mappers::mapper::Mapper>> {
+    fn get_mapper(mapper_id: u8, header: &cartridge_header::CartridgeHeader, file_name: &str, mirror: mirror::Mirror) -> Option<Box<dyn mappers::mapper::Mapper>> {
         let prg_banks = header.prg_rom_chunks;
         let chr_banks = header.chr_rom_chunks;
         let has_battery_backed_ram = (header.mapper_1 >> 1) & 1 != 0;
-        // println!("Mapper id: {}", mapper_id);
         let mut mapper: Option<Box<dyn mappers::mapper::Mapper>> =  match mapper_id {
             0 => Some(Box::new(mappers::mapper000::Mapper000::new(prg_banks, chr_banks, has_battery_backed_ram))),
-            1 => Some(Box::new(mappers::mapper001::Mapper001::new(prg_banks, chr_banks, has_battery_backed_ram))),
+            1 => Some(Box::new(mappers::mapper001::Mapper001::new(prg_banks, chr_banks, has_battery_backed_ram, mirror))),
             2 => Some(Box::new(mappers::mapper002::Mapper002::new(prg_banks, chr_banks, has_battery_backed_ram))),
             3 => Some(Box::new(mappers::mapper003::Mapper003::new(prg_banks, chr_banks, has_battery_backed_ram))),
-            4 => Some(Box::new(mappers::mapper004::Mapper004::new(prg_banks, chr_banks, has_battery_backed_ram))),
+            4 => Some(Box::new(mappers::mapper004::Mapper004::new(prg_banks, chr_banks, has_battery_backed_ram, mirror))),
            66 => Some(Box::new(mappers::mapper066::Mapper066::new(prg_banks, chr_banks, has_battery_backed_ram))),
             _ => None
         };

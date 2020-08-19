@@ -38,13 +38,21 @@ pub struct Mapper001 {
 }
 
 impl Mapper001 {
-    pub fn new(prg_banks: u8, chr_banks: u8, battery_backed_ram: bool) -> Self {
+    pub fn new(prg_banks: u8, chr_banks: u8, battery_backed_ram: bool, mirror: Mirror) -> Self {
+        let control_mirror = match mirror {
+            Mirror::OneScreenLow => 0,
+            Mirror::OneScreenHigh => 1,
+            Mirror::Vertical => 2,
+            Mirror::Horizontal => 3,
+            _ => panic!("Invalid mirror mode")
+        };
+
         Mapper001 {
             prg_banks,
             chr_banks,
             battery_backed_ram,
             chr_bank: chr_bank::ChrBank::new(),
-            control_register: control_register::ControlRegister(0x00),
+            control_register: control_register::ControlRegister(control_mirror),
             prg_bank: prg_bank::PrgBank::new(prg_banks),
             ram: vec![0; KILOBYTES_32 as usize],
             shift_register: Default::default()

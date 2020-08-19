@@ -22,7 +22,7 @@ impl NameTable {
         }
     }
     
-    pub fn read_data(&mut self, address: u16, cartridge: &Option<Rc<RefCell<Cartridge>>>) -> u8 {
+    pub fn read_data(&self, address: u16, cartridge: &Option<Rc<RefCell<Cartridge>>>) -> u8 {
         let name_table_address = NameTableAddress::new(address);
         match cartridge {
             Some(ref c) => {
