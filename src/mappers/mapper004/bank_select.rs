@@ -62,9 +62,9 @@ impl BankSelect {
         match self.chr_inversion {
             ChrA12Inversion::LowerTwo2KilobyteBanks => {
                 self.chr_banks[0] = (self.bank_registers[0] & ignore_bottom_bit) * chr_offset;
-                self.chr_banks[1] = (self.bank_registers[0] * chr_offset) + chr_offset;
+                self.chr_banks[1] = ((self.bank_registers[0] & ignore_bottom_bit) * chr_offset) + chr_offset;
                 self.chr_banks[2] = (self.bank_registers[1] & ignore_bottom_bit) * chr_offset;
-                self.chr_banks[3] = (self.bank_registers[1] * chr_offset) + chr_offset;
+                self.chr_banks[3] = ((self.bank_registers[1] & ignore_bottom_bit) * chr_offset) + chr_offset;
                 self.chr_banks[4] = self.bank_registers[2] * chr_offset;
                 self.chr_banks[5] = self.bank_registers[3] * chr_offset;
                 self.chr_banks[6] = self.bank_registers[4] * chr_offset;
@@ -76,9 +76,9 @@ impl BankSelect {
                 self.chr_banks[2] = self.bank_registers[4] * chr_offset;
                 self.chr_banks[3] = self.bank_registers[5] * chr_offset;
                 self.chr_banks[4] = (self.bank_registers[0] & ignore_bottom_bit) * chr_offset;
-                self.chr_banks[5] = (self.bank_registers[0] * chr_offset) + chr_offset;
+                self.chr_banks[5] = ((self.bank_registers[0] & ignore_bottom_bit) * chr_offset) + chr_offset;
                 self.chr_banks[6] = (self.bank_registers[1] & ignore_bottom_bit) * chr_offset;
-                self.chr_banks[7] = (self.bank_registers[1] * chr_offset) + chr_offset;
+                self.chr_banks[7] = ((self.bank_registers[1] & ignore_bottom_bit) * chr_offset) + chr_offset;
             }
         }
     }
