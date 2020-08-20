@@ -85,13 +85,10 @@ impl Mapper for Mapper004 {
     }
 
     fn cpu_map_read(&self, address: u16) -> MapperReadResult {
-        match address {
-            OPTIONAL_RAM_ADDRESS_LOWER..=OPTIONAL_RAM_ADDRESS_UPPER => {
-                let index = (address & RAM_ADDRESS_MASK) as usize;
-                return MapperReadResult::from_mapper_ram(self.ram[index]);
-            },
-            _ => ()
-        };
+        if let OPTIONAL_RAM_ADDRESS_LOWER..=OPTIONAL_RAM_ADDRESS_UPPER = address {
+            let index = (address & RAM_ADDRESS_MASK) as usize;
+            return MapperReadResult::from_mapper_ram(self.ram[index]);
+        }
 
         let address_offset = (address & KILOBYTES_8_MASK) as u32;
         match address {
@@ -116,13 +113,10 @@ impl Mapper for Mapper004 {
     }
 
     fn cpu_map_write(&mut self, address: u16, data: u8) -> MapperWriteResult {
-        match address {
-            OPTIONAL_RAM_ADDRESS_LOWER..=OPTIONAL_RAM_ADDRESS_UPPER => {
-                let index = (address & RAM_ADDRESS_MASK) as usize;
-                self.ram[index] = data;
-                return MapperWriteResult::handled();
-            },
-            _ => ()
+        if let OPTIONAL_RAM_ADDRESS_LOWER..=OPTIONAL_RAM_ADDRESS_UPPER = address {
+            let index = (address & RAM_ADDRESS_MASK) as usize;
+            self.ram[index] = data;
+            return MapperWriteResult::handled();
         }
 
         match address {
@@ -196,7 +190,7 @@ impl Mapper for Mapper004 {
     }
 
     fn ppu_map_write(&mut self, _address: u16, _mapped_address: &mut u32, _data: u8) -> bool {
-        return false;
+        false
     }
 
     fn load_battery_backed_ram(&mut self, data: Vec<u8>) {
