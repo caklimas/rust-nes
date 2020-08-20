@@ -33,12 +33,17 @@ cargo build --release
 ```
 
 ### Run executable
+Navigate to /target/release folder.
+There are two ways to run a ROM.
+
+The first is specifying the location of a .nes or .qks file:
 ```
-Navigate to /target/release folder then execute the following:
 rust-nes.exe {path-to-rom}
 
-Ex: rust-nes.exe "C:\ROMS\Super Mario Bros. (World).nes"
+Ex: rust-nes.exe "C:\ROMS\test-rom.nes"
 ```
+
+The second is running the executable and then dragging and dropping a .nes or .qks file into the window
 
 ### Controls
 This is the keyboard mapping from the NES Controller:

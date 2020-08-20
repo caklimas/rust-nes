@@ -46,11 +46,11 @@ fn run_game(sdl_context: &Sdl, audio_device: &sdl2::audio::AudioDevice<AudioDevi
         (display::SCREEN_HEIGHT * display::PIXEL_SIZE) as u32
     ).expect("Error creating texture streaming");
 
-    let mut audio_started = false;
-    let args: Vec<String> = env::args().collect();
-    let mut nes = get_nes(&args[1], buffer);
-
     let mut event_pump = sdl_context.event_pump().expect("Error loading event pump");
+    let mut audio_started = false;
+    let file_path = get_file(&mut event_pump);
+    let mut nes = get_nes(&file_path, buffer);
+
     'running: loop {
         let frame_complete = nes.clock(&mut texture, &mut canvas, &event_pump);
         if frame_complete {
@@ -87,6 +87,28 @@ fn run_game(sdl_context: &Sdl, audio_device: &sdl2::audio::AudioDevice<AudioDevi
                 }
             }
         }
+    }
+}
+
+fn get_file(event_pump: &mut sdl2::EventPump) -> String {
+    let args: Vec<String> = env::args().collect();
+    if args.len() > 1 {
+        return args[1].to_owned();
+    } else {
+        let filename: String;
+        'file: loop {
+            for event in event_pump.poll_iter() {
+                match event {
+                    Event::DropFile { filename: f, .. } => {
+                        filename = f;
+                        break 'file;
+                    },
+                    _ => ()
+                }
+            }
+        }
+
+        return filename;
     }
 }
 
