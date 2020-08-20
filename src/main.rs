@@ -93,22 +93,15 @@ fn run_game(sdl_context: &Sdl, audio_device: &sdl2::audio::AudioDevice<AudioDevi
 fn get_file(event_pump: &mut sdl2::EventPump) -> String {
     let args: Vec<String> = env::args().collect();
     if args.len() > 1 {
-        return args[1].to_owned();
+        args[1].to_owned()
     } else {
-        let filename: String;
-        'file: loop {
+        loop {
             for event in event_pump.poll_iter() {
-                match event {
-                    Event::DropFile { filename: f, .. } => {
-                        filename = f;
-                        break 'file;
-                    },
-                    _ => ()
+                if let Event::DropFile { filename: f, .. } = event {
+                    return f;
                 }
             }
         }
-
-        return filename;
     }
 }
 
@@ -126,8 +119,7 @@ fn get_nes(file_path: &str, buffer: Arc<Mutex<Vec<f32>>>) -> nes::Nes {
             nes
         },
         "qks" => {
-            let nes = save_state::quick_load(file_path, buffer);
-            nes
+            save_state::quick_load(file_path, buffer)
         },
         _ => panic!("Unrecognized file extension")
     }

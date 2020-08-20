@@ -67,13 +67,13 @@ impl Mapper for Mapper002 {
         match address {
             CPU_MIN_ADDRESS..=SWITCHABLE_ROM_BANK_MAX => {
                 let mapped_address = (self.prg_bank_low as u32) * (KILOBYTES_16 as u32) + ((address & KILOBYTES_16_MASK) as u32);
-                return MapperReadResult::from_cart_ram(mapped_address);
+                MapperReadResult::from_cart_ram(mapped_address)
             },
             FIXED_BANK_MIN..=CPU_MAX_ADDRESS => {
                 let mapped_address = (self.prg_bank_high as u32) * (KILOBYTES_16 as u32) + ((address & KILOBYTES_16_MASK) as u32);
-                return MapperReadResult::from_cart_ram(mapped_address);
+                MapperReadResult::from_cart_ram(mapped_address)
             }
-            _ => return MapperReadResult::none()
+            _ => MapperReadResult::none()
         }
     }
 

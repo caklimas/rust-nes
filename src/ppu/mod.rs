@@ -205,10 +205,8 @@ impl Ppu2C02 {
             } else if sub_cycle == 6 {
                 let pattern_address = self.get_pattern_address(8);
                 self.background.next_tile_msb = self.ppu_read(pattern_address);
-            } else if sub_cycle == 7 {
-                if self.mask.is_rendering_enabled() {
-                    self.current_vram_address.increment_x();
-                }
+            } else if sub_cycle == 7 && self.mask.is_rendering_enabled() {
+                self.current_vram_address.increment_x();
             }
         }
 
@@ -307,20 +305,22 @@ impl Ppu2C02 {
             }
 
             // If both background and foreground aren't transparent we then check sprite zero hit
-            if self.sprite.zero_hit_possible && self.sprite.zero_being_rendered {
-                if self.mask.render_background() && self.mask.render_sprite() {
-                    // The left edge of the screen has specific switches to control
-                    // its appearance. This is used to smooth inconsistencies when
-                    // scrolling (since sprites x coord must be >= 0)
-                    let lower_cycle = if !(self.mask.render_background_left() || self.mask.render_sprite_left()) {
-                        9
-                    } else {
-                        1
-                    };
+            if self.sprite.zero_hit_possible && 
+               self.sprite.zero_being_rendered && 
+               self.mask.render_background() && 
+               self.mask.render_sprite() 
+            {
+                // The left edge of the screen has specific switches to control
+                // its appearance. This is used to smooth inconsistencies when
+                // scrolling (since sprites x coord must be >= 0)
+                let lower_cycle = if !(self.mask.render_background_left() || self.mask.render_sprite_left()) {
+                    9
+                } else {
+                    1
+                };
 
-                    if self.cycle >= lower_cycle && self.cycle <= MAX_VISIBLE_CLOCK_CYCLE {
-                        self.status.set_sprite_zero_hit(true);
-                    }
+                if self.cycle >= lower_cycle && self.cycle <= MAX_VISIBLE_CLOCK_CYCLE {
+                    self.status.set_sprite_zero_hit(true);
                 }
             }
         }

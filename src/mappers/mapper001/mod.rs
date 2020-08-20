@@ -101,13 +101,13 @@ impl Mapper for Mapper001 {
         match address {
             OPTIONAL_RAM_ADDRESS_LOWER..=OPTIONAL_RAM_ADDRESS_UPPER => {
                 let index = (address & RAM_ADDRESS_MASK) as usize;
-                return MapperReadResult::from_mapper_ram(self.ram[index]);
+                MapperReadResult::from_mapper_ram(self.ram[index])
             },
             PRG_ROM_FIRST_BANK_LOWER..=PRG_ROM_LAST_BANK_UPPER => {
                 let mapped_address = self.prg_bank.get_mapped_address(address, &self.control_register.get_prg_mode());
                 MapperReadResult::from_cart_ram(mapped_address)
             }
-            _ => return MapperReadResult::none()
+            _ => MapperReadResult::none()
         }
     }
 
